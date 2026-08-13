@@ -24,31 +24,6 @@ services:
       start_period: 3s
     restart: unless-stopped
 
-  mw-bff:
-    build:
-      context: ./mw-bff
-    environment:
-      APP_ENV: "${APP_ENV:-development}"
-      PORT: "7200"
-      DATABASE_PATH: "/app/data/bff.db"
-    expose:
-      - "7200"
-    volumes:
-      - bff-data:/app/data
-    networks:
-      - control-plane
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "wget -qO- http://127.0.0.1:7200/health >/dev/null 2>&1",
-        ]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-      start_period: 3s
-    restart: unless-stopped
-
   mw-identity:
     build:
       context: ./mw-identity
@@ -77,6 +52,45 @@ services:
         [
           "CMD-SHELL",
           "wget -qO- http://127.0.0.1:7100/health >/dev/null 2>&1",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+    restart: unless-stopped
+
+  mw-bff:
+    build:
+      context: ./mw-bff
+    depends_on:
+      mw-identity:
+        condition: service_healthy
+    environment:
+      APP_ENV: "${APP_ENV:-development}"
+      PORT: "7200"
+      DATABASE_PATH: "/app/data/bff.db"
+      BFF_PUBLIC_BASE_URL: "${BFF_PUBLIC_BASE_URL:-}"
+      BFF_IDENTITY_ISSUER: "${BFF_IDENTITY_ISSUER:-}"
+      BFF_IDENTITY_INTERNAL_BASE_URL: "${BFF_IDENTITY_INTERNAL_BASE_URL:-}"
+      BFF_OIDC_CLIENT_ID: "${BFF_OIDC_CLIENT_ID:-}"
+      BFF_OIDC_CLIENT_SECRET: "${BFF_OIDC_CLIENT_SECRET:-}"
+      BFF_TRANSACTION_KEYS: "${BFF_TRANSACTION_KEYS:-}"
+      BFF_TRANSACTION_ACTIVE_KEY_VERSION: "${BFF_TRANSACTION_ACTIVE_KEY_VERSION:-1}"
+      BFF_OIDC_TRANSACTION_TTL_MINUTES: "${BFF_OIDC_TRANSACTION_TTL_MINUTES:-10}"
+      BFF_ADMIN_SESSION_TTL_HOURS: "${BFF_ADMIN_SESSION_TTL_HOURS:-8}"
+      BFF_OIDC_CLOCK_SKEW_SECONDS: "${BFF_OIDC_CLOCK_SKEW_SECONDS:-60}"
+      BFF_IDENTITY_HTTP_TIMEOUT_SECONDS: "${BFF_IDENTITY_HTTP_TIMEOUT_SECONDS:-5}"
+    expose:
+      - "7200"
+    volumes:
+      - bff-data:/app/data
+    networks:
+      - control-plane
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:7200/health >/dev/null 2>&1",
         ]
       interval: 10s
       timeout: 3s

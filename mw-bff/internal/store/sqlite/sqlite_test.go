@@ -20,19 +20,36 @@ func TestApplyMigrationsIsIdempotent(t *testing.T) {
 	if err := ApplyMigrations(ctx, db, migrations.FS); err != nil {
 		t.Fatal(err)
 	}
+
+	var firstCount int
+	if err := db.QueryRowContext(
+		ctx,
+		`SELECT COUNT(1) FROM schema_migrations`,
+	).Scan(&firstCount); err != nil {
+		t.Fatal(err)
+	}
+
+	if firstCount == 0 {
+		t.Fatal("expected at least one applied migration")
+	}
+
 	if err := ApplyMigrations(ctx, db, migrations.FS); err != nil {
 		t.Fatal(err)
 	}
 
-	var count int
+	var secondCount int
 	if err := db.QueryRowContext(
 		ctx,
 		`SELECT COUNT(1) FROM schema_migrations`,
-	).Scan(&count); err != nil {
+	).Scan(&secondCount); err != nil {
 		t.Fatal(err)
 	}
 
-	if count != 1 {
-		t.Fatalf("migration count = %d; want 1", count)
+	if secondCount != firstCount {
+		t.Fatalf(
+			"migration count changed on second apply: first=%d second=%d",
+			firstCount,
+			secondCount,
+		)
 	}
 }
