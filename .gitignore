@@ -18,3 +18,4 @@ Thumbs.db
 .env.step*.local
 
 .initscripts
+mw-web-admin/
