@@ -2,7 +2,7 @@
 .env.*
 !.env.example
 
-.backups/
+.backup/
 data/
 *.db
 *.db-shm
@@ -13,3 +13,8 @@ dist/
 
 .DS_Store
 Thumbs.db
+
+# Local step/runtime secrets
+.env.step*.local
+
+.initscripts

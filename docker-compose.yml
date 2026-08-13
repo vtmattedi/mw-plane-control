@@ -1,0 +1,93 @@
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: infra/gateway/Dockerfile
+    ports:
+      - "127.0.0.1:${GATEWAY_HOST_PORT:-3050}:8080"
+    depends_on:
+      mw-bff:
+        condition: service_healthy
+      mw-identity:
+        condition: service_healthy
+    networks:
+      - control-plane
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:8080/_gateway-health >/dev/null 2>&1",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+    restart: unless-stopped
+
+  mw-bff:
+    build:
+      context: ./mw-bff
+    environment:
+      APP_ENV: "${APP_ENV:-development}"
+      PORT: "7200"
+      DATABASE_PATH: "/app/data/bff.db"
+    expose:
+      - "7200"
+    volumes:
+      - bff-data:/app/data
+    networks:
+      - control-plane
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:7200/health >/dev/null 2>&1",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+    restart: unless-stopped
+
+  mw-identity:
+    build:
+      context: ./mw-identity
+    environment:
+      APP_ENV: "${APP_ENV:-development}"
+      PORT: "7100"
+      DATABASE_PATH: "/app/data/identity.db"
+      PUBLIC_ISSUER: "${IDENTITY_PUBLIC_ISSUER:-https://identity.mattediworks.com}"
+      IDENTITY_SESSION_TTL_HOURS: "${IDENTITY_SESSION_TTL_HOURS:-168}"
+      IDENTITY_LOGIN_CSRF_TTL_MINUTES: "${IDENTITY_LOGIN_CSRF_TTL_MINUTES:-10}"
+      IDENTITY_LOGIN_RATE_ATTEMPTS: "${IDENTITY_LOGIN_RATE_ATTEMPTS:-10}"
+      IDENTITY_LOGIN_RATE_WINDOW_MINUTES: "${IDENTITY_LOGIN_RATE_WINDOW_MINUTES:-5}"
+      IDENTITY_SIGNING_KEYS: "${IDENTITY_SIGNING_KEYS:-}"
+      IDENTITY_SIGNING_ACTIVE_KEY_VERSION: "${IDENTITY_SIGNING_ACTIVE_KEY_VERSION:-1}"
+      IDENTITY_AUTHORIZATION_CODE_TTL_MINUTES: "${IDENTITY_AUTHORIZATION_CODE_TTL_MINUTES:-5}"
+      IDENTITY_ACCESS_TOKEN_TTL_MINUTES: "${IDENTITY_ACCESS_TOKEN_TTL_MINUTES:-60}"
+      IDENTITY_ID_TOKEN_TTL_MINUTES: "${IDENTITY_ID_TOKEN_TTL_MINUTES:-5}"
+    expose:
+      - "7100"
+    volumes:
+      - identity-data:/app/data
+    networks:
+      - control-plane
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:7100/health >/dev/null 2>&1",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+    restart: unless-stopped
+
+networks:
+  control-plane:
+    driver: bridge
+
+volumes:
+  identity-data:
+  bff-data:
