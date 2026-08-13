@@ -7,6 +7,7 @@ import (
 
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/auth"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identityadmin"
+	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identitywebauthn"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/oidc"
 )
 
@@ -17,6 +18,7 @@ func New(
 	oidcConfig OIDCMetadataConfig,
 	oidcService *oidc.Service,
 	identityAdminService *identityadmin.Service,
+	identityWebAuthnService *identitywebauthn.Service,
 ) http.Handler {
 	if oidcConfig.SigningManager == nil {
 		panic(fmt.Errorf("OIDC signing manager is required"))
@@ -27,12 +29,19 @@ func New(
 	if identityAdminService == nil {
 		panic(fmt.Errorf("Identity admin service is required"))
 	}
+	if identityWebAuthnService == nil {
+		panic(fmt.Errorf("Identity WebAuthn service is required"))
+	}
 
 	authHandlers := newIdentityAuthHandlers(authService, authConfig)
 	oauthHandlers := newOAuthHandlers(oidcService, authHandlers)
 	adminHandlers := newIdentityAdminHandlers(
 		oidcService,
 		identityAdminService,
+	)
+	webAuthnHandlers := newIdentityWebAuthnHandlers(
+		identityWebAuthnService,
+		authHandlers,
 	)
 
 	mux := http.NewServeMux()
@@ -110,6 +119,15 @@ func New(
 		"GET /admin/api/audit",
 		adminHandlers.audit,
 	)
+
+	mux.HandleFunc("GET /webauthn-login.js", webAuthnHandlers.loginScript)
+	mux.HandleFunc("GET /webauthn-account.js", webAuthnHandlers.accountScript)
+	mux.HandleFunc("GET /api/webauthn/credentials", webAuthnHandlers.list)
+	mux.HandleFunc("POST /api/webauthn/register/options", webAuthnHandlers.registerOptions)
+	mux.HandleFunc("POST /api/webauthn/register/verify", webAuthnHandlers.registerVerify)
+	mux.HandleFunc("POST /api/webauthn/login/options", webAuthnHandlers.loginOptions)
+	mux.HandleFunc("POST /api/webauthn/login/verify", webAuthnHandlers.loginVerify)
+	mux.HandleFunc("DELETE /api/webauthn/credentials/{credential_id}", webAuthnHandlers.remove)
 
 	mux.HandleFunc("GET /{$}", authHandlers.root)
 	mux.HandleFunc("GET /login", authHandlers.loginPage)

@@ -14,6 +14,7 @@ import (
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/config"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/httpapi"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identityadmin"
+	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identitywebauthn"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/oidc"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/signing"
 	storesqlite "github.com/vtmattedi/mw-plane-control/mw-identity/internal/store/sqlite"
@@ -120,6 +121,22 @@ func main() {
 		os.Exit(1)
 	}
 
+	identityWebAuthnService, err := identitywebauthn.NewService(
+		store,
+		identitywebauthn.Options{
+			RPID:                       cfg.WebAuthnRPID,
+			RPName:                     cfg.WebAuthnRPName,
+			Origins:                    cfg.WebAuthnOrigins,
+			CredentialKeys:             cfg.WebAuthnCredentialKeys,
+			CredentialActiveKeyVersion: cfg.WebAuthnCredentialActiveKeyVersion,
+			CeremonyTTL:                cfg.WebAuthnCeremonyTTL,
+		},
+	)
+	if err != nil {
+		slog.Error("Identity WebAuthn initialization failed", "error", err)
+		os.Exit(1)
+	}
+
 	server := &http.Server{
 		Addr: fmt.Sprintf(":%d", cfg.Port),
 		Handler: httpapi.New(
@@ -137,6 +154,7 @@ func main() {
 			},
 			oidcService,
 			identityAdminService,
+			identityWebAuthnService,
 		),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,

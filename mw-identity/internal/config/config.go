@@ -9,19 +9,25 @@ import (
 )
 
 type Config struct {
-	AppEnv                  string
-	Port                    int
-	DatabasePath            string
-	PublicIssuer            string
-	IdentitySessionTTL      time.Duration
-	LoginCSRFTTL            time.Duration
-	LoginRateLimitAttempts  int
-	LoginRateLimitWindow    time.Duration
-	SigningKeys             string
-	SigningActiveKeyVersion int
-	AuthorizationCodeTTL    time.Duration
-	AccessTokenTTL          time.Duration
-	IDTokenTTL              time.Duration
+	AppEnv                             string
+	Port                               int
+	DatabasePath                       string
+	PublicIssuer                       string
+	IdentitySessionTTL                 time.Duration
+	LoginCSRFTTL                       time.Duration
+	LoginRateLimitAttempts             int
+	LoginRateLimitWindow               time.Duration
+	SigningKeys                        string
+	SigningActiveKeyVersion            int
+	AuthorizationCodeTTL               time.Duration
+	AccessTokenTTL                     time.Duration
+	IDTokenTTL                         time.Duration
+	WebAuthnRPID                       string
+	WebAuthnRPName                     string
+	WebAuthnOrigins                    []string
+	WebAuthnCredentialKeys             string
+	WebAuthnCredentialActiveKeyVersion int
+	WebAuthnCeremonyTTL                time.Duration
 }
 
 func Load() (Config, error) {
@@ -86,6 +92,20 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	webAuthnKeyVersion, err := positiveInt(
+		"IDENTITY_WEBAUTHN_CREDENTIAL_ACTIVE_KEY_VERSION",
+		1,
+	)
+	if err != nil {
+		return Config{}, err
+	}
+	webAuthnCeremonyMinutes, err := positiveInt(
+		"IDENTITY_WEBAUTHN_CEREMONY_TTL_MINUTES",
+		5,
+	)
+	if err != nil {
+		return Config{}, err
+	}
 
 	databasePath := strings.TrimSpace(
 		getenv("DATABASE_PATH", "./data/identity.db"),
@@ -121,6 +141,23 @@ func Load() (Config, error) {
 		AuthorizationCodeTTL:    time.Duration(codeMinutes) * time.Minute,
 		AccessTokenTTL:          time.Duration(accessMinutes) * time.Minute,
 		IDTokenTTL:              time.Duration(idMinutes) * time.Minute,
+		WebAuthnRPID: strings.TrimSpace(getenv(
+			"IDENTITY_WEBAUTHN_RP_ID",
+			"identity.mattediworks.com",
+		)),
+		WebAuthnRPName: strings.TrimSpace(getenv(
+			"IDENTITY_WEBAUTHN_RP_NAME",
+			"MW Identity",
+		)),
+		WebAuthnOrigins: []string{strings.TrimSpace(getenv(
+			"IDENTITY_WEBAUTHN_ORIGINS",
+			"https://identity.mattediworks.com",
+		))},
+		WebAuthnCredentialKeys: strings.TrimSpace(
+			os.Getenv("IDENTITY_WEBAUTHN_CREDENTIAL_KEYS"),
+		),
+		WebAuthnCredentialActiveKeyVersion: webAuthnKeyVersion,
+		WebAuthnCeremonyTTL:                time.Duration(webAuthnCeremonyMinutes) * time.Minute,
 	}, nil
 }
 

@@ -260,6 +260,76 @@ func (s *Service) Login(
 	}, nil
 }
 
+func (s *Service) CreateSessionForUser(
+	ctx context.Context,
+	userID string,
+	remoteIP string,
+	reason string,
+) (LoginResult, error) {
+	user, err := s.store.IdentityUserByID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return LoginResult{}, ErrInvalidLogin
+		}
+		return LoginResult{}, err
+	}
+	if !user.Enabled {
+		return LoginResult{}, ErrUserDisabled
+	}
+
+	sessionToken, err := NewOpaqueToken("mwid_")
+	if err != nil {
+		return LoginResult{}, err
+	}
+	csrfToken, err := NewOpaqueToken("mwcsrf_")
+	if err != nil {
+		return LoginResult{}, err
+	}
+	sessionID, err := NewOpaqueToken("sid_")
+	if err != nil {
+		return LoginResult{}, err
+	}
+
+	now := s.now().UTC()
+	expiresAt := now.Add(s.sessionTTL)
+	if err := s.store.CreateIdentitySession(
+		ctx,
+		SessionRecord{
+			ID:         sessionID,
+			UserID:     user.ID,
+			TokenHash:  HashToken(sessionToken),
+			CSRFHash:   HashToken(csrfToken),
+			ExpiresAt:  expiresAt,
+			CreatedAt:  now,
+			LastSeenAt: now,
+		},
+	); err != nil {
+		return LoginResult{}, err
+	}
+
+	_ = s.store.DeleteExpiredIdentitySessions(ctx, now)
+	if strings.TrimSpace(reason) == "" {
+		reason = "authenticated"
+	}
+	s.recordAudit(ctx, audit.Event{
+		ID:         mustAuditID(),
+		EventType:  "identity.login.completed",
+		Status:     "success",
+		Severity:   "info",
+		UserID:     &user.ID,
+		RemoteIP:   remoteIP,
+		ReasonCode: reason,
+		CreatedAt:  now,
+	})
+
+	return LoginResult{
+		User:         user,
+		SessionToken: sessionToken,
+		CSRFToken:    csrfToken,
+		ExpiresAt:    expiresAt,
+	}, nil
+}
+
 func (s *Service) Session(
 	ctx context.Context,
 	rawToken string,

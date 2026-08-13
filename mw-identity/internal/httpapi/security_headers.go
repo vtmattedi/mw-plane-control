@@ -10,6 +10,8 @@ func securityHeaders(next http.Handler) http.Handler {
 		w.Header().Set(
 			"Content-Security-Policy",
 			"default-src 'none'; "+
+				"script-src 'self'; "+
+				"connect-src 'self'; "+
 				"form-action 'self'; "+
 				"frame-ancestors 'none'; "+
 				"base-uri 'none'",
