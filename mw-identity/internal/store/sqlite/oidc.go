@@ -156,8 +156,9 @@ func (s *Store) CreateAccessToken(
 		ctx,
 		`INSERT INTO identity_access_tokens (
 			id, token_hash, client_id, user_id, scope_json,
-			expires_at_unix, created_at_unix, revoked_at_unix
-		) VALUES (?, ?, ?, ?, ?, ?, ?, NULL)`,
+			expires_at_unix, created_at_unix, revoked_at_unix,
+			audience
+		) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?)`,
 		token.ID,
 		token.TokenHash,
 		token.ClientID,
@@ -165,6 +166,7 @@ func (s *Store) CreateAccessToken(
 		string(scopeJSON),
 		token.ExpiresAt.Unix(),
 		token.CreatedAt.Unix(),
+		token.Audience,
 	)
 	if err != nil {
 		return fmt.Errorf("create access token: %w", err)
@@ -180,7 +182,7 @@ func (s *Store) AccessTokenByHash(
 	row := s.db.QueryRowContext(
 		ctx,
 		`SELECT
-			id, token_hash, client_id, user_id, scope_json,
+			id, token_hash, client_id, user_id, audience, scope_json,
 			expires_at_unix, created_at_unix
 		FROM identity_access_tokens
 		WHERE token_hash = ?
@@ -202,6 +204,7 @@ func (s *Store) AccessTokenByHash(
 		&token.TokenHash,
 		&token.ClientID,
 		&token.UserID,
+		&token.Audience,
 		&scopeJSON,
 		&expires,
 		&created,

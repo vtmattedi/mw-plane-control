@@ -1,0 +1,121 @@
+package oidc
+
+import (
+	"context"
+	"errors"
+	"strings"
+
+	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/applications"
+	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/auth"
+	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identityadmin"
+)
+
+const IdentityAdminAudience = "mw-identity-admin"
+
+type AccessContext struct {
+	Token       AccessToken
+	User        auth.User
+	Application applications.Application
+}
+
+func (s *Service) ValidateAccessToken(
+	ctx context.Context,
+	rawAccessToken string,
+	requiredAudience string,
+	requiredScope string,
+) (AccessContext, *ProtocolError) {
+	rawAccessToken = strings.TrimSpace(
+		rawAccessToken,
+	)
+	if rawAccessToken == "" {
+		return AccessContext{}, invalidToken()
+	}
+
+	token, err := s.store.AccessTokenByHash(
+		ctx,
+		hashOpaque(rawAccessToken),
+		s.now().UTC(),
+	)
+	if err != nil {
+		return AccessContext{}, invalidToken()
+	}
+
+	if requiredAudience != "" &&
+		token.Audience != requiredAudience {
+		return AccessContext{}, invalidToken()
+	}
+	if requiredScope != "" &&
+		!contains(token.Scopes, requiredScope) {
+		return AccessContext{}, invalidToken()
+	}
+
+	user, err := s.store.IdentityUserByID(
+		ctx,
+		token.UserID,
+	)
+	if err != nil || !user.Enabled {
+		return AccessContext{}, invalidToken()
+	}
+
+	app, err := s.store.ApplicationByClientID(
+		ctx,
+		token.ClientID,
+	)
+	if err != nil ||
+		!app.Enabled ||
+		app.ArchivedAt != nil {
+		return AccessContext{}, invalidToken()
+	}
+
+	return AccessContext{
+		Token:       token,
+		User:        user,
+		Application: app,
+	}, nil
+}
+
+func (s *Service) AuthorizeIdentityUser(
+	ctx context.Context,
+	authorization ValidatedAuthorization,
+	user auth.User,
+) *ProtocolError {
+	if !user.Enabled {
+		return accessDenied()
+	}
+	if user.IsSuperadmin &&
+		contains(
+			authorization.Scopes,
+			"identity.admin",
+		) &&
+		contains(
+			authorization.Application.Audiences,
+			IdentityAdminAudience,
+		) {
+		return nil
+	}
+
+	_, err := s.store.IdentityAssignmentRole(
+		ctx,
+		authorization.Application.ID,
+		user.ID,
+	)
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, identityadmin.ErrNotFound) {
+		return accessDenied()
+	}
+
+	return serverError(
+		"could not evaluate application assignment",
+	)
+}
+
+func accessDenied() *ProtocolError {
+	return &ProtocolError{
+		Code:            "access_denied",
+		Description:     "identity is not assigned to this application",
+		HTTPStatus:      403,
+		RedirectAllowed: true,
+	}
+}

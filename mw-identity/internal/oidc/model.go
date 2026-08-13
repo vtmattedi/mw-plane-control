@@ -65,6 +65,7 @@ type AccessToken struct {
 	TokenHash string
 	ClientID  string
 	UserID    string
+	Audience  string
 	Scopes    []string
 	ExpiresAt time.Time
 	CreatedAt time.Time
@@ -75,6 +76,12 @@ type Store interface {
 		context.Context,
 		string,
 	) (applications.Application, error)
+
+	IdentityAssignmentRole(
+		context.Context,
+		string,
+		string,
+	) (string, error)
 
 	IdentityUserByID(
 		context.Context,

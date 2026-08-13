@@ -304,6 +304,20 @@ func (s *Service) ExchangeCode(
 		return TokenResponse{}, serverError("ID token signing failed")
 	}
 
+	accessAudience := app.ClientID
+	if contains(code.Scopes, "identity.admin") {
+		if !contains(
+			app.Audiences,
+			IdentityAdminAudience,
+		) {
+			return TokenResponse{},
+				serverError(
+					"client is not configured for Identity admin audience",
+				)
+		}
+		accessAudience = IdentityAdminAudience
+	}
+
 	accessExpires := now.Add(s.config.AccessTokenTTL)
 	if err := s.store.CreateAccessToken(
 		ctx,
@@ -312,6 +326,7 @@ func (s *Service) ExchangeCode(
 			TokenHash: hashOpaque(accessToken),
 			ClientID:  app.ClientID,
 			UserID:    user.ID,
+			Audience:  accessAudience,
 			Scopes:    code.Scopes,
 			ExpiresAt: accessExpires,
 			CreatedAt: now,

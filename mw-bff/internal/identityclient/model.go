@@ -28,11 +28,13 @@ type Transaction struct {
 }
 
 type Identity struct {
-	Issuer      string
-	Subject     string
-	Email       string
-	DisplayName string
-	AuthTime    time.Time
+	Issuer               string
+	Subject              string
+	Email                string
+	DisplayName          string
+	AuthTime             time.Time
+	AccessToken          string
+	AccessTokenExpiresAt time.Time
 }
 
 type Store interface {

@@ -56,6 +56,21 @@ func (h *oauthHandlers) authorize(
 		return
 	}
 
+	if protocolErr :=
+		h.oidc.AuthorizeIdentityUser(
+			r.Context(),
+			validated,
+			session.User,
+		); protocolErr != nil {
+		h.authorizationError(
+			w,
+			r,
+			request,
+			protocolErr,
+		)
+		return
+	}
+
 	code, err := h.oidc.IssueAuthorizationCode(
 		r.Context(),
 		validated,

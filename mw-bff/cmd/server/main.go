@@ -97,6 +97,7 @@ func main() {
 				"openid",
 				"profile",
 				"email",
+				"identity.admin",
 			},
 			TransactionTTL: cfg.OIDCTransactionTTL,
 			ClockSkew:      cfg.OIDCClockSkew,
@@ -117,6 +118,7 @@ func main() {
 	sessions, err := session.New(
 		store,
 		cfg.AdminSessionTTL,
+		keyring,
 	)
 	if err != nil {
 		slog.Error(
@@ -137,8 +139,10 @@ func main() {
 			identity,
 			sessions,
 			httpapi.AuthConfig{
-				AppEnv:        cfg.AppEnv,
-				PublicBaseURL: cfg.PublicBaseURL,
+				AppEnv:                  cfg.AppEnv,
+				PublicBaseURL:           cfg.PublicBaseURL,
+				IdentityInternalBaseURL: cfg.IdentityInternalBaseURL,
+				IdentityHTTPTimeout:     cfg.IdentityHTTPTimeout,
 			},
 		),
 		ReadHeaderTimeout: 5 * time.Second,

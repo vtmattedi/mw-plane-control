@@ -13,6 +13,7 @@ import (
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/auth"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/config"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/httpapi"
+	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identityadmin"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/oidc"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/signing"
 	storesqlite "github.com/vtmattedi/mw-plane-control/mw-identity/internal/store/sqlite"
@@ -108,6 +109,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	identityAdminService, err :=
+		identityadmin.New(store)
+	if err != nil {
+		slog.Error(
+			"Identity admin initialization failed",
+			"error",
+			err,
+		)
+		os.Exit(1)
+	}
+
 	server := &http.Server{
 		Addr: fmt.Sprintf(":%d", cfg.Port),
 		Handler: httpapi.New(
@@ -124,6 +136,7 @@ func main() {
 				SigningManager: signingManager,
 			},
 			oidcService,
+			identityAdminService,
 		),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,

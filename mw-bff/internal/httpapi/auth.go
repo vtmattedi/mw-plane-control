@@ -19,8 +19,10 @@ const (
 )
 
 type AuthConfig struct {
-	AppEnv        string
-	PublicBaseURL string
+	AppEnv                  string
+	PublicBaseURL           string
+	IdentityInternalBaseURL string
+	IdentityHTTPTimeout     time.Duration
 }
 
 type authHandlers struct {
@@ -113,11 +115,13 @@ func (h *authHandlers) callback(
 	created, err := h.sessions.Create(
 		r.Context(),
 		session.Identity{
-			Issuer:      identity.Issuer,
-			Subject:     identity.Subject,
-			Email:       identity.Email,
-			DisplayName: identity.DisplayName,
-			AuthTime:    identity.AuthTime,
+			Issuer:               identity.Issuer,
+			Subject:              identity.Subject,
+			Email:                identity.Email,
+			DisplayName:          identity.DisplayName,
+			AuthTime:             identity.AuthTime,
+			AccessToken:          identity.AccessToken,
+			AccessTokenExpiresAt: identity.AccessTokenExpiresAt,
 		},
 	)
 	if err != nil {

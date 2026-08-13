@@ -32,6 +32,22 @@ func New(
 		authConfig,
 	)
 
+	proxyClient := &http.Client{
+		Timeout: authConfig.IdentityHTTPTimeout,
+		CheckRedirect: func(
+			req *http.Request,
+			via []*http.Request,
+		) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
+	identityProxy := newIdentityProxy(
+		sessions,
+		authConfig.IdentityInternalBaseURL,
+		proxyClient,
+	)
+
 	mux := http.NewServeMux()
 
 	mux.HandleFunc(
@@ -58,6 +74,20 @@ func New(
 	mux.HandleFunc(
 		"POST /auth/logout",
 		authHandlers.logout,
+	)
+
+	mux.HandleFunc(
+		"/identity/{path...}",
+		func(
+			w http.ResponseWriter,
+			r *http.Request,
+		) {
+			identityProxy.serve(
+				authHandlers,
+				w,
+				r,
+			)
+		},
 	)
 
 	return securityHeaders(mux)

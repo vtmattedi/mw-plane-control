@@ -43,6 +43,7 @@ func Discovery(issuer string) DiscoveryDocument {
 			"openid",
 			"profile",
 			"email",
+			"identity.admin",
 		},
 		ClaimsSupported: []string{
 			"sub",

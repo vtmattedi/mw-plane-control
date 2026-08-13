@@ -215,8 +215,11 @@ func (s *Store) CreateAdminSession(
 			auth_time_unix,
 			expires_at_unix,
 			created_at_unix,
-			last_seen_at_unix
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			last_seen_at_unix,
+			identity_access_token_ciphertext,
+			identity_access_token_nonce,
+			identity_access_token_key_version
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		value.ID,
 		value.TokenHash,
 		value.CSRFHash,
@@ -228,6 +231,9 @@ func (s *Store) CreateAdminSession(
 		value.ExpiresAt.Unix(),
 		value.CreatedAt.Unix(),
 		value.LastSeenAt.Unix(),
+		value.IdentityAccessTokenCiphertext,
+		value.IdentityAccessTokenNonce,
+		value.IdentityAccessTokenKeyVersion,
 	)
 	if err != nil {
 		return fmt.Errorf(
@@ -256,7 +262,10 @@ func (s *Store) AdminSessionByTokenHash(
 			auth_time_unix,
 			expires_at_unix,
 			created_at_unix,
-			last_seen_at_unix
+			last_seen_at_unix,
+			identity_access_token_ciphertext,
+			identity_access_token_nonce,
+			identity_access_token_key_version
 		FROM bff_admin_sessions
 		WHERE token_hash = ?
 		  AND expires_at_unix > ?`,
@@ -284,6 +293,9 @@ func (s *Store) AdminSessionByTokenHash(
 		&expires,
 		&created,
 		&lastSeen,
+		&value.IdentityAccessTokenCiphertext,
+		&value.IdentityAccessTokenNonce,
+		&value.IdentityAccessTokenKeyVersion,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return session.Record{},

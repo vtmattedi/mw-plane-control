@@ -296,6 +296,10 @@ func (c *Client) Complete(
 		Email:       claims.Email,
 		DisplayName: claims.Name,
 		AuthTime:    authTime,
+		AccessToken: token.AccessToken,
+		AccessTokenExpiresAt: now.Add(
+			time.Duration(token.ExpiresIn) * time.Second,
+		),
 	}, transaction.ReturnTo, nil
 }
 

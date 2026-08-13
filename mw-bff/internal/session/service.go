@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/secure"
 )
 
 var (
@@ -23,25 +25,30 @@ var (
 )
 
 type Identity struct {
-	Issuer      string
-	Subject     string
-	Email       string
-	DisplayName string
-	AuthTime    time.Time
+	Issuer               string
+	Subject              string
+	Email                string
+	DisplayName          string
+	AuthTime             time.Time
+	AccessToken          string
+	AccessTokenExpiresAt time.Time
 }
 
 type Record struct {
-	ID              string
-	TokenHash       string
-	CSRFHash        string
-	IdentityIssuer  string
-	IdentitySubject string
-	Email           string
-	DisplayName     string
-	AuthTime        time.Time
-	ExpiresAt       time.Time
-	CreatedAt       time.Time
-	LastSeenAt      time.Time
+	ID                            string
+	TokenHash                     string
+	CSRFHash                      string
+	IdentityIssuer                string
+	IdentitySubject               string
+	Email                         string
+	DisplayName                   string
+	AuthTime                      time.Time
+	IdentityAccessTokenCiphertext []byte
+	IdentityAccessTokenNonce      []byte
+	IdentityAccessTokenKeyVersion int
+	ExpiresAt                     time.Time
+	CreatedAt                     time.Time
+	LastSeenAt                    time.Time
 }
 
 type Store interface {
@@ -74,9 +81,10 @@ type Store interface {
 }
 
 type Service struct {
-	store Store
-	ttl   time.Duration
-	now   func() time.Time
+	store   Store
+	ttl     time.Duration
+	keyring secure.Keyring
+	now     func() time.Time
 }
 
 type Created struct {
@@ -88,6 +96,7 @@ type Created struct {
 func New(
 	store Store,
 	ttl time.Duration,
+	keyring secure.Keyring,
 ) (*Service, error) {
 	if store == nil {
 		return nil, fmt.Errorf(
@@ -101,9 +110,10 @@ func New(
 	}
 
 	return &Service{
-		store: store,
-		ttl:   ttl,
-		now:   time.Now,
+		store:   store,
+		ttl:     ttl,
+		keyring: keyring,
+		now:     time.Now,
 	}, nil
 }
 
@@ -131,19 +141,55 @@ func (s *Service) Create(
 		return Created{}, err
 	}
 
+	if strings.TrimSpace(identity.AccessToken) == "" {
+		return Created{}, fmt.Errorf(
+			"Identity access token is required",
+		)
+	}
+
+	accessBytes := []byte(identity.AccessToken)
+	defer func() {
+		for i := range accessBytes {
+			accessBytes[i] = 0
+		}
+	}()
+
+	accessCiphertext, accessNonce, accessKeyVersion, err :=
+		s.keyring.Encrypt(
+			"mw-bff-session-access-token:"+id,
+			accessBytes,
+		)
+	if err != nil {
+		return Created{}, err
+	}
+
 	now := s.now().UTC()
+	expiresAt := now.Add(s.ttl)
+	if !identity.AccessTokenExpiresAt.IsZero() &&
+		identity.AccessTokenExpiresAt.Before(expiresAt) {
+		expiresAt = identity.AccessTokenExpiresAt.UTC()
+	}
+	if !expiresAt.After(now) {
+		return Created{}, fmt.Errorf(
+			"Identity access token is already expired",
+		)
+	}
+
 	record := Record{
-		ID:              id,
-		TokenHash:       HashToken(rawSession),
-		CSRFHash:        HashToken(rawCSRF),
-		IdentityIssuer:  identity.Issuer,
-		IdentitySubject: identity.Subject,
-		Email:           identity.Email,
-		DisplayName:     identity.DisplayName,
-		AuthTime:        identity.AuthTime.UTC(),
-		ExpiresAt:       now.Add(s.ttl),
-		CreatedAt:       now,
-		LastSeenAt:      now,
+		ID:                            id,
+		TokenHash:                     HashToken(rawSession),
+		CSRFHash:                      HashToken(rawCSRF),
+		IdentityIssuer:                identity.Issuer,
+		IdentitySubject:               identity.Subject,
+		Email:                         identity.Email,
+		DisplayName:                   identity.DisplayName,
+		AuthTime:                      identity.AuthTime.UTC(),
+		IdentityAccessTokenCiphertext: accessCiphertext,
+		IdentityAccessTokenNonce:      accessNonce,
+		IdentityAccessTokenKeyVersion: accessKeyVersion,
+		ExpiresAt:                     expiresAt,
+		CreatedAt:                     now,
+		LastSeenAt:                    now,
 	}
 
 	if err := s.store.CreateAdminSession(
@@ -223,6 +269,33 @@ func (s *Service) Logout(
 		ctx,
 		HashToken(rawSession),
 	)
+}
+
+func (s *Service) IdentityAccessToken(
+	record Record,
+) (string, error) {
+	if len(record.IdentityAccessTokenCiphertext) == 0 ||
+		len(record.IdentityAccessTokenNonce) == 0 ||
+		record.IdentityAccessTokenKeyVersion <= 0 {
+		return "", ErrInvalid
+	}
+
+	plaintext, err := s.keyring.Decrypt(
+		record.IdentityAccessTokenKeyVersion,
+		"mw-bff-session-access-token:"+record.ID,
+		record.IdentityAccessTokenNonce,
+		record.IdentityAccessTokenCiphertext,
+	)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		for i := range plaintext {
+			plaintext[i] = 0
+		}
+	}()
+
+	return string(plaintext), nil
 }
 
 func HashToken(raw string) string {

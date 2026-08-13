@@ -1,0 +1,637 @@
+package httpapi
+
+import (
+	"encoding/json"
+	"errors"
+	"net/http"
+	"strconv"
+	"strings"
+
+	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/applications"
+	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identityadmin"
+	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/oidc"
+)
+
+type identityAdminHandlers struct {
+	oidc  *oidc.Service
+	admin *identityadmin.Service
+}
+
+type identityAdminPrincipal struct {
+	access      oidc.AccessContext
+	role        string
+	permissions []string
+}
+
+func newIdentityAdminHandlers(
+	oidcService *oidc.Service,
+	adminService *identityadmin.Service,
+) *identityAdminHandlers {
+	return &identityAdminHandlers{
+		oidc:  oidcService,
+		admin: adminService,
+	}
+}
+
+func (h *identityAdminHandlers) principal(
+	r *http.Request,
+	requiredPermission string,
+) (
+	identityAdminPrincipal,
+	*oidc.ProtocolError,
+	error,
+) {
+	access, protocolErr :=
+		h.oidc.ValidateAccessToken(
+			r.Context(),
+			bearerToken(r),
+			oidc.IdentityAdminAudience,
+			"identity.admin",
+		)
+	if protocolErr != nil {
+		return identityAdminPrincipal{},
+			protocolErr,
+			nil
+	}
+
+	permissions, role, err :=
+		h.admin.Permissions(
+			r.Context(),
+			access.User,
+			access.Application.ClientID,
+		)
+	if err != nil {
+		if errors.Is(
+			err,
+			identityadmin.ErrRoleForbidden,
+		) {
+			return identityAdminPrincipal{},
+				&oidc.ProtocolError{
+					Code:        "insufficient_scope",
+					Description: "Identity admin permission denied",
+					HTTPStatus:  http.StatusForbidden,
+				},
+				nil
+		}
+		return identityAdminPrincipal{},
+			nil,
+			err
+	}
+
+	if requiredPermission != "" &&
+		!identityadmin.HasPermission(
+			permissions,
+			requiredPermission,
+		) {
+		return identityAdminPrincipal{},
+			&oidc.ProtocolError{
+				Code:        "insufficient_scope",
+				Description: "Identity admin permission denied",
+				HTTPStatus:  http.StatusForbidden,
+			},
+			nil
+	}
+
+	return identityAdminPrincipal{
+		access:      access,
+		role:        role,
+		permissions: permissions,
+	}, nil, nil
+}
+
+func (h *identityAdminHandlers) whoami(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	principal, protocolErr, err :=
+		h.principal(r, "")
+	if h.handlePrincipalError(
+		w,
+		protocolErr,
+		err,
+	) {
+		return
+	}
+
+	writeJSON(
+		w,
+		http.StatusOK,
+		map[string]any{
+			"sub":         principal.access.User.ID,
+			"email":       principal.access.User.Email,
+			"role":        principal.role,
+			"permissions": principal.permissions,
+		},
+	)
+}
+
+func (h *identityAdminHandlers) listApplications(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	_, protocolErr, err := h.principal(
+		r,
+		identityadmin.PermissionApplicationsRead,
+	)
+	if h.handlePrincipalError(w, protocolErr, err) {
+		return
+	}
+
+	apps, err := h.admin.ListApplications(
+		r.Context(),
+	)
+	if err != nil {
+		writeJSONError(
+			w,
+			http.StatusInternalServerError,
+			"identity_admin_failed",
+		)
+		return
+	}
+
+	writeJSON(
+		w,
+		http.StatusOK,
+		map[string]any{
+			"applications": apps,
+		},
+	)
+}
+
+func (h *identityAdminHandlers) getApplication(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	_, protocolErr, err := h.principal(
+		r,
+		identityadmin.PermissionApplicationsRead,
+	)
+	if h.handlePrincipalError(w, protocolErr, err) {
+		return
+	}
+
+	app, err := h.admin.Application(
+		r.Context(),
+		r.PathValue("id"),
+	)
+	if err != nil {
+		h.writeAdminError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, app)
+}
+
+func (h *identityAdminHandlers) createApplication(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	principal, protocolErr, err := h.principal(
+		r,
+		identityadmin.PermissionApplicationsWrite,
+	)
+	if h.handlePrincipalError(w, protocolErr, err) {
+		return
+	}
+
+	var request struct {
+		Name                   string   `json:"name"`
+		ClientID               string   `json:"client_id"`
+		ApplicationType        string   `json:"application_type"`
+		AuthenticationPolicy   string   `json:"authentication_policy"`
+		RedirectURIs           []string `json:"redirect_uris"`
+		PostLogoutRedirectURIs []string `json:"post_logout_redirect_uris"`
+		Scopes                 []string `json:"scopes"`
+		Claims                 []string `json:"claims"`
+		Audiences              []string `json:"audiences"`
+	}
+
+	if !decodeJSONBody(w, r, &request) {
+		return
+	}
+
+	result, err := h.admin.CreateApplication(
+		r.Context(),
+		principal.access.User,
+		remoteIP(r),
+		identityadmin.CreateApplicationRequest{
+			Name:                   request.Name,
+			ClientID:               request.ClientID,
+			ApplicationType:        request.ApplicationType,
+			AuthenticationPolicy:   request.AuthenticationPolicy,
+			RedirectURIs:           request.RedirectURIs,
+			PostLogoutRedirectURIs: request.PostLogoutRedirectURIs,
+			Scopes:                 request.Scopes,
+			Claims:                 request.Claims,
+			Audiences:              request.Audiences,
+		},
+	)
+	if err != nil {
+		h.writeAdminError(w, err)
+		return
+	}
+
+	writeJSON(
+		w,
+		http.StatusCreated,
+		map[string]any{
+			"application":   result.Application,
+			"client_secret": result.ClientSecret,
+		},
+	)
+}
+
+func (h *identityAdminHandlers) updateApplication(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	principal, protocolErr, err := h.principal(
+		r,
+		identityadmin.PermissionApplicationsWrite,
+	)
+	if h.handlePrincipalError(w, protocolErr, err) {
+		return
+	}
+
+	var request identityadmin.UpdateApplication
+	if !decodeJSONBody(w, r, &request) {
+		return
+	}
+
+	app, err := h.admin.UpdateApplication(
+		r.Context(),
+		principal.access.User,
+		remoteIP(r),
+		r.PathValue("id"),
+		request,
+	)
+	if err != nil {
+		h.writeAdminError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, app)
+}
+
+func (h *identityAdminHandlers) applicationState(
+	action string,
+) http.HandlerFunc {
+	return func(
+		w http.ResponseWriter,
+		r *http.Request,
+	) {
+		principal, protocolErr, err := h.principal(
+			r,
+			identityadmin.PermissionApplicationsWrite,
+		)
+		if h.handlePrincipalError(
+			w,
+			protocolErr,
+			err,
+		) {
+			return
+		}
+
+		app, err := h.admin.SetApplicationState(
+			r.Context(),
+			principal.access.User,
+			remoteIP(r),
+			r.PathValue("id"),
+			action,
+		)
+		if err != nil {
+			h.writeAdminError(w, err)
+			return
+		}
+
+		writeJSON(w, http.StatusOK, app)
+	}
+}
+
+func (h *identityAdminHandlers) rotateSecret(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	principal, protocolErr, err := h.principal(
+		r,
+		identityadmin.PermissionApplicationsRotate,
+	)
+	if h.handlePrincipalError(w, protocolErr, err) {
+		return
+	}
+
+	result, err := h.admin.RotateSecret(
+		r.Context(),
+		principal.access.User,
+		remoteIP(r),
+		r.PathValue("id"),
+	)
+	if err != nil {
+		h.writeAdminError(w, err)
+		return
+	}
+
+	writeJSON(
+		w,
+		http.StatusOK,
+		map[string]string{
+			"client_secret": result.ClientSecret,
+		},
+	)
+}
+
+func (h *identityAdminHandlers) users(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	_, protocolErr, err := h.principal(
+		r,
+		identityadmin.PermissionUsersRead,
+	)
+	if h.handlePrincipalError(w, protocolErr, err) {
+		return
+	}
+
+	users, err := h.admin.Users(
+		r.Context(),
+	)
+	if err != nil {
+		writeJSONError(
+			w,
+			http.StatusInternalServerError,
+			"identity_admin_failed",
+		)
+		return
+	}
+
+	writeJSON(
+		w,
+		http.StatusOK,
+		map[string]any{
+			"users": users,
+		},
+	)
+}
+
+func (h *identityAdminHandlers) assignments(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	_, protocolErr, err := h.principal(
+		r,
+		identityadmin.PermissionAssignmentsRead,
+	)
+	if h.handlePrincipalError(w, protocolErr, err) {
+		return
+	}
+
+	values, err := h.admin.Assignments(
+		r.Context(),
+		r.PathValue("id"),
+	)
+	if err != nil {
+		h.writeAdminError(w, err)
+		return
+	}
+
+	writeJSON(
+		w,
+		http.StatusOK,
+		map[string]any{
+			"assignments": values,
+		},
+	)
+}
+
+func (h *identityAdminHandlers) upsertAssignment(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	principal, protocolErr, err := h.principal(
+		r,
+		identityadmin.PermissionAssignmentsWrite,
+	)
+	if h.handlePrincipalError(w, protocolErr, err) {
+		return
+	}
+
+	var request struct {
+		Role string `json:"role"`
+	}
+	if !decodeJSONBody(w, r, &request) {
+		return
+	}
+
+	value, err := h.admin.UpsertAssignment(
+		r.Context(),
+		principal.access.User,
+		remoteIP(r),
+		r.PathValue("id"),
+		r.PathValue("user_id"),
+		request.Role,
+	)
+	if err != nil {
+		h.writeAdminError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, value)
+}
+
+func (h *identityAdminHandlers) deleteAssignment(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	principal, protocolErr, err := h.principal(
+		r,
+		identityadmin.PermissionAssignmentsWrite,
+	)
+	if h.handlePrincipalError(w, protocolErr, err) {
+		return
+	}
+
+	err = h.admin.DeleteAssignment(
+		r.Context(),
+		principal.access.User,
+		remoteIP(r),
+		r.PathValue("id"),
+		r.PathValue("user_id"),
+	)
+	if err != nil {
+		h.writeAdminError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *identityAdminHandlers) audit(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	_, protocolErr, err := h.principal(
+		r,
+		identityadmin.PermissionAuditRead,
+	)
+	if h.handlePrincipalError(w, protocolErr, err) {
+		return
+	}
+
+	limit := 100
+	if raw := strings.TrimSpace(
+		r.URL.Query().Get("limit"),
+	); raw != "" {
+		if parsed, parseErr := strconv.Atoi(raw); parseErr == nil {
+			limit = parsed
+		}
+	}
+
+	entries, err := h.admin.Audit(
+		r.Context(),
+		limit,
+	)
+	if err != nil {
+		writeJSONError(
+			w,
+			http.StatusInternalServerError,
+			"identity_admin_failed",
+		)
+		return
+	}
+
+	writeJSON(
+		w,
+		http.StatusOK,
+		map[string]any{
+			"audit": entries,
+		},
+	)
+}
+
+func (h *identityAdminHandlers) handlePrincipalError(
+	w http.ResponseWriter,
+	protocolErr *oidc.ProtocolError,
+	err error,
+) bool {
+	if err != nil {
+		writeJSONError(
+			w,
+			http.StatusInternalServerError,
+			"identity_admin_failed",
+		)
+		return true
+	}
+	if protocolErr != nil {
+		if protocolErr.Code == "invalid_token" {
+			w.Header().Set(
+				"WWW-Authenticate",
+				`Bearer error="invalid_token"`,
+			)
+		}
+		writeOAuthError(w, protocolErr)
+		return true
+	}
+	return false
+}
+
+func (h *identityAdminHandlers) writeAdminError(
+	w http.ResponseWriter,
+	err error,
+) {
+	switch {
+	case errors.Is(
+		err,
+		identityadmin.ErrNotFound,
+	),
+		errors.Is(
+			err,
+			applications.ErrApplicationNotFound,
+		):
+		writeJSONError(
+			w,
+			http.StatusNotFound,
+			"not_found",
+		)
+
+	case errors.Is(
+		err,
+		identityadmin.ErrInvalid,
+	),
+		errors.Is(
+			err,
+			applications.ErrInvalidApplication,
+		):
+		writeJSONError(
+			w,
+			http.StatusBadRequest,
+			"invalid_request",
+		)
+
+	case errors.Is(
+		err,
+		identityadmin.ErrArchived,
+	):
+		writeJSONError(
+			w,
+			http.StatusConflict,
+			"application_archived",
+		)
+
+	case errors.Is(
+		err,
+		applications.ErrClientIDExists,
+	):
+		writeJSONError(
+			w,
+			http.StatusConflict,
+			"client_id_exists",
+		)
+
+	default:
+		writeJSONError(
+			w,
+			http.StatusInternalServerError,
+			"identity_admin_failed",
+		)
+	}
+}
+
+func decodeJSONBody(
+	w http.ResponseWriter,
+	r *http.Request,
+	target any,
+) bool {
+	if !strings.HasPrefix(
+		strings.ToLower(
+			r.Header.Get("Content-Type"),
+		),
+		"application/json",
+	) {
+		writeJSONError(
+			w,
+			http.StatusUnsupportedMediaType,
+			"json_required",
+		)
+		return false
+	}
+
+	r.Body = http.MaxBytesReader(
+		w,
+		r.Body,
+		256*1024,
+	)
+
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+
+	if err := decoder.Decode(target); err != nil {
+		writeJSONError(
+			w,
+			http.StatusBadRequest,
+			"invalid_json",
+		)
+		return false
+	}
+
+	return true
+}

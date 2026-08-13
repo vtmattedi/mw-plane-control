@@ -13,21 +13,21 @@ var (
 )
 
 type Application struct {
-	ID                     string
-	Name                   string
-	ClientID               string
-	ClientSecretHash       string
-	ApplicationType        string
-	AuthenticationPolicy   string
-	Enabled                bool
-	ArchivedAt             *time.Time
-	RedirectURIs           []string
-	PostLogoutRedirectURIs []string
-	Scopes                 []string
-	Claims                 []string
-	Audiences              []string
-	CreatedAt              time.Time
-	UpdatedAt              time.Time
+	ID                     string     `json:"id"`
+	Name                   string     `json:"name"`
+	ClientID               string     `json:"client_id"`
+	ClientSecretHash       string     `json:"-"`
+	ApplicationType        string     `json:"application_type"`
+	AuthenticationPolicy   string     `json:"authentication_policy"`
+	Enabled                bool       `json:"enabled"`
+	ArchivedAt             *time.Time `json:"archived_at,omitempty"`
+	RedirectURIs           []string   `json:"redirect_uris"`
+	PostLogoutRedirectURIs []string   `json:"post_logout_redirect_uris"`
+	Scopes                 []string   `json:"scopes"`
+	Claims                 []string   `json:"claims"`
+	Audiences              []string   `json:"audiences"`
+	CreatedAt              time.Time  `json:"created_at"`
+	UpdatedAt              time.Time  `json:"updated_at"`
 }
 
 type CreateInput struct {
