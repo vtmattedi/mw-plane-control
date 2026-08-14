@@ -14,6 +14,7 @@ import (
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/delegation"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/httpapi"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/identityclient"
+	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/mwoauth"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/secure"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/session"
 	storesqlite "github.com/vtmattedi/mw-plane-control/mw-bff/internal/store/sqlite"
@@ -146,6 +147,19 @@ func main() {
 		os.Exit(1)
 	}
 
+	var oauthClient *mwoauth.Client
+	if cfg.OAuthBaseURL != "" {
+		oauthClient, err = mwoauth.New(mwoauth.Config{
+			BaseURL:     cfg.OAuthBaseURL,
+			Host:        cfg.OAuthHost,
+			HTTPTimeout: cfg.OAuthHTTPTimeout,
+		})
+		if err != nil {
+			slog.Error("MW OAuth client initialization failed", "error", err)
+			os.Exit(1)
+		}
+	}
+
 	server := &http.Server{
 		Addr: fmt.Sprintf(
 			":%d",
@@ -163,6 +177,8 @@ func main() {
 				Scope:       cfg.Step09TestScope,
 				HTTPTimeout: cfg.IdentityHTTPTimeout,
 			},
+			oauthClient,
+			cfg.OAuthAudience,
 			httpapi.AuthConfig{
 				AppEnv:                  cfg.AppEnv,
 				PublicBaseURL:           cfg.PublicBaseURL,

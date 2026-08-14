@@ -28,6 +28,10 @@ type Config struct {
 	Step09TestRSURL             string
 	Step09TestAudience          string
 	Step09TestScope             string
+	OAuthBaseURL                string
+	OAuthHost                   string
+	OAuthAudience               string
+	OAuthHTTPTimeout            time.Duration
 	IdentityHTTPTimeout         time.Duration
 }
 
@@ -80,6 +84,13 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 
+	oauthHTTPTimeoutSeconds, err := positiveInt(
+		"BFF_OAUTH_HTTP_TIMEOUT_SECONDS",
+		5,
+	)
+	if err != nil {
+		return Config{}, err
+	}
 	cacheSkewSeconds, err := positiveInt(
 		"BFF_DELEGATION_CACHE_SKEW_SECONDS",
 		30,
@@ -136,6 +147,10 @@ func Load() (Config, error) {
 		Step09TestRSURL:             strings.TrimSpace(os.Getenv("BFF_STEP09_TEST_RS_URL")),
 		Step09TestAudience:          strings.TrimSpace(os.Getenv("BFF_STEP09_TEST_AUDIENCE")),
 		Step09TestScope:             strings.TrimSpace(os.Getenv("BFF_STEP09_TEST_SCOPE")),
+		OAuthBaseURL:                strings.TrimRight(strings.TrimSpace(os.Getenv("BFF_OAUTH_BASE_URL")), "/"),
+		OAuthHost:                   strings.TrimSpace(os.Getenv("BFF_OAUTH_HOST")),
+		OAuthAudience:               strings.TrimSpace(getenv("BFF_OAUTH_AUDIENCE", "mw-oauth")),
+		OAuthHTTPTimeout:            time.Duration(oauthHTTPTimeoutSeconds) * time.Second,
 		IdentityHTTPTimeout:         time.Duration(httpTimeoutSeconds) * time.Second,
 	}
 

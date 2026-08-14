@@ -7,6 +7,7 @@ import (
 
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/delegation"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/identityclient"
+	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/mwoauth"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/session"
 )
 
@@ -16,6 +17,8 @@ func New(
 	sessions *session.Service,
 	delegationClient *delegation.Client,
 	delegationProbeConfig DelegationProbeConfig,
+	oauthClient *mwoauth.Client,
+	oauthAudience string,
 	authConfig AuthConfig,
 ) http.Handler {
 	if identity == nil {
@@ -39,6 +42,13 @@ func New(
 		delegationClient,
 		sessions,
 		delegationProbeConfig,
+	)
+
+	oauthAdmin := newOAuthAdminProxy(
+		delegationClient,
+		sessions,
+		oauthClient,
+		oauthAudience,
 	)
 
 	proxyClient := &http.Client{
@@ -69,6 +79,15 @@ func New(
 			"GET /_test/delegation",
 			func(w http.ResponseWriter, r *http.Request) {
 				delegationProbe.serve(authHandlers, w, r)
+			},
+		)
+	}
+
+	if oauthAdmin != nil {
+		mux.HandleFunc(
+			"/oauth/{path...}",
+			func(w http.ResponseWriter, r *http.Request) {
+				oauthAdmin.serve(authHandlers, w, r)
 			},
 		)
 	}
