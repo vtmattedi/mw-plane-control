@@ -20,6 +20,26 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -o /out/server \
     ./cmd/server
 
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
+    -o /out/backup-db \
+    ./cmd/backup-db
+
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
+    -o /out/verify-db \
+    ./cmd/verify-db
+
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
+    -o /out/maintenance \
+    ./cmd/maintenance
+
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
+    -o /out/config-check \
+    ./cmd/config-check
+
 FROM alpine:3.22
 
 RUN apk add --no-cache ca-certificates tzdata \
@@ -31,6 +51,11 @@ RUN apk add --no-cache ca-certificates tzdata \
 WORKDIR /app
 
 COPY --from=build /out/server /app/server
+
+COPY --from=build /out/backup-db /app/backup-db
+COPY --from=build /out/verify-db /app/verify-db
+COPY --from=build /out/maintenance /app/maintenance
+COPY --from=build /out/config-check /app/config-check
 
 USER app
 

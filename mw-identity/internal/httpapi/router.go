@@ -54,6 +54,17 @@ func New(
 		healthHandler("mw-identity", db),
 	)
 	mux.HandleFunc(
+		"GET /ready",
+		readinessHandler("mw-identity", db),
+	)
+
+	metrics := &operationalMetrics{}
+	started := time.Now().UTC()
+	mux.HandleFunc(
+		"GET /metrics",
+		metricsHandler("mw-identity", metrics, started),
+	)
+	mux.HandleFunc(
 		"GET /.well-known/openid-configuration",
 		discoveryHandler(oidcConfig.PublicIssuer),
 	)
@@ -158,5 +169,5 @@ func New(
 	mux.HandleFunc("GET /account", authHandlers.account)
 	mux.HandleFunc("POST /logout", authHandlers.logout)
 
-	return securityHeaders(mux)
+	return operationalMiddleware(metrics, securityHeaders(mux))
 }

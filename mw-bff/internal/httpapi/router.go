@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/delegation"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/identityclient"
@@ -85,6 +86,17 @@ func New(
 		"GET /health",
 		healthHandler("mw-bff", db),
 	)
+	mux.HandleFunc(
+		"GET /ready",
+		readinessHandler("mw-bff", db),
+	)
+
+	metrics := &operationalMetrics{}
+	started := time.Now().UTC()
+	mux.HandleFunc(
+		"GET /metrics",
+		metricsHandler("mw-bff", metrics, started),
+	)
 
 	if delegationProbe != nil {
 		mux.HandleFunc(
@@ -149,5 +161,5 @@ func New(
 		},
 	)
 
-	return securityHeaders(mux)
+	return operationalMiddleware(metrics, securityHeaders(mux))
 }

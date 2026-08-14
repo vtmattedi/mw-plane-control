@@ -12,6 +12,13 @@ services:
         condition: service_healthy
     networks:
       - control-plane
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+      - /var/cache/nginx:rw,noexec,nosuid,nodev,size=32m
+      - /var/run:rw,noexec,nosuid,nodev,size=8m
     healthcheck:
       test:
         [
@@ -53,6 +60,8 @@ services:
       IDENTITY_TOTP_ISSUER: "${IDENTITY_TOTP_ISSUER:-MW Identity}"
       IDENTITY_STRONG_AUTH_MAX_AGE_MINUTES: "${IDENTITY_STRONG_AUTH_MAX_AGE_MINUTES:-5}"
       IDENTITY_RECOVERY_TTL_MINUTES: "${IDENTITY_RECOVERY_TTL_MINUTES:-10}"
+      IDENTITY_AUDIT_RETENTION_DAYS: "${IDENTITY_AUDIT_RETENTION_DAYS:-180}"
+      IDENTITY_SIGNING_RETIRED_RETENTION_HOURS: "${IDENTITY_SIGNING_RETIRED_RETENTION_HOURS:-72}"
     ports:
       - "127.0.0.1:7100:7100"
     expose:
@@ -61,11 +70,18 @@ services:
       - identity-data:/app/data
     networks:
       - control-plane
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "wget -qO- http://127.0.0.1:7100/health >/dev/null 2>&1",
+          "wget -qO- http://127.0.0.1:7100/ready >/dev/null 2>&1",
         ]
       interval: 10s
       timeout: 3s
@@ -111,11 +127,18 @@ services:
       - bff-data:/app/data
     networks:
       - control-plane
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "wget -qO- http://127.0.0.1:7200/health >/dev/null 2>&1",
+          "wget -qO- http://127.0.0.1:7200/ready >/dev/null 2>&1",
         ]
       interval: 10s
       timeout: 3s

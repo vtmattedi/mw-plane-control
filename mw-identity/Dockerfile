@@ -45,6 +45,26 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -o /out/assign-application \
     ./cmd/assign-application
 
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
+    -o /out/backup-db \
+    ./cmd/backup-db
+
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
+    -o /out/verify-db \
+    ./cmd/verify-db
+
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
+    -o /out/maintenance \
+    ./cmd/maintenance
+
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
+    -o /out/config-check \
+    ./cmd/config-check
+
 FROM alpine:3.22
 
 RUN apk add --no-cache ca-certificates tzdata \
@@ -61,6 +81,11 @@ COPY --from=build /out/create-application /app/create-application
 COPY --from=build /out/rotate-signing-key /app/rotate-signing-key
 COPY --from=build /out/recover-identity /app/recover-identity
 COPY --from=build /out/assign-application /app/assign-application
+
+COPY --from=build /out/backup-db /app/backup-db
+COPY --from=build /out/verify-db /app/verify-db
+COPY --from=build /out/maintenance /app/maintenance
+COPY --from=build /out/config-check /app/config-check
 
 USER app
 
