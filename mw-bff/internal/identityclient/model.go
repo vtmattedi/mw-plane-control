@@ -33,6 +33,7 @@ type Identity struct {
 	Email                string
 	DisplayName          string
 	AuthTime             time.Time
+	AuthMethod           string
 	AccessToken          string
 	AccessTokenExpiresAt time.Time
 }

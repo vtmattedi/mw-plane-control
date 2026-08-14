@@ -37,6 +37,7 @@ type Config struct {
 	MailAudience                string
 	MailHTTPTimeout             time.Duration
 	IdentityHTTPTimeout         time.Duration
+	StrongAuthMaxAge            time.Duration
 }
 
 func Load() (Config, error) {
@@ -103,6 +104,11 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	strongAuthMinutes, err := positiveInt("BFF_STRONG_AUTH_MAX_AGE_MINUTES", 5)
+	if err != nil {
+		return Config{}, err
+	}
+
 	cacheSkewSeconds, err := positiveInt(
 		"BFF_DELEGATION_CACHE_SKEW_SECONDS",
 		30,
@@ -168,6 +174,7 @@ func Load() (Config, error) {
 		MailAudience:                strings.TrimSpace(getenv("BFF_MAIL_AUDIENCE", "mw-mail")),
 		MailHTTPTimeout:             time.Duration(mailHTTPTimeoutSeconds) * time.Second,
 		IdentityHTTPTimeout:         time.Duration(httpTimeoutSeconds) * time.Second,
+		StrongAuthMaxAge:            time.Duration(strongAuthMinutes) * time.Minute,
 	}
 
 	if strings.TrimSpace(cfg.DatabasePath) == "" {

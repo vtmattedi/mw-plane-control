@@ -14,6 +14,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,15 +22,16 @@ import (
 )
 
 type Config struct {
-	Issuer          string
-	InternalBaseURL string
-	ClientID        string
-	ClientSecret    string
-	CallbackURL     string
-	Scopes          []string
-	TransactionTTL  time.Duration
-	ClockSkew       time.Duration
-	HTTPTimeout     time.Duration
+	Issuer           string
+	InternalBaseURL  string
+	ClientID         string
+	ClientSecret     string
+	CallbackURL      string
+	Scopes           []string
+	TransactionTTL   time.Duration
+	ClockSkew        time.Duration
+	HTTPTimeout      time.Duration
+	StrongAuthMaxAge time.Duration
 }
 
 type Client struct {
@@ -110,9 +112,18 @@ func New(
 	}, nil
 }
 
-func (c *Client) Start(
+func (c *Client) Start(ctx context.Context, returnTo string) (string, error) {
+	return c.start(ctx, returnTo, false)
+}
+
+func (c *Client) StartStepUp(ctx context.Context, returnTo string) (string, error) {
+	return c.start(ctx, returnTo, true)
+}
+
+func (c *Client) start(
 	ctx context.Context,
 	returnTo string,
+	stepUp bool,
 ) (string, error) {
 	transactionID, err := randomOpaque("oidctx_", 18)
 	if err != nil {
@@ -197,6 +208,14 @@ func (c *Client) Start(
 	query.Set("nonce", nonce)
 	query.Set("code_challenge", challenge)
 	query.Set("code_challenge_method", "S256")
+	if stepUp {
+		maxAge := c.config.StrongAuthMaxAge
+		if maxAge <= 0 {
+			maxAge = 5 * time.Minute
+		}
+		query.Set("acr_values", "urn:mw:webauthn")
+		query.Set("max_age", strconv.FormatInt(int64(maxAge/time.Second), 10))
+	}
 	target.RawQuery = query.Encode()
 
 	return target.String(), nil
@@ -296,6 +315,7 @@ func (c *Client) Complete(
 		Email:       claims.Email,
 		DisplayName: claims.Name,
 		AuthTime:    authTime,
+		AuthMethod:  claims.AuthMethod,
 		AccessToken: token.AccessToken,
 		AccessTokenExpiresAt: now.Add(
 			time.Duration(token.ExpiresIn) * time.Second,

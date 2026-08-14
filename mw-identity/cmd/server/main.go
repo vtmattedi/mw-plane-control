@@ -14,6 +14,7 @@ import (
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/config"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/httpapi"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identityadmin"
+	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identitystrong"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identitywebauthn"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/oidc"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/signing"
@@ -122,6 +123,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	identityStrongService, err := identitystrong.NewService(store, identitystrong.Options{
+		SecretKeys: cfg.TOTPSecretKeys, ActiveKeyVersion: cfg.TOTPSecretActiveKeyVersion,
+		Issuer: cfg.TOTPIssuer, RecoveryTTL: cfg.RecoveryTTL,
+	})
+	if err != nil {
+		slog.Error("Identity strong-auth initialization failed", "error", err)
+		os.Exit(1)
+	}
+
 	identityWebAuthnService, err := identitywebauthn.NewService(
 		store,
 		identitywebauthn.Options{
@@ -156,6 +166,8 @@ func main() {
 			oidcService,
 			identityAdminService,
 			identityWebAuthnService,
+			identityStrongService,
+			cfg.StrongAuthMaxAge,
 		),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,

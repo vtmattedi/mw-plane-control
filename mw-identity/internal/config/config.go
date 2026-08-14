@@ -29,6 +29,11 @@ type Config struct {
 	WebAuthnCredentialKeys             string
 	WebAuthnCredentialActiveKeyVersion int
 	WebAuthnCeremonyTTL                time.Duration
+	TOTPSecretKeys                     string
+	TOTPSecretActiveKeyVersion         int
+	TOTPIssuer                         string
+	StrongAuthMaxAge                   time.Duration
+	RecoveryTTL                        time.Duration
 }
 
 func Load() (Config, error) {
@@ -115,6 +120,18 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	totpKeyVersion, err := positiveInt("IDENTITY_TOTP_SECRET_ACTIVE_KEY_VERSION", 1)
+	if err != nil {
+		return Config{}, err
+	}
+	strongMinutes, err := positiveInt("IDENTITY_STRONG_AUTH_MAX_AGE_MINUTES", 5)
+	if err != nil {
+		return Config{}, err
+	}
+	recoveryMinutes, err := positiveInt("IDENTITY_RECOVERY_TTL_MINUTES", 10)
+	if err != nil {
+		return Config{}, err
+	}
 
 	databasePath := strings.TrimSpace(
 		getenv("DATABASE_PATH", "./data/identity.db"),
@@ -168,6 +185,11 @@ func Load() (Config, error) {
 		),
 		WebAuthnCredentialActiveKeyVersion: webAuthnKeyVersion,
 		WebAuthnCeremonyTTL:                time.Duration(webAuthnCeremonyMinutes) * time.Minute,
+		TOTPSecretKeys:                     strings.TrimSpace(os.Getenv("IDENTITY_TOTP_SECRET_KEYS")),
+		TOTPSecretActiveKeyVersion:         totpKeyVersion,
+		TOTPIssuer:                         strings.TrimSpace(getenv("IDENTITY_TOTP_ISSUER", "MW Identity")),
+		StrongAuthMaxAge:                   time.Duration(strongMinutes) * time.Minute,
+		RecoveryTTL:                        time.Duration(recoveryMinutes) * time.Minute,
 	}, nil
 }
 

@@ -206,6 +206,14 @@ func (s *Service) Login(
 		return LoginResult{}, ErrUserDisabled
 	}
 
+	pending, err := s.store.IdentityUserRecoveryPending(ctx, user.ID)
+	if err != nil {
+		return LoginResult{}, err
+	}
+	if pending {
+		return LoginResult{}, ErrRecoveryPending
+	}
+
 	sessionToken, err := NewOpaqueToken("mwid_")
 	if err != nil {
 		return LoginResult{}, err
@@ -232,6 +240,7 @@ func (s *Service) Login(
 			TokenHash:  HashToken(sessionToken),
 			CSRFHash:   HashToken(csrfToken),
 			AuthMethod: "password",
+			AuthTime:   now,
 			ExpiresAt:  expiresAt,
 			CreatedAt:  now,
 			LastSeenAt: now,
@@ -277,6 +286,13 @@ func (s *Service) CreateSessionForUser(
 	if !user.Enabled {
 		return LoginResult{}, ErrUserDisabled
 	}
+	pending, err := s.store.IdentityUserRecoveryPending(ctx, user.ID)
+	if err != nil {
+		return LoginResult{}, err
+	}
+	if pending {
+		return LoginResult{}, ErrRecoveryPending
+	}
 
 	sessionToken, err := NewOpaqueToken("mwid_")
 	if err != nil {
@@ -301,6 +317,7 @@ func (s *Service) CreateSessionForUser(
 			TokenHash:  HashToken(sessionToken),
 			CSRFHash:   HashToken(csrfToken),
 			AuthMethod: authMethodFromReason(reason),
+			AuthTime:   now,
 			ExpiresAt:  expiresAt,
 			CreatedAt:  now,
 			LastSeenAt: now,
@@ -338,6 +355,10 @@ func authMethodFromReason(reason string) string {
 		return "webauthn"
 	case "password":
 		return "password"
+	case "totp":
+		return "totp"
+	case "recovery":
+		return "recovery"
 	default:
 		return "unknown"
 	}

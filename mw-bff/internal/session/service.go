@@ -30,6 +30,7 @@ type Identity struct {
 	Email                string
 	DisplayName          string
 	AuthTime             time.Time
+	AuthMethod           string
 	AccessToken          string
 	AccessTokenExpiresAt time.Time
 }
@@ -43,6 +44,7 @@ type Record struct {
 	Email                         string
 	DisplayName                   string
 	AuthTime                      time.Time
+	AuthMethod                    string
 	IdentityAccessTokenCiphertext []byte
 	IdentityAccessTokenNonce      []byte
 	IdentityAccessTokenKeyVersion int
@@ -184,6 +186,7 @@ func (s *Service) Create(
 		Email:                         identity.Email,
 		DisplayName:                   identity.DisplayName,
 		AuthTime:                      identity.AuthTime.UTC(),
+		AuthMethod:                    strings.TrimSpace(identity.AuthMethod),
 		IdentityAccessTokenCiphertext: accessCiphertext,
 		IdentityAccessTokenNonce:      accessNonce,
 		IdentityAccessTokenKeyVersion: accessKeyVersion,

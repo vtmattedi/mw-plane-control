@@ -319,6 +319,16 @@ func (s *Store) RevokeIdentityWebAuthnCredential(
 	return nil
 }
 
+func (s *Store) RevokeOtherIdentityWebAuthnCredentials(ctx context.Context, userID, rpid string, keepCredentialID []byte, now string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE identity_webauthn_credentials
+        SET revoked_at = ? WHERE user_id = ? AND rpid = ? AND credential_id <> ? AND revoked_at IS NULL`,
+		now, userID, rpid, keepCredentialID)
+	if err != nil {
+		return fmt.Errorf("revoke old Identity WebAuthn credentials: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) CreateIdentityWebAuthnCeremony(
 	ctx context.Context,
 	record identitywebauthn.CeremonyRecord,

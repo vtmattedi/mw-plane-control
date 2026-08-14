@@ -448,6 +448,14 @@ func (s *Service) RevokeCredential(
 	)
 }
 
+func (s *Service) RevokeOtherCredentials(ctx context.Context, userID, encodedKeepID string) error {
+	keepID, err := decodeCredentialID(strings.TrimSpace(encodedKeepID))
+	if err != nil || len(keepID) == 0 {
+		return ErrNotFound
+	}
+	return s.store.RevokeOtherIdentityWebAuthnCredentials(ctx, userID, s.rpid, keepID, s.now().UTC().Format(time.RFC3339Nano))
+}
+
 func (s *Service) ensureUser(
 	ctx context.Context,
 	userID string,

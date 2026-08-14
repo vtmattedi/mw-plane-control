@@ -24,6 +24,7 @@ type IdentityAuthConfig struct {
 	LoginCSRFTTL           time.Duration
 	LoginRateLimitAttempts int
 	LoginRateLimitWindow   time.Duration
+	StrongAuthMaxAge       time.Duration
 }
 
 type identityAuthHandlers struct {
@@ -74,13 +75,9 @@ func (h *identityAuthHandlers) loginPage(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
-	if _, _, err := h.currentSession(r); err == nil {
-		http.Redirect(
-			w,
-			r,
-			"/account",
-			http.StatusSeeOther,
-		)
+	requestedAuth := strings.TrimSpace(r.URL.Query().Get("auth"))
+	if _, _, err := h.currentSession(r); err == nil && requestedAuth == "" {
+		http.Redirect(w, r, "/account", http.StatusSeeOther)
 		return
 	}
 
@@ -111,6 +108,7 @@ func (h *identityAuthHandlers) loginPage(
 		w,
 		portal.LoginData{
 			CSRFToken: token,
+			AuthMode:  requestedAuth,
 			ReturnTo: safeReturnTo(
 				r.URL.Query().Get("return_to"),
 			),
@@ -177,7 +175,8 @@ func (h *identityAuthHandlers) login(
 	if err != nil {
 		switch {
 		case errors.Is(err, auth.ErrInvalidLogin),
-			errors.Is(err, auth.ErrUserDisabled):
+			errors.Is(err, auth.ErrUserDisabled),
+			errors.Is(err, auth.ErrRecoveryPending):
 			h.renderLoginFailure(
 				w,
 				"Invalid email or password.",

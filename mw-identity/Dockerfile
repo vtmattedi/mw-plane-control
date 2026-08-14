@@ -35,6 +35,16 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -o /out/rotate-signing-key \
     ./cmd/rotate-signing-key
 
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
+    -o /out/recover-identity \
+    ./cmd/recover-identity
+
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
+    -o /out/assign-application \
+    ./cmd/assign-application
+
 FROM alpine:3.22
 
 RUN apk add --no-cache ca-certificates tzdata \
@@ -49,6 +59,8 @@ COPY --from=build /out/server /app/server
 COPY --from=build /out/create-superadmin /app/create-superadmin
 COPY --from=build /out/create-application /app/create-application
 COPY --from=build /out/rotate-signing-key /app/rotate-signing-key
+COPY --from=build /out/recover-identity /app/recover-identity
+COPY --from=build /out/assign-application /app/assign-application
 
 USER app
 

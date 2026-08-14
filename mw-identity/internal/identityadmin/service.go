@@ -539,6 +539,9 @@ func normalizeUpdate(
 	if request.AuthenticationPolicy == "" {
 		request.AuthenticationPolicy = "standard"
 	}
+	if request.AuthenticationPolicy != "standard" && request.AuthenticationPolicy != "strong" {
+		return UpdateApplication{}, ErrInvalid
+	}
 
 	var err error
 	request.RedirectURIs, err = normalizeURIs(

@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 	"time"
 
@@ -121,6 +122,23 @@ func (s *Service) ValidateAuthorization(
 			invalidRequest("nonce is too long", true)
 	}
 
+	requireWebAuthn := false
+	var maxAgeSeconds int64 = 300
+	acr := strings.TrimSpace(request.ACRValues)
+	if acr != "" {
+		if acr != "urn:mw:webauthn" {
+			return ValidatedAuthorization{}, invalidRequest("unsupported acr_values", true)
+		}
+		requireWebAuthn = true
+	}
+	if rawMaxAge := strings.TrimSpace(request.MaxAge); rawMaxAge != "" {
+		parsed, err := strconv.ParseInt(rawMaxAge, 10, 64)
+		if err != nil || parsed <= 0 || parsed > 3600 {
+			return ValidatedAuthorization{}, invalidRequest("invalid max_age", true)
+		}
+		maxAgeSeconds = parsed
+	}
+
 	scopes := parseScope(request.Scope)
 	if len(scopes) == 0 || !contains(scopes, "openid") {
 		return ValidatedAuthorization{},
@@ -137,12 +155,14 @@ func (s *Service) ValidateAuthorization(
 	}
 
 	return ValidatedAuthorization{
-		Application:   app,
-		RedirectURI:   redirectURI,
-		Scopes:        scopes,
-		State:         state,
-		Nonce:         nonce,
-		CodeChallenge: request.CodeChallenge,
+		Application:     app,
+		RedirectURI:     redirectURI,
+		Scopes:          scopes,
+		State:           state,
+		Nonce:           nonce,
+		CodeChallenge:   request.CodeChallenge,
+		RequireWebAuthn: requireWebAuthn,
+		MaxAgeSeconds:   maxAgeSeconds,
 	}, nil
 }
 

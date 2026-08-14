@@ -52,6 +52,7 @@ func New(
 		sessions,
 		oauthClient,
 		oauthAudience,
+		authConfig.StrongAuthMaxAge,
 	)
 
 	mailAdmin := newMailAdminProxy(
@@ -59,6 +60,7 @@ func New(
 		sessions,
 		mailClient,
 		mailAudience,
+		authConfig.StrongAuthMaxAge,
 	)
 
 	proxyClient := &http.Client{
@@ -119,6 +121,7 @@ func New(
 		"GET /auth/callback",
 		authHandlers.callback,
 	)
+	mux.HandleFunc("GET /auth/step-up", authHandlers.stepUp)
 	mux.HandleFunc(
 		"GET /auth/me",
 		authHandlers.me,

@@ -7,11 +7,12 @@ import (
 )
 
 var (
-	ErrNotFound       = errors.New("identity record not found")
-	ErrEmailExists    = errors.New("identity email already exists")
-	ErrInvalidLogin   = errors.New("invalid email or password")
-	ErrUserDisabled   = errors.New("identity user is disabled")
-	ErrInvalidSession = errors.New("invalid or expired identity session")
+	ErrNotFound        = errors.New("identity record not found")
+	ErrEmailExists     = errors.New("identity email already exists")
+	ErrInvalidLogin    = errors.New("invalid email or password")
+	ErrUserDisabled    = errors.New("identity user is disabled")
+	ErrInvalidSession  = errors.New("invalid or expired identity session")
+	ErrRecoveryPending = errors.New("identity recovery is pending")
 )
 
 type User struct {
@@ -46,6 +47,7 @@ type SessionRecord struct {
 	CreatedAt  time.Time
 	LastSeenAt time.Time
 	AuthMethod string
+	AuthTime   time.Time
 }
 
 type Session struct {
@@ -57,6 +59,7 @@ type Session struct {
 	CreatedAt  time.Time
 	LastSeenAt time.Time
 	AuthMethod string
+	AuthTime   time.Time
 }
 
 type Store interface {
@@ -70,6 +73,11 @@ type Store interface {
 		context.Context,
 		string,
 	) (User, error)
+
+	IdentityUserRecoveryPending(
+		context.Context,
+		string,
+	) (bool, error)
 
 	CreateIdentitySession(
 		context.Context,

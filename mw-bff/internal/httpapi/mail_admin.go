@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/delegation"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/mwmail"
@@ -14,10 +15,11 @@ import (
 const maxMailAdminRequestBytes int64 = 1024 * 1024
 
 type mailAdminProxy struct {
-	delegation *delegation.Client
-	sessions   *session.Service
-	mail       *mwmail.Client
-	audience   string
+	delegation   *delegation.Client
+	sessions     *session.Service
+	mail         *mwmail.Client
+	audience     string
+	strongMaxAge time.Duration
 }
 
 func newMailAdminProxy(
@@ -25,6 +27,7 @@ func newMailAdminProxy(
 	sessions *session.Service,
 	mailClient *mwmail.Client,
 	audience string,
+	strongMaxAge time.Duration,
 ) *mailAdminProxy {
 	audience = strings.TrimSpace(audience)
 	if delegationClient == nil || sessions == nil ||
@@ -32,10 +35,11 @@ func newMailAdminProxy(
 		return nil
 	}
 	return &mailAdminProxy{
-		delegation: delegationClient,
-		sessions:   sessions,
-		mail:       mailClient,
-		audience:   audience,
+		delegation:   delegationClient,
+		sessions:     sessions,
+		mail:         mailClient,
+		audience:     audience,
+		strongMaxAge: strongMaxAge,
 	}
 }
 
@@ -64,6 +68,9 @@ func (p *mailAdminProxy) serve(
 	}
 	if err != nil {
 		writeJSONError(w, http.StatusBadRequest, "invalid_mail_route")
+		return
+	}
+	if sensitiveMailRoute(r.Method, route.DownstreamPath) && !requireBFFWebAuthn(w, record, p.strongMaxAge) {
 		return
 	}
 

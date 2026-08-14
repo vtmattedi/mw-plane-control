@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/delegation"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/mwoauth"
@@ -14,10 +15,11 @@ import (
 const maxOAuthAdminRequestBytes int64 = 1024 * 1024
 
 type oauthAdminProxy struct {
-	delegation *delegation.Client
-	sessions   *session.Service
-	oauth      *mwoauth.Client
-	audience   string
+	delegation   *delegation.Client
+	sessions     *session.Service
+	oauth        *mwoauth.Client
+	audience     string
+	strongMaxAge time.Duration
 }
 
 func newOAuthAdminProxy(
@@ -25,16 +27,18 @@ func newOAuthAdminProxy(
 	sessions *session.Service,
 	oauthClient *mwoauth.Client,
 	audience string,
+	strongMaxAge time.Duration,
 ) *oauthAdminProxy {
 	audience = strings.TrimSpace(audience)
 	if delegationClient == nil || sessions == nil || oauthClient == nil || audience == "" {
 		return nil
 	}
 	return &oauthAdminProxy{
-		delegation: delegationClient,
-		sessions:   sessions,
-		oauth:      oauthClient,
-		audience:   audience,
+		delegation:   delegationClient,
+		sessions:     sessions,
+		oauth:        oauthClient,
+		audience:     audience,
+		strongMaxAge: strongMaxAge,
 	}
 }
 
@@ -63,6 +67,9 @@ func (p *oauthAdminProxy) serve(
 	}
 	if err != nil {
 		writeJSONError(w, http.StatusBadRequest, "invalid_oauth_route")
+		return
+	}
+	if sensitiveOAuthRoute(r.Method, route.DownstreamPath) && !requireBFFWebAuthn(w, record, p.strongMaxAge) {
 		return
 	}
 

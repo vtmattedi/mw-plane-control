@@ -48,6 +48,9 @@ func (s *policyStore) UpdateIdentityWebAuthnCredential(context.Context, Credenti
 func (s *policyStore) RevokeIdentityWebAuthnCredential(context.Context, string, string, []byte, string) error {
 	return nil
 }
+func (s *policyStore) RevokeOtherIdentityWebAuthnCredentials(context.Context, string, string, []byte, string) error {
+	return nil
+}
 func (s *policyStore) CreateIdentityWebAuthnCeremony(_ context.Context, r CeremonyRecord) error {
 	s.ceremonies = append(s.ceremonies, r)
 	return nil

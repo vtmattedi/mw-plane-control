@@ -9,6 +9,7 @@ type LoginData struct {
 	CSRFToken string
 	ReturnTo  string
 	Error     string
+	AuthMode  string
 }
 
 type AccountData struct {
@@ -16,6 +17,7 @@ type AccountData struct {
 	DisplayName  string
 	IsSuperadmin bool
 	CSRFToken    string
+	AuthMethod   string
 }
 
 var loginTemplate = template.Must(template.New("login").Parse(`<!doctype html>
@@ -30,6 +32,7 @@ var loginTemplate = template.Must(template.New("login").Parse(`<!doctype html>
     <h1>MW Identity</h1>
     <h2>Sign in</h2>
     {{if .Error}}<p role="alert">{{.Error}}</p>{{end}}
+    {{if eq .AuthMode ""}}
     <form method="post" action="/login">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
       {{if .ReturnTo}}<input type="hidden" name="return_to" value="{{.ReturnTo}}">{{end}}
@@ -47,10 +50,22 @@ var loginTemplate = template.Must(template.New("login").Parse(`<!doctype html>
       </p>
       <button type="submit">Sign in</button>
     </form>
+    {{end}}
     <p>
       <button type="button" id="passkey-login" hidden>Sign in with a passkey</button>
     </p>
     <p id="passkey-status" role="status" aria-live="polite"></p>
+    {{if eq .AuthMode "strong"}}
+    <form id="totp-login-form">
+      <input type="hidden" name="return_to" value="{{.ReturnTo}}">
+      <label>Email <input name="email" type="email" autocomplete="username" required></label>
+      <label>Authenticator code <input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" required></label>
+      <button type="submit">Use authenticator code</button>
+      <p id="totp-login-status" role="status" aria-live="polite"></p>
+    </form>
+    <script src="/totp-login.js" defer></script>
+    {{end}}
+
     <script src="/webauthn-login.js" defer></script>
   </main>
 </body>
@@ -87,6 +102,17 @@ var accountTemplate = template.Must(template.New("account").Parse(`<!doctype htm
       <p id="passkey-account-status" role="status" aria-live="polite"></p>
     </section>
     <script src="/webauthn-account.js" defer></script>
+    <section id="totp" hidden>
+      <h2>Authenticator fallback</h2>
+      <button type="button" id="totp-setup">Set up authenticator</button>
+      <code id="totp-secret" hidden></code>
+      <input id="totp-code" hidden inputmode="numeric" autocomplete="one-time-code" placeholder="123456">
+      <button type="button" id="totp-confirm" hidden>Confirm</button>
+      <button type="button" id="totp-disable" hidden>Disable authenticator</button>
+      <p id="totp-status" role="status" aria-live="polite"></p>
+    </section>
+    <script src="/strong-account.js" defer></script>
+
     <form method="post" action="/logout">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
       <button type="submit">Sign out</button>

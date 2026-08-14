@@ -75,6 +75,9 @@ func (s *Service) Create(
 	if policy == "" {
 		policy = "standard"
 	}
+	if policy != "standard" && policy != "strong" {
+		return CreateResult{}, ErrInvalidApplication
+	}
 
 	redirectURIs, err := normalizeURIs(
 		request.RedirectURIs,

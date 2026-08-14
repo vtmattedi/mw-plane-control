@@ -6,15 +6,19 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/applications"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identityadmin"
+	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identitystrong"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/oidc"
 )
 
 type identityAdminHandlers struct {
-	oidc  *oidc.Service
-	admin *identityadmin.Service
+	oidc         *oidc.Service
+	admin        *identityadmin.Service
+	strong       *identitystrong.Service
+	strongMaxAge time.Duration
 }
 
 type identityAdminPrincipal struct {
@@ -23,14 +27,8 @@ type identityAdminPrincipal struct {
 	permissions []string
 }
 
-func newIdentityAdminHandlers(
-	oidcService *oidc.Service,
-	adminService *identityadmin.Service,
-) *identityAdminHandlers {
-	return &identityAdminHandlers{
-		oidc:  oidcService,
-		admin: adminService,
-	}
+func newIdentityAdminHandlers(oidcService *oidc.Service, adminService *identityadmin.Service, strongService *identitystrong.Service, strongMaxAge time.Duration) *identityAdminHandlers {
+	return &identityAdminHandlers{oidc: oidcService, admin: adminService, strong: strongService, strongMaxAge: strongMaxAge}
 }
 
 func (h *identityAdminHandlers) principal(
@@ -90,6 +88,10 @@ func (h *identityAdminHandlers) principal(
 				HTTPStatus:  http.StatusForbidden,
 			},
 			nil
+	}
+
+	if requiresRecentAdminWebAuthn(r) && !recentWebAuthnAccess(access, h.strongMaxAge, time.Now()) {
+		return identityAdminPrincipal{}, &oidc.ProtocolError{Code: "step_up_required", Description: "recent WebAuthn required", HTTPStatus: http.StatusForbidden}, nil
 	}
 
 	return identityAdminPrincipal{
@@ -634,4 +636,30 @@ func decodeJSONBody(
 	}
 
 	return true
+}
+
+func requiresRecentAdminWebAuthn(r *http.Request) bool {
+	switch r.Method {
+	case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
+		return true
+	default:
+		return false
+	}
+}
+
+func (h *identityAdminHandlers) revokeUserSessions(w http.ResponseWriter, r *http.Request) {
+	principal, protocolErr, err := h.principal(r, identityadmin.PermissionApplicationsWrite)
+	if h.handlePrincipalError(w, protocolErr, err) {
+		return
+	}
+	target := strings.TrimSpace(r.PathValue("user_id"))
+	if target == "" {
+		writeJSONError(w, 400, "invalid_request")
+		return
+	}
+	if err := h.strong.RevokeUserSessions(r.Context(), principal.access.User.ID, target); err != nil {
+		writeJSONError(w, 500, "identity_admin_failed")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

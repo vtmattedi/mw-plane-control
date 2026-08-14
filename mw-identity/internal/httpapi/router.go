@@ -4,11 +4,14 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/auth"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identityadmin"
+	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identitystrong"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identitywebauthn"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/oidc"
+	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/portal"
 )
 
 func New(
@@ -19,6 +22,8 @@ func New(
 	oidcService *oidc.Service,
 	identityAdminService *identityadmin.Service,
 	identityWebAuthnService *identitywebauthn.Service,
+	identityStrongService *identitystrong.Service,
+	strongMaxAge time.Duration,
 ) http.Handler {
 	if oidcConfig.SigningManager == nil {
 		panic(fmt.Errorf("OIDC signing manager is required"))
@@ -32,17 +37,15 @@ func New(
 	if identityWebAuthnService == nil {
 		panic(fmt.Errorf("Identity WebAuthn service is required"))
 	}
+	if identityStrongService == nil {
+		panic(fmt.Errorf("Identity strong-auth service is required"))
+	}
 
 	authHandlers := newIdentityAuthHandlers(authService, authConfig)
 	oauthHandlers := newOAuthHandlers(oidcService, authHandlers)
-	adminHandlers := newIdentityAdminHandlers(
-		oidcService,
-		identityAdminService,
-	)
-	webAuthnHandlers := newIdentityWebAuthnHandlers(
-		identityWebAuthnService,
-		authHandlers,
-	)
+	adminHandlers := newIdentityAdminHandlers(oidcService, identityAdminService, identityStrongService, strongMaxAge)
+	webAuthnHandlers := newIdentityWebAuthnHandlers(identityWebAuthnService, authHandlers, strongMaxAge)
+	strongHandlers := newIdentityStrongHandlers(identityStrongService, identityWebAuthnService, authHandlers, strongMaxAge)
 
 	mux := http.NewServeMux()
 
@@ -120,6 +123,7 @@ func New(
 		"GET /admin/api/audit",
 		adminHandlers.audit,
 	)
+	mux.HandleFunc("POST /admin/api/users/{user_id}/revoke-sessions", adminHandlers.revokeUserSessions)
 
 	mux.HandleFunc("GET /webauthn-login.js", webAuthnHandlers.loginScript)
 	mux.HandleFunc("GET /webauthn-account.js", webAuthnHandlers.accountScript)
@@ -129,6 +133,24 @@ func New(
 	mux.HandleFunc("POST /api/webauthn/login/options", webAuthnHandlers.loginOptions)
 	mux.HandleFunc("POST /api/webauthn/login/verify", webAuthnHandlers.loginVerify)
 	mux.HandleFunc("DELETE /api/webauthn/credentials/{credential_id}", webAuthnHandlers.remove)
+
+	mux.HandleFunc("GET /api/strong/status", strongHandlers.status)
+	mux.HandleFunc("POST /api/totp/setup", strongHandlers.setupTOTP)
+	mux.HandleFunc("POST /api/totp/confirm", strongHandlers.confirmTOTP)
+	mux.HandleFunc("POST /api/totp/disable", strongHandlers.disableTOTP)
+	mux.HandleFunc("POST /api/totp/login", strongHandlers.loginTOTP)
+	mux.HandleFunc("GET /recover", strongHandlers.recoveryPage)
+	mux.HandleFunc("GET /recovery.js", strongHandlers.recoveryScript)
+	mux.HandleFunc("POST /api/recovery/webauthn/options", strongHandlers.recoveryOptions)
+	mux.HandleFunc("POST /api/recovery/webauthn/verify", strongHandlers.recoveryVerify)
+	mux.HandleFunc("GET /strong-account.js", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+		_, _ = w.Write([]byte(portal.IdentityStrongAccountJS))
+	})
+	mux.HandleFunc("GET /totp-login.js", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+		_, _ = w.Write([]byte(portal.IdentityTOTPLoginJS))
+	})
 
 	mux.HandleFunc("GET /{$}", authHandlers.root)
 	mux.HandleFunc("GET /login", authHandlers.loginPage)

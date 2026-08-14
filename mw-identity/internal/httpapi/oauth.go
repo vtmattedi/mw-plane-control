@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/oidc"
 )
@@ -37,6 +38,8 @@ func (h *oauthHandlers) authorize(
 		Nonce:               r.URL.Query().Get("nonce"),
 		CodeChallenge:       r.URL.Query().Get("code_challenge"),
 		CodeChallengeMethod: r.URL.Query().Get("code_challenge_method"),
+		ACRValues:           r.URL.Query().Get("acr_values"),
+		MaxAge:              r.URL.Query().Get("max_age"),
 	}
 
 	validated, protocolErr := h.oidc.ValidateAuthorization(
@@ -50,8 +53,26 @@ func (h *oauthHandlers) authorize(
 
 	_, session, err := h.auth.currentSession(r)
 	if err != nil {
-		loginURL := "/login?return_to=" +
-			url.QueryEscape(r.URL.RequestURI())
+		mode := ""
+		if validated.RequireWebAuthn {
+			mode = "&auth=webauthn"
+		} else if validated.Application.AuthenticationPolicy == "strong" {
+			mode = "&auth=strong"
+		}
+		loginURL := "/login?return_to=" + url.QueryEscape(r.URL.RequestURI()) + mode
+		http.Redirect(w, r, loginURL, http.StatusSeeOther)
+		return
+	}
+
+	if validated.RequireWebAuthn {
+		maxAge := time.Duration(validated.MaxAgeSeconds) * time.Second
+		if !recentWebAuthnSession(session.Session, maxAge, time.Now()) {
+			loginURL := "/login?return_to=" + url.QueryEscape(r.URL.RequestURI()) + "&auth=webauthn"
+			http.Redirect(w, r, loginURL, http.StatusSeeOther)
+			return
+		}
+	} else if validated.Application.AuthenticationPolicy == "strong" && !strongSessionMethod(session.Session.AuthMethod) {
+		loginURL := "/login?return_to=" + url.QueryEscape(r.URL.RequestURI()) + "&auth=strong"
 		http.Redirect(w, r, loginURL, http.StatusSeeOther)
 		return
 	}
@@ -75,7 +96,7 @@ func (h *oauthHandlers) authorize(
 		r.Context(),
 		validated,
 		session.User,
-		session.Session.CreatedAt,
+		session.Session.AuthTime,
 		session.Session.AuthMethod,
 	)
 	if err != nil {

@@ -17,15 +17,19 @@ type AuthorizationRequest struct {
 	Nonce               string
 	CodeChallenge       string
 	CodeChallengeMethod string
+	ACRValues           string
+	MaxAge              string
 }
 
 type ValidatedAuthorization struct {
-	Application   applications.Application
-	RedirectURI   string
-	Scopes        []string
-	State         string
-	Nonce         string
-	CodeChallenge string
+	Application     applications.Application
+	RedirectURI     string
+	Scopes          []string
+	State           string
+	Nonce           string
+	CodeChallenge   string
+	RequireWebAuthn bool
+	MaxAgeSeconds   int64
 }
 
 type AuthorizationCode struct {

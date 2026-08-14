@@ -18,8 +18,9 @@ const (
 )
 
 type identityWebAuthnHandlers struct {
-	service *identitywebauthn.Service
-	auth    *identityAuthHandlers
+	service      *identitywebauthn.Service
+	auth         *identityAuthHandlers
+	strongMaxAge time.Duration
 }
 
 type identityWebAuthnOptionsResponse struct {
@@ -30,11 +31,9 @@ type identityWebAuthnOptionsResponse struct {
 func newIdentityWebAuthnHandlers(
 	service *identitywebauthn.Service,
 	authHandlers *identityAuthHandlers,
+	strongMaxAge time.Duration,
 ) *identityWebAuthnHandlers {
-	return &identityWebAuthnHandlers{
-		service: service,
-		auth:    authHandlers,
-	}
+	return &identityWebAuthnHandlers{service: service, auth: authHandlers, strongMaxAge: strongMaxAge}
 }
 
 func (h *identityWebAuthnHandlers) loginScript(
@@ -85,6 +84,15 @@ func (h *identityWebAuthnHandlers) registerOptions(
 	if !ok {
 		return
 	}
+	existingCredentials, err := h.service.ListCredentials(r.Context(), session.User.ID)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "webauthn_failed")
+		return
+	}
+	if len(existingCredentials) > 0 && !recentWebAuthnSession(session.Session, h.strongMaxAge, time.Now()) {
+		writeStepUpRequired(w)
+		return
+	}
 
 	var request struct {
 		Label string `json:"label"`
@@ -131,6 +139,15 @@ func (h *identityWebAuthnHandlers) registerVerify(
 ) {
 	_, session, ok := h.sessionAndCSRF(w, r)
 	if !ok {
+		return
+	}
+	existingCredentials, err := h.service.ListCredentials(r.Context(), session.User.ID)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "webauthn_failed")
+		return
+	}
+	if len(existingCredentials) > 0 && !recentWebAuthnSession(session.Session, h.strongMaxAge, time.Now()) {
+		writeStepUpRequired(w)
 		return
 	}
 
@@ -288,6 +305,20 @@ func (h *identityWebAuthnHandlers) remove(
 ) {
 	_, session, ok := h.sessionAndCSRF(w, r)
 	if !ok {
+		return
+	}
+
+	items, listErr := h.service.ListCredentials(r.Context(), session.User.ID)
+	if listErr != nil {
+		writeJSONError(w, http.StatusInternalServerError, "webauthn_failed")
+		return
+	}
+	if len(items) <= 1 {
+		writeJSONError(w, http.StatusConflict, "cannot_remove_last_passkey")
+		return
+	}
+	if !recentWebAuthnSession(session.Session, h.strongMaxAge, time.Now()) {
+		writeStepUpRequired(w)
 		return
 	}
 

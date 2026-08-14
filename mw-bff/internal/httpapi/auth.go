@@ -24,6 +24,7 @@ type AuthConfig struct {
 	PublicBaseURL           string
 	IdentityInternalBaseURL string
 	IdentityHTTPTimeout     time.Duration
+	StrongAuthMaxAge        time.Duration
 }
 
 type authHandlers struct {
@@ -76,6 +77,23 @@ func (h *authHandlers) login(
 	)
 }
 
+func (h *authHandlers) stepUp(w http.ResponseWriter, r *http.Request) {
+	_, record, err := h.current(r)
+	if err != nil {
+		writeJSONError(w, http.StatusUnauthorized, "unauthenticated")
+		return
+	}
+	_ = record
+	returnTo := safeReturnTo(r.URL.Query().Get("return_to"))
+	target, err := h.identity.StartStepUp(r.Context(), returnTo)
+	if err != nil {
+		writeJSONError(w, 500, "step_up_start_failed")
+		return
+	}
+	noStore(w)
+	http.Redirect(w, r, target, http.StatusFound)
+}
+
 func (h *authHandlers) callback(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -125,6 +143,7 @@ func (h *authHandlers) callback(
 			Email:                identity.Email,
 			DisplayName:          identity.DisplayName,
 			AuthTime:             identity.AuthTime,
+			AuthMethod:           identity.AuthMethod,
 			AccessToken:          identity.AccessToken,
 			AccessTokenExpiresAt: identity.AccessTokenExpiresAt,
 		},
@@ -188,14 +207,17 @@ func (h *authHandlers) me(
 		http.StatusOK,
 		map[string]any{
 			"identity": map[string]any{
-				"issuer":    record.IdentityIssuer,
-				"sub":       record.IdentitySubject,
-				"email":     record.Email,
-				"name":      record.DisplayName,
-				"auth_time": record.AuthTime.Unix(),
+				"issuer":      record.IdentityIssuer,
+				"sub":         record.IdentitySubject,
+				"email":       record.Email,
+				"name":        record.DisplayName,
+				"auth_time":   record.AuthTime.Unix(),
+				"auth_method": record.AuthMethod,
+				"assurance":   assuranceFor(record),
 			},
 			"session": map[string]any{
-				"expires_at": record.ExpiresAt.Unix(),
+				"expires_at":      record.ExpiresAt.Unix(),
+				"recent_webauthn": recentBFFWebAuthn(record, h.config.StrongAuthMaxAge, time.Now()),
 			},
 		},
 	)

@@ -63,6 +63,10 @@ type Store interface {
 		string,
 	) error
 
+	RevokeOtherIdentityWebAuthnCredentials(
+		context.Context, string, string, []byte, string,
+	) error
+
 	CreateIdentityWebAuthnCeremony(
 		context.Context,
 		CeremonyRecord,

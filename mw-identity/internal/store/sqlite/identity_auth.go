@@ -98,8 +98,9 @@ func (s *Store) CreateIdentitySession(
 			expires_at_unix,
 			created_at_unix,
 			last_seen_at_unix,
-			auth_method
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			auth_method,
+			auth_time_unix
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		input.ID,
 		input.UserID,
 		input.TokenHash,
@@ -108,6 +109,7 @@ func (s *Store) CreateIdentitySession(
 		input.CreatedAt.Unix(),
 		input.LastSeenAt.Unix(),
 		input.AuthMethod,
+		input.AuthTime.Unix(),
 	)
 	if err != nil {
 		return fmt.Errorf("create identity session: %w", err)
@@ -131,6 +133,7 @@ func (s *Store) IdentitySessionByTokenHash(
 			s.created_at_unix,
 			s.last_seen_at_unix,
 			s.auth_method,
+			s.auth_time_unix,
 			u.id,
 			u.email,
 			u.email_normalized,
@@ -153,6 +156,7 @@ func (s *Store) IdentitySessionByTokenHash(
 		expires     int64
 		created     int64
 		lastSeen    int64
+		authTime    int64
 		userCreated int64
 		userUpdated int64
 		enabled     int
@@ -167,6 +171,7 @@ func (s *Store) IdentitySessionByTokenHash(
 		&created,
 		&lastSeen,
 		&session.AuthMethod,
+		&authTime,
 		&session.User.ID,
 		&session.User.Email,
 		&session.User.EmailNormalized,
@@ -190,6 +195,7 @@ func (s *Store) IdentitySessionByTokenHash(
 	session.ExpiresAt = time.Unix(expires, 0).UTC()
 	session.CreatedAt = time.Unix(created, 0).UTC()
 	session.LastSeenAt = time.Unix(lastSeen, 0).UTC()
+	session.AuthTime = time.Unix(authTime, 0).UTC()
 	session.User.Enabled = enabled == 1
 	session.User.IsSuperadmin = superadmin == 1
 	session.User.CreatedAt = time.Unix(userCreated, 0).UTC()
