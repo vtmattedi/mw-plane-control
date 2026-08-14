@@ -1,0 +1,6 @@
+services:
+  mw-identity:
+    # Step 11 local E2E bridge for native Windows MW Mail.
+    # Bind only to loopback; production continues to use the private Docker network.
+    ports:
+      - "127.0.0.1:7100:7100"

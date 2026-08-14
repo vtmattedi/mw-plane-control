@@ -7,6 +7,7 @@ import (
 
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/delegation"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/identityclient"
+	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/mwmail"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/mwoauth"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/session"
 )
@@ -19,6 +20,8 @@ func New(
 	delegationProbeConfig DelegationProbeConfig,
 	oauthClient *mwoauth.Client,
 	oauthAudience string,
+	mailClient *mwmail.Client,
+	mailAudience string,
 	authConfig AuthConfig,
 ) http.Handler {
 	if identity == nil {
@@ -49,6 +52,13 @@ func New(
 		sessions,
 		oauthClient,
 		oauthAudience,
+	)
+
+	mailAdmin := newMailAdminProxy(
+		delegationClient,
+		sessions,
+		mailClient,
+		mailAudience,
 	)
 
 	proxyClient := &http.Client{
@@ -88,6 +98,15 @@ func New(
 			"/oauth/{path...}",
 			func(w http.ResponseWriter, r *http.Request) {
 				oauthAdmin.serve(authHandlers, w, r)
+			},
+		)
+	}
+
+	if mailAdmin != nil {
+		mux.HandleFunc(
+			"/mail/{path...}",
+			func(w http.ResponseWriter, r *http.Request) {
+				mailAdmin.serve(authHandlers, w, r)
 			},
 		)
 	}

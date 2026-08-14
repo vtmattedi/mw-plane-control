@@ -14,6 +14,7 @@ import (
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/delegation"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/httpapi"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/identityclient"
+	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/mwmail"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/mwoauth"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/secure"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/session"
@@ -160,6 +161,19 @@ func main() {
 		}
 	}
 
+	var mailClient *mwmail.Client
+	if cfg.MailBaseURL != "" {
+		mailClient, err = mwmail.New(mwmail.Config{
+			BaseURL:     cfg.MailBaseURL,
+			Host:        cfg.MailHost,
+			HTTPTimeout: cfg.MailHTTPTimeout,
+		})
+		if err != nil {
+			slog.Error("MW Mail client initialization failed", "error", err)
+			os.Exit(1)
+		}
+	}
+
 	server := &http.Server{
 		Addr: fmt.Sprintf(
 			":%d",
@@ -179,6 +193,8 @@ func main() {
 			},
 			oauthClient,
 			cfg.OAuthAudience,
+			mailClient,
+			cfg.MailAudience,
 			httpapi.AuthConfig{
 				AppEnv:                  cfg.AppEnv,
 				PublicBaseURL:           cfg.PublicBaseURL,

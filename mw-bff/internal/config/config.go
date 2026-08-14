@@ -32,6 +32,10 @@ type Config struct {
 	OAuthHost                   string
 	OAuthAudience               string
 	OAuthHTTPTimeout            time.Duration
+	MailBaseURL                 string
+	MailHost                    string
+	MailAudience                string
+	MailHTTPTimeout             time.Duration
 	IdentityHTTPTimeout         time.Duration
 }
 
@@ -86,6 +90,14 @@ func Load() (Config, error) {
 
 	oauthHTTPTimeoutSeconds, err := positiveInt(
 		"BFF_OAUTH_HTTP_TIMEOUT_SECONDS",
+		5,
+	)
+	if err != nil {
+		return Config{}, err
+	}
+
+	mailHTTPTimeoutSeconds, err := positiveInt(
+		"BFF_MAIL_HTTP_TIMEOUT_SECONDS",
 		5,
 	)
 	if err != nil {
@@ -151,6 +163,10 @@ func Load() (Config, error) {
 		OAuthHost:                   strings.TrimSpace(os.Getenv("BFF_OAUTH_HOST")),
 		OAuthAudience:               strings.TrimSpace(getenv("BFF_OAUTH_AUDIENCE", "mw-oauth")),
 		OAuthHTTPTimeout:            time.Duration(oauthHTTPTimeoutSeconds) * time.Second,
+		MailBaseURL:                 strings.TrimRight(strings.TrimSpace(os.Getenv("BFF_MAIL_BASE_URL")), "/"),
+		MailHost:                    strings.TrimSpace(os.Getenv("BFF_MAIL_HOST")),
+		MailAudience:                strings.TrimSpace(getenv("BFF_MAIL_AUDIENCE", "mw-mail")),
+		MailHTTPTimeout:             time.Duration(mailHTTPTimeoutSeconds) * time.Second,
 		IdentityHTTPTimeout:         time.Duration(httpTimeoutSeconds) * time.Second,
 	}
 
