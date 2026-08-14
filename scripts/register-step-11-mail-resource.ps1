@@ -37,9 +37,11 @@ try {
         --scope openid `
         --scope mail.projects.read `
         --scope mail.projects.write `
+        --scope mail.projects.delete `
         --scope mail.credentials.rotate `
         --scope mail.emails.read `
         --scope mail.usage.read `
+        --scope mail.server.read `
         --audience mw-mail `
         --json
 

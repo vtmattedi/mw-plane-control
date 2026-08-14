@@ -34,6 +34,7 @@ try {
         --scope openid `
         --scope oauth.projects.read `
         --scope oauth.projects.write `
+        --scope oauth.projects.delete `
         --scope oauth.credentials.rotate `
         --scope oauth.policy.read `
         --scope oauth.policy.write `

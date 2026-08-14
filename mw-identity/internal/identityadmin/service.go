@@ -97,6 +97,7 @@ func (s *Service) Permissions(
 			PermissionApplicationsWrite,
 			PermissionApplicationsRotate,
 			PermissionUsersRead,
+			PermissionUsersWrite,
 			PermissionAssignmentsRead,
 			PermissionAssignmentsWrite,
 			PermissionAuditRead,
@@ -108,6 +109,7 @@ func (s *Service) Permissions(
 			PermissionApplicationsWrite,
 			PermissionApplicationsRotate,
 			PermissionUsersRead,
+			PermissionUsersWrite,
 			PermissionAssignmentsRead,
 			PermissionAuditRead,
 		}, role, nil
@@ -180,6 +182,56 @@ func (s *Service) CreateApplication(
 	return CreateApplicationResult{
 		Application:  result.Application,
 		ClientSecret: result.ClientSecret,
+	}, nil
+}
+
+func (s *Service) CreateUser(
+	ctx context.Context,
+	actor auth.User,
+	remoteIP string,
+	request CreateUserRequest,
+) (UserSummary, error) {
+	normalized, err := auth.NormalizeEmail(request.Email)
+	if err != nil || len(request.Password) < 12 || len(request.Password) > 256 {
+		return UserSummary{}, ErrInvalid
+	}
+
+	displayName := strings.TrimSpace(request.DisplayName)
+	if displayName == "" {
+		displayName = normalized
+	}
+	passwordHash, err := auth.HashPassword([]byte(request.Password))
+	if err != nil {
+		return UserSummary{}, err
+	}
+	userID, err := auth.NewOpaqueToken("usr_")
+	if err != nil {
+		return UserSummary{}, err
+	}
+	now := s.now().UTC()
+	input := auth.NewUser{
+		ID:              userID,
+		Email:           strings.TrimSpace(request.Email),
+		EmailNormalized: normalized,
+		DisplayName:     displayName,
+		PasswordHash:    passwordHash,
+		Enabled:         true,
+		IsSuperadmin:    false,
+		CreatedAt:       now,
+	}
+	if err := s.store.CreateIdentityUser(ctx, input); err != nil {
+		return UserSummary{}, err
+	}
+
+	_ = s.recordAudit(ctx, actor, remoteIP, "identity.user.created", map[string]any{
+		"user_id":       userID,
+		"email":         normalized,
+		"is_superadmin": false,
+	})
+
+	return UserSummary{
+		ID: userID, Email: input.Email, DisplayName: displayName,
+		Enabled: true, IsSuperadmin: false, CreatedAt: now,
 	}, nil
 }
 

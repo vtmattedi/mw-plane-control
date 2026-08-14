@@ -1,0 +1,66 @@
+.marker {
+  display: none;
+}
+
+.tooltip {
+  position: fixed;
+  // Must stay above modal overlays and contents (130/131).
+  z-index: 200;
+  width: max-content;
+  max-width: 13rem;
+  padding: 0.42rem 0.6rem;
+  visibility: hidden;
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  border-radius: 0.5rem;
+  background: var(--tooltip);
+  box-shadow: 0 0.4rem 1rem rgb(16 35 43 / 18%);
+  color: var(--tooltip-foreground);
+  font-family: var(--text-font-2);
+  font-size: 0.72rem;
+  line-height: 1.2;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% + 0.2rem));
+  transition:
+    opacity 100ms ease,
+    transform 100ms ease,
+    visibility 0s linear 100ms;
+}
+
+.tooltip::after {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 0.45rem;
+  height: 0.45rem;
+  background: var(--tooltip);
+  content: '';
+  transform: translate(-50%, -55%) rotate(45deg);
+}
+
+.tooltip[data-placement='bottom'] {
+  transform: translate(-50%, -0.2rem);
+
+  &::after {
+    top: auto;
+    bottom: 100%;
+    transform: translate(-50%, 55%) rotate(45deg);
+  }
+}
+
+.tooltip[data-open] {
+  visibility: visible;
+  opacity: 1;
+  transform: translate(-50%, -100%);
+  transition-delay: 0s;
+}
+
+.tooltip[data-open][data-placement='bottom'] {
+  transform: translate(-50%, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tooltip {
+    transition-property: opacity, visibility;
+  }
+}

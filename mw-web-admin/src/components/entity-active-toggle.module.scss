@@ -1,0 +1,10 @@
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+
+  span {
+    color: var(--muted-foreground);
+    font-size: 0.8rem;
+  }
+}

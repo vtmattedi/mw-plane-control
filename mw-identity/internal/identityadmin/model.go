@@ -23,6 +23,7 @@ const (
 	PermissionApplicationsWrite  = "identity.applications.write"
 	PermissionApplicationsRotate = "identity.applications.rotate_secret"
 	PermissionUsersRead          = "identity.users.read"
+	PermissionUsersWrite         = "identity.users.write"
 	PermissionAssignmentsRead    = "identity.assignments.read"
 	PermissionAssignmentsWrite   = "identity.assignments.write"
 	PermissionAuditRead          = "identity.audit.read"
@@ -45,6 +46,12 @@ type UserSummary struct {
 	Enabled      bool      `json:"enabled"`
 	IsSuperadmin bool      `json:"is_superadmin"`
 	CreatedAt    time.Time `json:"created_at"`
+}
+
+type CreateUserRequest struct {
+	Email       string `json:"email"`
+	DisplayName string `json:"display_name"`
+	Password    string `json:"password"`
 }
 
 type Assignment struct {
@@ -114,6 +121,8 @@ type Store interface {
 	ListIdentityUsers(
 		context.Context,
 	) ([]UserSummary, error)
+
+	CreateIdentityUser(context.Context, auth.NewUser) error
 
 	ListIdentityAssignments(
 		context.Context,

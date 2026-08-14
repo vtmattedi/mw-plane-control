@@ -40,6 +40,9 @@ func requireBFFWebAuthn(w http.ResponseWriter, record session.Record, maxAge tim
 }
 
 func sensitiveOAuthRoute(method, path string) bool {
+	if method == http.MethodDelete && strings.HasPrefix(path, "/admin/api/projects/") {
+		return true
+	}
 	if method == http.MethodPost && (strings.HasSuffix(path, "/rotate-key") || strings.HasSuffix(path, "/rotate-callback-secret")) {
 		return true
 	}
@@ -47,5 +50,8 @@ func sensitiveOAuthRoute(method, path string) bool {
 }
 
 func sensitiveMailRoute(method, path string) bool {
+	if method == http.MethodDelete && strings.HasPrefix(path, "/admin/api/projects/") {
+		return true
+	}
 	return method == http.MethodPost && strings.HasSuffix(path, "/rotate-key")
 }

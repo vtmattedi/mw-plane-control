@@ -1,0 +1,88 @@
+.root {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.labelHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.control {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  height: 2.75rem;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 2.75rem;
+  padding: 0 0.55rem;
+  border: 1px solid var(--input);
+  border-radius: 0.75rem;
+  background: var(--card);
+
+  &:focus-within {
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px
+      color-mix(
+        in srgb,
+        var(--ring) var(--control-focus-halo-strength),
+        transparent
+      );
+  }
+}
+
+.swatch {
+  display: block;
+  width: 1.875rem;
+  height: 1.875rem;
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  background: var(--selected-color);
+
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+}
+
+.value {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--foreground);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.92rem;
+  text-transform: uppercase;
+
+  &:focus-visible {
+    outline: none;
+  }
+}
+
+.popover {
+  z-index: 220;
+  padding: 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 0.85rem;
+  background: var(--card);
+  box-shadow: 0 1rem 2.5rem
+    color-mix(in srgb, var(--foreground) 18%, transparent);
+}
+
+.popover :global(.react-colorful) {
+  width: min(14rem, calc(100vw - 3rem));
+  height: 12rem;
+}

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/applications"
+	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/auth"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identityadmin"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identitystrong"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/oidc"
@@ -375,6 +376,24 @@ func (h *identityAdminHandlers) users(
 	)
 }
 
+func (h *identityAdminHandlers) createUser(w http.ResponseWriter, r *http.Request) {
+	principal, protocolErr, err := h.principal(r, identityadmin.PermissionUsersWrite)
+	if h.handlePrincipalError(w, protocolErr, err) {
+		return
+	}
+
+	var request identityadmin.CreateUserRequest
+	if !decodeJSONBody(w, r, &request) {
+		return
+	}
+	user, err := h.admin.CreateUser(r.Context(), principal.access.User, remoteIP(r), request)
+	if err != nil {
+		h.writeAdminError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"user": user})
+}
+
 func (h *identityAdminHandlers) assignments(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -588,6 +607,9 @@ func (h *identityAdminHandlers) writeAdminError(
 			http.StatusConflict,
 			"client_id_exists",
 		)
+
+	case errors.Is(err, auth.ErrEmailExists):
+		writeJSONError(w, http.StatusConflict, "email_exists")
 
 	default:
 		writeJSONError(

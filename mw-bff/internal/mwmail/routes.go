@@ -3,6 +3,7 @@ package mwmail
 import (
 	"errors"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -12,12 +13,16 @@ const Audience = "mw-mail"
 const (
 	ScopeProjectsRead      = "mail.projects.read"
 	ScopeProjectsWrite     = "mail.projects.write"
+	ScopeProjectsDelete    = "mail.projects.delete"
 	ScopeCredentialsRotate = "mail.credentials.rotate"
 	ScopeEmailsRead        = "mail.emails.read"
 	ScopeUsageRead         = "mail.usage.read"
+	ScopeServerRead        = "mail.server.read"
 )
 
 var ErrRouteNotFound = errors.New("MW Mail admin route not found")
+
+var safeSegment = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
 
 type Route struct {
 	DownstreamPath string
@@ -42,9 +47,15 @@ func Resolve(method string, facadePath string) (Route, error) {
 		return route(path, ScopeEmailsRead), nil
 	case method == http.MethodGet && path == "/emails/by-project":
 		return route(path, ScopeUsageRead), nil
+	case method == http.MethodGet && path == "/docs":
+		return route(path, ScopeServerRead), nil
 	}
 
 	parts := strings.Split(strings.Trim(path, "/"), "/")
+	if len(parts) == 2 && parts[0] == "docs" &&
+		method == http.MethodGet && validSegment(parts[1]) {
+		return route(path, ScopeServerRead), nil
+	}
 	if len(parts) == 2 && parts[0] == "emails" &&
 		method == http.MethodGet && positiveDecimal(parts[1]) {
 		return route(path, ScopeEmailsRead), nil
@@ -57,6 +68,8 @@ func Resolve(method string, facadePath string) (Route, error) {
 	switch {
 	case len(parts) == 2 && method == http.MethodPatch:
 		return route(path, ScopeProjectsWrite), nil
+	case len(parts) == 2 && method == http.MethodDelete:
+		return route(path, ScopeProjectsDelete), nil
 	case len(parts) == 3 && parts[2] == "rotate-key" && method == http.MethodPost:
 		return route(path, ScopeCredentialsRotate), nil
 	case len(parts) == 3 && parts[2] == "request-domains" && method == http.MethodGet:
@@ -95,4 +108,8 @@ func cleanFacadePath(value string) string {
 func positiveDecimal(value string) bool {
 	parsed, err := strconv.ParseInt(value, 10, 64)
 	return err == nil && parsed > 0
+}
+
+func validSegment(value string) bool {
+	return value != "" && len(value) <= 128 && safeSegment.MatchString(value)
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identitywebauthn"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/oidc"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/portal"
+	webstatic "github.com/vtmattedi/mw-plane-control/mw-identity/web/static"
 )
 
 func New(
@@ -119,6 +120,10 @@ func New(
 		adminHandlers.users,
 	)
 	mux.HandleFunc(
+		"POST /admin/api/users",
+		adminHandlers.createUser,
+	)
+	mux.HandleFunc(
 		"GET /admin/api/applications/{id}/assignments",
 		adminHandlers.assignments,
 	)
@@ -165,7 +170,9 @@ func New(
 
 	mux.HandleFunc("GET /{$}", authHandlers.root)
 	mux.HandleFunc("GET /login", authHandlers.loginPage)
+	mux.HandleFunc("GET /login/en", authHandlers.loginPage)
 	mux.HandleFunc("POST /login", authHandlers.login)
+	mux.Handle("GET /static/", http.StripPrefix("/static/", webstatic.AssetHandler()))
 	mux.HandleFunc("GET /account", authHandlers.account)
 	mux.HandleFunc("POST /logout", authHandlers.logout)
 

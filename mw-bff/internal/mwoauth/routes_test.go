@@ -15,6 +15,7 @@ func TestResolveKnownRoutes(t *testing.T) {
 		{http.MethodGet, "/projects", ScopeProjectsRead, "/admin/api/projects"},
 		{http.MethodPost, "/projects", ScopeProjectsWrite, "/admin/api/projects"},
 		{http.MethodPatch, "/projects/42", ScopeProjectsWrite, "/admin/api/projects/42"},
+		{http.MethodDelete, "/projects/42", ScopeProjectsDelete, "/admin/api/projects/42"},
 		{http.MethodPost, "/projects/42/rotate-key", ScopeCredentialsRotate, "/admin/api/projects/42/rotate-key"},
 		{http.MethodPost, "/projects/42/rotate-callback-secret", ScopeCredentialsRotate, "/admin/api/projects/42/rotate-callback-secret"},
 		{http.MethodGet, "/projects/42/oauth/google", ScopePolicyRead, "/admin/api/projects/42/oauth/google"},
@@ -43,7 +44,7 @@ func TestResolveRejectsUnmappedAndTraversalRoutes(t *testing.T) {
 		method string
 		path   string
 	}{
-		{http.MethodDelete, "/projects/1"},
+		{http.MethodDelete, "/projects/0"},
 		{http.MethodGet, "/auth/me"},
 		{http.MethodPost, "/auth/login"},
 		{http.MethodGet, "/projects/0"},

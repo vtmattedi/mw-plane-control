@@ -62,12 +62,14 @@ GET   health                              mail.projects.read
 GET   projects                            mail.projects.read
 POST  projects                            mail.projects.write
 PATCH projects/{id}                       mail.projects.write
+DELETE projects/{id}                      mail.projects.delete
 GET   projects/{id}/request-domains       mail.projects.read
 PUT   projects/{id}/request-domains       mail.projects.write
 POST  projects/{id}/rotate-key            mail.credentials.rotate
 GET   emails                              mail.emails.read
 GET   emails/{id}                         mail.emails.read
 GET   emails/by-project                   mail.usage.read
+GET   docs[/version]                      mail.server.read
 ```
 
 ## Browser/service boundary

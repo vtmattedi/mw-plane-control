@@ -13,6 +13,7 @@ const Audience = "mw-oauth"
 const (
 	ScopeProjectsRead      = "oauth.projects.read"
 	ScopeProjectsWrite     = "oauth.projects.write"
+	ScopeProjectsDelete    = "oauth.projects.delete"
 	ScopeCredentialsRotate = "oauth.credentials.rotate"
 	ScopePolicyRead        = "oauth.policy.read"
 	ScopePolicyWrite       = "oauth.policy.write"
@@ -71,6 +72,8 @@ func Resolve(method string, facadePath string) (Route, error) {
 	switch {
 	case len(parts) == 2 && method == http.MethodPatch:
 		return route(path, ScopeProjectsWrite), nil
+	case len(parts) == 2 && method == http.MethodDelete:
+		return route(path, ScopeProjectsDelete), nil
 	case len(parts) == 3 && method == http.MethodPost && parts[2] == "rotate-key":
 		return route(path, ScopeCredentialsRotate), nil
 	case len(parts) == 3 && method == http.MethodPost && parts[2] == "rotate-callback-secret":

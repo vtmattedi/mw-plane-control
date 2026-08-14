@@ -40,9 +40,11 @@ $ComposeArgs = @(
 $MailScopes = @(
     "mail.projects.read",
     "mail.projects.write",
+    "mail.projects.delete",
     "mail.credentials.rotate",
     "mail.emails.read",
-    "mail.usage.read"
+    "mail.usage.read",
+    "mail.server.read"
 )
 
 function Read-EnvValue([string]$Path, [string]$Name, [bool]$Required = $true) {

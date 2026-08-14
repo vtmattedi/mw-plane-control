@@ -11,6 +11,8 @@ func securityHeaders(next http.Handler) http.Handler {
 			"Content-Security-Policy",
 			"default-src 'none'; "+
 				"script-src 'self'; "+
+				"style-src 'self'; "+
+				"img-src 'self'; "+
 				"connect-src 'self'; "+
 				"form-action 'self'; "+
 				"frame-ancestors 'none'; "+

@@ -1,0 +1,29 @@
+.trigger {
+  display: inline-grid;
+  width: 1.7rem;
+  height: 1.7rem;
+  place-items: center;
+  border-radius: 0.45rem;
+  color: #d59b00;
+  transition:
+    background 150ms ease,
+    color 150ms ease;
+
+  &:hover,
+  &:focus-visible {
+    background: color-mix(in srgb, #f4b400 16%, transparent);
+    color: #b67d00;
+  }
+}
+
+:global(html[data-theme='dark']) .trigger {
+  color: #f6c744;
+
+  &:hover,
+  &:focus-visible {
+    color: #ffda6a;
+  }
+}
+.icon {
+  color: var(--warning);
+}

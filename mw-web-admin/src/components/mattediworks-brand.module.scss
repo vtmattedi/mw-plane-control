@@ -1,0 +1,48 @@
+.brand {
+  position: relative;
+  display: inline-block;
+  height: 1.125rem;
+  aspect-ratio: 2.1;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+
+.brand[data-variant='only'] {
+  aspect-ratio: 1.05;
+}
+
+.brand[data-variant='across'] {
+  aspect-ratio: 3.25;
+}
+
+.brand[data-variant='below'] {
+  aspect-ratio: 1.4;
+}
+
+.image {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  display: block;
+  width: 100%;
+  height: auto;
+  transform: translateY(-50%);
+}
+
+.brand[data-variant='below'] .image {
+  transform: translateY(-41%);
+}
+
+.dark {
+  display: none;
+}
+
+:global(html[data-theme='dark']) {
+  .light {
+    display: none;
+  }
+
+  .dark {
+    display: block;
+  }
+}

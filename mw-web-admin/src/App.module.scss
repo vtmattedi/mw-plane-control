@@ -1,0 +1,318 @@
+.page {
+  position: relative;
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  // padding: clamp(1.25rem, 4vw, 4rem);
+  background:
+    radial-gradient(
+      circle at 15% 15%,
+      color-mix(in srgb, var(--primary) 18%, transparent),
+      transparent 34rem
+    ),
+    radial-gradient(
+      circle at 90% 85%,
+      color-mix(in srgb, var(--secondary) 68%, transparent),
+      transparent 28rem
+    ),
+    var(--background);
+}
+
+.themeToggle {
+  position: absolute;
+  z-index: 2;
+  top: clamp(1rem, 3vw, 2rem);
+  right: clamp(1rem, 3vw, 2rem);
+}
+
+.loginPage {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.authCard {
+  position: relative;
+  width: min(100%, 34rem);
+  padding: clamp(1.25rem, 4vw, 2.5rem);
+  border: 1px solid var(--border);
+  border-radius: 2rem;
+  background: color-mix(in srgb, var(--card) 96%, transparent);
+  box-shadow: 0 1.8rem 5rem color-mix(in srgb, var(--primary) 13%, transparent);
+
+  h1 {
+    max-width: 12ch;
+    margin: 0;
+    color: var(--foreground);
+    font-family: var(--title-font);
+    font-size: clamp(2.4rem, 7vw, 4rem);
+    letter-spacing: -0.045em;
+    line-height: 0.98;
+  }
+}
+
+.brand {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  margin-inline: auto;
+  // margin-bottom: clamp(2rem, 5vw, 3.25rem);
+
+  img {
+    width: min(100%, 20rem);
+    max-width: none;
+    height: auto;
+  }
+}
+
+.passwordCard {
+  width: min(100%, 42rem);
+
+  h1 {
+    max-width: none;
+    font-size: clamp(2.25rem, 6vw, 3.5rem);
+    line-height: 1.06;
+  }
+}
+
+.brandPanel {
+  display: grid;
+  min-height: min(36rem, calc(100vh - 8rem));
+  align-content: end;
+  gap: 1.5rem;
+  padding: clamp(2rem, 5vw, 4rem);
+  overflow: hidden;
+  border-radius: 2.5rem;
+  background:
+    radial-gradient(
+      circle at 75% 20%,
+      color-mix(in srgb, var(--color-mantra-alt-3) 42%, transparent),
+      transparent 18rem
+    ),
+    var(--primary);
+  color: var(--primary-foreground);
+
+  img {
+    width: clamp(7rem, 18vw, 12rem);
+    height: clamp(7rem, 18vw, 12rem);
+    opacity: 0.9;
+    filter: brightness(0) invert(1);
+  }
+
+  p {
+    max-width: 22ch;
+    margin: 0;
+    font-family: var(--title-font);
+    font-size: clamp(1.75rem, 3.5vw, 3rem);
+    line-height: 1.08;
+  }
+}
+
+.eyebrow {
+  margin: 0 0 0.75rem;
+  color: var(--primary);
+  font-family: var(--subtitle-font);
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.description {
+  max-width: 38rem;
+  margin: 1.5rem 0 2.25rem;
+  color: var(--muted-foreground);
+  font-size: 1.05rem;
+  line-height: 1.75;
+}
+
+.error {
+  margin-bottom: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--destructive) 35%, transparent);
+  border-radius: 0.9rem;
+  background: color-mix(in srgb, var(--destructive) 8%, transparent);
+  color: var(--destructive);
+  font-size: 0.9rem;
+}
+
+.form {
+  display: grid;
+  gap: 1.1rem;
+
+  label,
+  .field {
+    display: grid;
+    gap: 0.45rem;
+    color: var(--foreground);
+    font-size: 0.9rem;
+  }
+
+  input {
+    width: 100%;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 0.85rem;
+    background: var(--card);
+    color: var(--foreground);
+  }
+}
+
+.fieldError {
+  margin: 0;
+  color: var(--destructive);
+  font-size: 0.82rem;
+}
+
+.submitSpinner {
+  width: 1rem;
+  height: 1rem;
+  margin-right: 0.5rem;
+  animation: submit-spin 0.85s linear infinite;
+}
+
+.loginButton {
+  gap: 0;
+  overflow: hidden;
+  background-image: linear-gradient(
+    color-mix(in srgb, var(--primary) 82%, var(--foreground)),
+    color-mix(in srgb, var(--primary) 82%, var(--foreground))
+  );
+  background-repeat: no-repeat;
+  background-position: left;
+  background-size: 0 100%;
+  transition:
+    color 180ms ease,
+    background-size 220ms ease;
+}
+
+.loginButton:hover:not(:disabled),
+.loginButton:focus-visible:not(:disabled) {
+  color: var(--primary-foreground);
+  background-size: 100% 100%;
+}
+
+.loginButton .loginIcon {
+  width: 0;
+  height: 1rem;
+  margin-left: 0;
+  opacity: 0;
+  transition:
+    width 180ms ease,
+    margin-left 180ms ease,
+    opacity 180ms ease;
+}
+
+.loginButton:hover:not(:disabled) .loginIcon,
+.loginButton:focus-visible:not(:disabled) .loginIcon {
+  width: 1rem;
+  margin-left: 0.45rem;
+  opacity: 1;
+}
+
+@keyframes submit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loginButton,
+  .loginButton .loginIcon {
+    transition: none;
+  }
+}
+
+.permission {
+  margin: 0 0 1.5rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: var(--muted);
+  color: var(--success);
+}
+
+.attribution {
+  margin-top: 1.5rem;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: Arial, Helvetica, sans-serif;
+  span {
+    margin-bottom: 0.25rem;
+  }
+  a {
+    display: inline-flex;
+    align-items: center;
+    color: var(--foreground);
+    text-underline-offset: 0.18rem;
+    vertical-align: middle;
+
+    &:hover {
+      color: var(--primary);
+    }
+  }
+}
+
+@media (width <= 48rem) {
+  .loginPage {
+    grid-template-columns: 1fr;
+  }
+
+  .brandPanel {
+    min-height: 12rem;
+    align-content: center;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    border-radius: 1.5rem;
+
+    img {
+      width: 5rem;
+      height: 5rem;
+    }
+
+    p {
+      font-size: clamp(1.3rem, 6vw, 2rem);
+    }
+  }
+
+  .brand {
+    margin-bottom: 3rem;
+  }
+}
+
+@media (width <= 32rem) {
+  .page {
+    display: grid;
+    width: 100%;
+    min-height: 100svh;
+    padding: 0.75rem;
+    overflow-x: hidden;
+  }
+
+  .loginPage {
+    display: grid;
+  }
+
+  .brandPanel {
+    display: none;
+  }
+
+  .authCard {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin-inline: auto;
+    padding: 1.75rem 1.5rem;
+    border-radius: 1.5rem;
+  }
+}
+
+:global(html[data-theme='dark']) {
+  .light {
+    display: none;
+  }
+
+  .dark {
+    display: block;
+  }
+}

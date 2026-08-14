@@ -1,15 +1,361 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MW Identity</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f7f7f5" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="csrf-token" content="{{.CSRFToken}}" />
+    <title>Entrar · MattediWorks</title>
+    <link rel="stylesheet" href="/static/portal.css" />
+    <script src="/static/portal.js" defer></script>
   </head>
   <body>
-    <main>
-      <h1>MW Identity</h1>
-      <p>Identity service is running.</p>
-      <p>Authentication UI will be implemented in later steps.</p>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="MattediWorks">
+        <img class="brand-symbol" src="/static/logo-only.svg" alt="" />
+        <span>MATTEDI<span>WORKS</span></span>
+      </a>
+      <div class="topbar-actions">
+        <a class="language-link" href="/login/en" data-language-link>EN</a>
+        <button
+          class="theme-button"
+          type="button"
+          data-theme-toggle
+          aria-label="Alternar tema"
+        >
+          <svg class="icon" aria-hidden="true">
+            <use href="/static/icons.svg#sun" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="portal">
+      <section class="context-panel" aria-label="MattediWorks Identity">
+        <div class="context-copy">
+          <span class="eyebrow"><i></i> MW Identity</span>
+          <h1>Uma identidade.<br />Todo o ecossistema.</h1>
+          <p>
+            Entre uma vez para acessar com segurança os produtos e serviços
+            MattediWorks.
+          </p>
+        </div>
+        <img
+          class="context-brand"
+          src="/static/logo-below.svg"
+          alt="MattediWorks"
+        />
+        <div class="trust">
+          <span class="shield"
+            ><svg class="icon" aria-hidden="true">
+              <use href="/static/icons.svg#shield" /></svg
+          ></span>
+          <div>
+            <strong>Conexão protegida</strong
+            ><small>Seus dados de acesso permanecem no MW Identity.</small>
+          </div>
+        </div>
+      </section>
+
+      <section class="auth-panel">
+        <div class="auth-content">
+          <div class="app-context" data-app-context hidden>
+            <span class="app-icon" data-app-monogram>MW</span>
+            <div>
+              <small>Entrar em</small
+              ><strong data-app-name>MattediWorks</strong>
+            </div>
+          </div>
+
+          <div class="screen active" data-screen="login">
+            <div class="screen-heading">
+              <span class="mobile-mark">MW</span>
+              <h2>Boas-vindas</h2>
+              <p>
+                Use sua conta MattediWorks para continuar. No primeiro acesso,
+                entre normalmente com e-mail e senha.
+              </p>
+            </div>
+            <form action="/login" method="post" data-password-form>
+              <input type="hidden" name="csrf_token" data-csrf />
+              <input
+                type="hidden"
+                name="return_to"
+                value="{{.ReturnTo}}"
+                data-return-to
+              />
+              <input type="hidden" name="language" value="pt-BR" />
+              <label
+                >E-mail<input
+                  name="email"
+                  type="email"
+                  autocomplete="username"
+                  inputmode="email"
+                  placeholder="voce@mattediworks.com"
+                  required
+                  autofocus
+              /></label>
+              <label
+                >Senha<span class="password-wrap"
+                  ><input
+                    name="password"
+                    type="password"
+                    autocomplete="current-password"
+                    placeholder="Sua senha"
+                    required
+                  /><button
+                    type="button"
+                    data-password-toggle
+                    aria-label="Mostrar senha"
+                  >
+                    Mostrar
+                  </button></span
+                ></label
+              >
+              <div class="form-row">
+                <label class="check"
+                  ><input name="remember" type="checkbox" /><span
+                    >Manter conectado</span
+                  ></label
+                ><button class="text-button" type="button" data-show="recovery">
+                  Recuperar acesso
+                </button>
+              </div>
+              <button class="primary-button" type="submit">
+                Continuar
+                <svg class="icon" aria-hidden="true">
+                  <use href="/static/icons.svg#arrow-right" />
+                </svg>
+              </button>
+            </form>
+            <div class="divider"><span>ou</span></div>
+            <button class="passkey-button" type="button" data-passkey-login>
+              <svg class="icon" aria-hidden="true">
+                <use href="/static/icons.svg#key" />
+              </svg>
+              Entrar com uma passkey
+            </button>
+            <button class="totp-shortcut" type="button" data-show="totp">
+              Entrar com código TOTP
+            </button>
+          </div>
+
+          <div class="screen" data-screen="totp">
+            <button class="back" type="button" data-show="login">
+              <svg class="icon" aria-hidden="true">
+                <use href="/static/icons.svg#arrow-left" />
+              </svg>
+              Voltar
+            </button>
+            <div class="screen-heading">
+              <span class="round-icon"
+                ><svg class="icon" aria-hidden="true">
+                  <use href="/static/icons.svg#dots" /></svg
+              ></span>
+              <h2>Código de verificação</h2>
+              <p>
+                Digite o código de 6 dígitos do seu aplicativo autenticador.
+              </p>
+            </div>
+            <form action="/api/totp/login" method="post" data-code-form>
+              <input type="hidden" name="csrf_token" data-csrf />
+              <input
+                type="hidden"
+                name="return_to"
+                value="{{.ReturnTo}}"
+                data-return-to
+              />
+              <label
+                >Código de segurança<input
+                  class="code-input"
+                  name="code"
+                  inputmode="numeric"
+                  autocomplete="one-time-code"
+                  pattern="[0-9]{6}"
+                  maxlength="6"
+                  placeholder="000 000"
+                  required
+              /></label>
+              <button class="primary-button" type="submit">
+                Verificar identidade
+                <svg class="icon" aria-hidden="true">
+                  <use href="/static/icons.svg#arrow-right" />
+                </svg>
+              </button>
+            </form>
+            <p class="help">
+              Sem acesso ao autenticador?
+              <button class="text-button" data-show="recovery" type="button">
+                Use a recuperação
+              </button>
+            </p>
+          </div>
+
+          <div class="screen" data-screen="step-up">
+            <button class="back" type="button" data-show="login">
+              <svg class="icon" aria-hidden="true">
+                <use href="/static/icons.svg#arrow-left" />
+              </svg>
+              Voltar
+            </button>
+            <div class="screen-heading">
+              <span class="round-icon"
+                ><svg class="icon" aria-hidden="true">
+                  <use href="/static/icons.svg#shield" /></svg
+              ></span>
+              <h2>Confirme que é você</h2>
+              <p>
+                Esta ação é sensível. Use sua passkey para confirmar sua
+                identidade.
+              </p>
+            </div>
+            <div class="notice">
+              <span
+                ><svg class="icon" aria-hidden="true">
+                  <use href="/static/icons.svg#shield" /></svg
+              ></span>
+              <p>
+                <strong>Autenticação reforçada</strong>Esta confirmação protege
+                credenciais e configurações críticas.
+              </p>
+            </div>
+            <button class="primary-button" type="button" data-passkey-login>
+              Confirmar com passkey
+              <svg class="icon" aria-hidden="true">
+                <use href="/static/icons.svg#arrow-right" />
+              </svg>
+            </button>
+            <button class="secondary-button" type="button" data-show="totp">
+              Usar código autenticador
+            </button>
+          </div>
+
+          <div class="screen" data-screen="consent">
+            <div class="screen-heading">
+              <span class="round-icon"
+                ><svg class="icon" aria-hidden="true">
+                  <use href="/static/icons.svg#external" /></svg
+              ></span>
+              <h2>Autorizar acesso</h2>
+              <p>
+                <strong data-consent-app>Este aplicativo</strong> solicita
+                acesso à sua conta.
+              </p>
+            </div>
+            <ul class="scope-list" data-scopes>
+              <li>
+                <span
+                  ><svg class="icon" aria-hidden="true">
+                    <use href="/static/icons.svg#check" /></svg
+                ></span>
+                <div>
+                  <strong>Perfil básico</strong
+                  ><small>Nome e identificador da conta</small>
+                </div>
+              </li>
+              <li>
+                <span
+                  ><svg class="icon" aria-hidden="true">
+                    <use href="/static/icons.svg#check" /></svg
+                ></span>
+                <div>
+                  <strong>Endereço de e-mail</strong
+                  ><small>Seu e-mail verificado</small>
+                </div>
+              </li>
+            </ul>
+            <form method="post" data-consent-form>
+              <input type="hidden" name="csrf_token" data-csrf />
+              <div class="button-grid">
+                <button class="secondary-button" name="decision" value="deny">
+                  Cancelar</button
+                ><button class="primary-button" name="decision" value="allow">
+                  Autorizar
+                  <svg class="icon" aria-hidden="true">
+                    <use href="/static/icons.svg#arrow-right" />
+                  </svg>
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div class="screen" data-screen="recovery">
+            <button class="back" type="button" data-show="login">
+              <svg class="icon" aria-hidden="true">
+                <use href="/static/icons.svg#arrow-left" />
+              </svg>
+              Voltar
+            </button>
+            <div class="screen-heading">
+              <span class="round-icon"
+                ><svg class="icon" aria-hidden="true">
+                  <use href="/static/icons.svg#rotate" /></svg
+              ></span>
+              <h2>Recuperar acesso</h2>
+              <p>
+                Confirme uma passkey já cadastrada para recuperar sua conta.
+              </p>
+            </div>
+            <button class="primary-button" type="button" data-recovery-passkey>
+              Continuar com passkey
+              <svg class="icon" aria-hidden="true">
+                <use href="/static/icons.svg#arrow-right" />
+              </svg>
+            </button>
+            <div class="notice subtle">
+              <span
+                ><svg class="icon" aria-hidden="true">
+                  <use href="/static/icons.svg#info" /></svg
+              ></span>
+              <p>
+                <strong>Precisa de ajuda?</strong>Contate um administrador MW
+                para iniciar a recuperação manual.
+              </p>
+            </div>
+          </div>
+
+          <div class="screen" data-screen="success">
+            <div class="screen-heading">
+              <span class="success-icon"
+                ><svg class="icon" aria-hidden="true">
+                  <use href="/static/icons.svg#check" /></svg
+              ></span>
+              <h2>Identidade confirmada</h2>
+              <p>
+                Você pode voltar ao aplicativo. Esta janela será fechada
+                automaticamente.
+              </p>
+            </div>
+            <button class="primary-button" type="button" data-close>
+              Voltar ao aplicativo
+              <svg class="icon" aria-hidden="true">
+                <use href="/static/icons.svg#arrow-right" />
+              </svg>
+            </button>
+          </div>
+
+          <div
+            class="error-message"
+            data-error
+            role="alert"
+            {{if
+            not
+            .Error}}
+            hidden{{end}}
+          >
+            {{.Error}}
+          </div>
+          <footer>
+            <a href="/privacy">Privacidade</a><span>•</span
+            ><a href="/security">Segurança</a><span>•</span
+            ><span>© 2026 MattediWorks</span>
+          </footer>
+        </div>
+      </section>
     </main>
   </body>
 </html>

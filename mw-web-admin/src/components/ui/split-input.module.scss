@@ -1,0 +1,77 @@
+.root {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+}
+.heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.heading label {
+  font-size: 1rem;
+}
+.heading output {
+  color: var(--muted-foreground);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.controls > input {
+  // height: 100rem;
+  min-height: 0;
+  flex: 1 1 auto;
+  padding: 0;
+  border: 0;
+  appearance: none;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--primary) var(--split-percentage),
+    var(--muted) var(--split-percentage)
+  );
+  cursor: pointer;
+  width: 100%;
+}
+.controls > input::-webkit-slider-thumb {
+  width: 1rem;
+  height: 1rem;
+  appearance: none;
+  border: 0.18rem solid var(--card);
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+.controls > input::-moz-range-thumb {
+  width: 0.72rem;
+  height: 0.72rem;
+  border: 0.18rem solid var(--card);
+  border-radius: 50%;
+  background: var(--primary);
+}
+.percentage {
+  flex: 0 0 5.5rem;
+  min-height: 2.35rem;
+  display: flex;
+  align-items: stretch;
+  min-width: 5rem;
+  & input {
+    padding: 0 !important;
+    margin: auto !important;
+    padding-inline: 0.5rem !important;
+    height: 100% !important;
+  }
+}
+
+@media (max-width: 32rem) {
+  .heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+}

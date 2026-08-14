@@ -73,6 +73,10 @@ func TestLoginPageCookiePolicy(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d", rec.Code)
 	}
+	if body := rec.Body.String(); !strings.Contains(body, "Boas-vindas") ||
+		!strings.Contains(body, "/static/logo-only.svg") {
+		t.Fatalf("new Portuguese portal was not rendered: %q", body)
+	}
 
 	var csrf *http.Cookie
 	for _, cookie := range rec.Result().Cookies() {
@@ -93,6 +97,22 @@ func TestLoginPageCookiePolicy(t *testing.T) {
 	}
 	if csrf.Secure {
 		t.Fatal("test/development cookie should not be Secure")
+	}
+}
+
+func TestEnglishLoginPage(t *testing.T) {
+	_, handlers := testAuthHTTP(t)
+	req := httptest.NewRequest(http.MethodGet, "/login/en", nil)
+	rec := httptest.NewRecorder()
+
+	handlers.loginPage(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	if body := rec.Body.String(); !strings.Contains(body, "Welcome") ||
+		!strings.Contains(body, `lang="en"`) {
+		t.Fatalf("English portal was not rendered: %q", body)
 	}
 }
 

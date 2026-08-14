@@ -1,0 +1,36 @@
+.switch {
+  position: relative;
+  width: 2.75rem;
+  height: 1.55rem;
+  flex: 0 0 auto;
+  padding: 0.15rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--input);
+  cursor: pointer;
+  transition: background 160ms ease;
+
+  &[aria-checked='true'] {
+    background: var(--primary);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+  }
+}
+
+.thumb {
+  display: block;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  background: var(--card);
+  box-shadow: 0 0.12rem 0.35rem
+    color-mix(in srgb, var(--foreground) 24%, transparent);
+  transition: transform 160ms ease;
+}
+
+.switch[aria-checked='true'] .thumb {
+  transform: translateX(1.2rem);
+}

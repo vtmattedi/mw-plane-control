@@ -1,6 +1,8 @@
 package static
 
-import _ "embed"
+import "embed"
 
-//go:embed index.html
-var IndexHTML []byte
+// Files contains the complete dependency-free Identity portal.
+//
+//go:embed *.html *.css *.js *.svg
+var Files embed.FS

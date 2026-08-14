@@ -38,6 +38,7 @@ $ComposeArgs = @(
 $OAuthScopes = @(
     "oauth.projects.read",
     "oauth.projects.write",
+    "oauth.projects.delete",
     "oauth.credentials.rotate",
     "oauth.policy.read",
     "oauth.policy.write",

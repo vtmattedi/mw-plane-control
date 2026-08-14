@@ -14,3 +14,6 @@ Architecture documentation lives in `docs/`.
 Implementation is step-gated. Start with:
 
 `docs/implementation-roadmap.md`
+
+Local Vite development and the production Stackport Compose deployment are
+documented in `docs/deployment-compose.md`.

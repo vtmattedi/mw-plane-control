@@ -1,0 +1,32 @@
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--destructive) 28%, transparent);
+  border-radius: 0.7rem;
+  background: color-mix(in srgb, var(--destructive) 9%, transparent);
+  color: var(--destructive);
+  font-size: 0.875rem;
+
+  p {
+    margin: 0;
+    color: inherit;
+  }
+}
+
+.warning {
+  border-color: color-mix(in srgb, var(--warning) 28%, transparent);
+  background: color-mix(in srgb, var(--warning) 9%, transparent);
+  color: var(--warning);
+  border-left: 4px solid var(--warning);
+}
+
+.icon {
+  display: inline-block;
+  width: 1.05rem;
+  height: 1.05rem;
+  flex: 0 0 auto;
+  margin-right: 0.2rem;
+  vertical-align: text-bottom;
+}

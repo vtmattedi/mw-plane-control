@@ -73,6 +73,7 @@ mapped to one exact MW OAuth admin path and one exact delegated scope.
 GET    projects                         oauth.projects.read
 POST   projects                         oauth.projects.write
 PATCH  projects/{id}                    oauth.projects.write
+DELETE projects/{id}                    oauth.projects.delete
 POST   projects/{id}/rotate-key         oauth.credentials.rotate
 POST   projects/{id}/rotate-callback-secret
                                          oauth.credentials.rotate

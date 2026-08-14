@@ -124,13 +124,13 @@ $RecoveryCookieJar = Join-Path $env:TEMP "mw-step12-recovery-$Stamp.cookies"
 $Headers = Join-Path $env:TEMP "mw-step12-$Stamp.headers"
 
 $OAuthScopes = @(
-    "oauth.projects.read", "oauth.projects.write", "oauth.credentials.rotate",
+    "oauth.projects.read", "oauth.projects.write", "oauth.projects.delete", "oauth.credentials.rotate",
     "oauth.policy.read", "oauth.policy.write", "oauth.audit.read",
     "oauth.metrics.read", "oauth.server.read"
 )
 $MailScopes = @(
-    "mail.projects.read", "mail.projects.write", "mail.credentials.rotate",
-    "mail.emails.read", "mail.usage.read"
+    "mail.projects.read", "mail.projects.write", "mail.projects.delete", "mail.credentials.rotate",
+    "mail.emails.read", "mail.usage.read", "mail.server.read"
 )
 $DelegationScopes = @($OAuthScopes + $MailScopes)
 

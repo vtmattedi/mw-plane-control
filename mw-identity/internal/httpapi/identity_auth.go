@@ -11,6 +11,7 @@ import (
 
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/auth"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/portal"
+	webstatic "github.com/vtmattedi/mw-plane-control/mw-identity/web/static"
 )
 
 const (
@@ -104,11 +105,11 @@ func (h *identityAuthHandlers) loginPage(
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 
-	if err := portal.RenderLogin(
+	if err := webstatic.RenderLogin(
 		w,
-		portal.LoginData{
+		loginPageEnglish(r),
+		webstatic.LoginData{
 			CSRFToken: token,
-			AuthMode:  requestedAuth,
 			ReturnTo: safeReturnTo(
 				r.URL.Query().Get("return_to"),
 			),
@@ -181,6 +182,7 @@ func (h *identityAuthHandlers) login(
 				w,
 				"Invalid email or password.",
 				returnTo,
+				strings.EqualFold(strings.TrimSpace(r.FormValue("language")), "en"),
 			)
 		default:
 			writePlainError(
@@ -394,6 +396,7 @@ func (h *identityAuthHandlers) renderLoginFailure(
 	w http.ResponseWriter,
 	message string,
 	returnTo string,
+	english bool,
 ) {
 	token, err := auth.NewOpaqueToken("login_csrf_")
 	if err != nil {
@@ -419,14 +422,25 @@ func (h *identityAuthHandlers) renderLoginFailure(
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(http.StatusUnauthorized)
 
-	_ = portal.RenderLogin(
+	if english {
+		message = "Invalid email or password."
+	} else {
+		message = "E-mail ou senha inválidos."
+	}
+	_ = webstatic.RenderLogin(
 		w,
-		portal.LoginData{
+		english,
+		webstatic.LoginData{
 			CSRFToken: token,
-			ReturnTo:  returnTo,
 			Error:     message,
+			ReturnTo:  returnTo,
 		},
 	)
+}
+
+func loginPageEnglish(r *http.Request) bool {
+	return r.URL.Path == "/login/en" ||
+		strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("lang")), "en")
 }
 
 func (h *identityAuthHandlers) clearAuthCookies(

@@ -1,0 +1,31 @@
+.root {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: stretch;
+  gap: 0.6rem;
+}
+
+.root > * {
+  min-width: 0;
+  flex: 1 1 0;
+}
+
+.root > :first-child {
+  flex-grow: 1.5;
+}
+
+.root > :first-child button {
+  width: 100%;
+  min-width: 0;
+}
+
+@media (width <= 32rem) {
+  .root {
+    flex-wrap: wrap;
+  }
+
+  .root > * {
+    flex-basis: 10rem;
+  }
+}

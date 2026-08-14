@@ -1,0 +1,17 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 1.35rem;
+  margin-inline-start: 0.45rem;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--information) 35%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--information) 10%, var(--card));
+  color: var(--information);
+  font-family: var(--body-font);
+  font-size: 0.7rem;
+  line-height: 1;
+  vertical-align: middle;
+  white-space: nowrap;
+}

@@ -1,0 +1,27 @@
+.toggle {
+  display: inline-grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 0.85rem;
+  background: var(--card);
+  color: var(--foreground);
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
+
+  &:hover {
+    background: var(--accent);
+    color: var(--accent-foreground);
+    transform: translateY(-1px);
+  }
+
+  svg {
+    width: 1.15rem;
+    height: 1.15rem;
+  }
+}

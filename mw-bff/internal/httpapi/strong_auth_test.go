@@ -36,11 +36,17 @@ func TestSensitiveFederatedRoutes(t *testing.T) {
 	if !sensitiveOAuthRoute(http.MethodPut, "/admin/api/projects/4/oauth/google") {
 		t.Fatal("OAuth policy update was not marked sensitive")
 	}
+	if !sensitiveOAuthRoute(http.MethodDelete, "/admin/api/projects/4") {
+		t.Fatal("OAuth project deletion was not marked sensitive")
+	}
 	if sensitiveOAuthRoute(http.MethodGet, "/admin/api/projects") {
 		t.Fatal("OAuth read was incorrectly marked sensitive")
 	}
 	if !sensitiveMailRoute(http.MethodPost, "/admin/api/projects/8/rotate-key") {
 		t.Fatal("Mail API-key rotation was not marked sensitive")
+	}
+	if !sensitiveMailRoute(http.MethodDelete, "/admin/api/projects/8") {
+		t.Fatal("Mail project deletion was not marked sensitive")
 	}
 	if sensitiveMailRoute(http.MethodGet, "/admin/api/projects") {
 		t.Fatal("Mail read was incorrectly marked sensitive")

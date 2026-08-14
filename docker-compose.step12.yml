@@ -1,8 +1,0 @@
-services:
-  mw-identity:
-    # Local browser/hardware checkpoint only. Production remains Docker-private.
-    ports:
-      - "127.0.0.1:7100:7100"
-  mw-bff:
-    ports:
-      - "127.0.0.1:7200:7200"

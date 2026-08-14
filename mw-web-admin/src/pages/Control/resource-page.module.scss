@@ -1,0 +1,65 @@
+.page {
+  min-height: 100dvh;
+  padding: clamp(1.25rem, 3vw, 2.5rem);
+  background:
+    radial-gradient(
+      circle at 100% 0%,
+      color-mix(in srgb, var(--brand-orange) 8%, transparent),
+      transparent 28rem
+    ),
+    var(--background);
+}
+
+.content {
+  width: min(100%, 94rem);
+  margin-inline: auto;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.search {
+  position: relative;
+  flex: 1 1 16rem;
+  max-width: 26rem;
+
+  svg {
+    position: absolute;
+    top: 50%;
+    left: 0.9rem;
+    width: 1rem;
+    transform: translateY(-50%);
+    color: var(--muted-foreground);
+    pointer-events: none;
+  }
+
+  input {
+    min-height: 2.65rem;
+    padding-left: 2.6rem;
+    border-radius: 0.8rem;
+    background: var(--background);
+  }
+}
+
+.error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--warning) 25%, var(--border));
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--warning) 7%, var(--card));
+  color: var(--muted-foreground);
+  font-size: 0.82rem;
+}
+
+@media (width <= 40rem) {
+  .page {
+    padding: 1rem;
+  }
+}

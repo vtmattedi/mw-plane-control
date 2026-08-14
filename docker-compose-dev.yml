@@ -1,0 +1,155 @@
+name: mw-plane-control-dev
+
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: infra/gateway/Dockerfile
+    ports:
+      - "127.0.0.1:${GATEWAY_HOST_PORT:-3050}:8080"
+    depends_on:
+      mw-bff:
+        condition: service_healthy
+      mw-identity:
+        condition: service_healthy
+    networks:
+      - control-plane
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+      - /var/cache/nginx:rw,noexec,nosuid,nodev,size=32m
+      - /var/run:rw,noexec,nosuid,nodev,size=8m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/_gateway-health >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+    restart: unless-stopped
+
+  mw-identity:
+    build:
+      context: ./mw-identity
+      args:
+        VERSION: "${BUILD_VERSION:-dev}"
+        COMMIT: "${BUILD_COMMIT:-local}"
+        BUILT_AT: "${BUILD_TIMESTAMP:-unknown}"
+    environment:
+      APP_ENV: development
+      PORT: "7100"
+      DATABASE_PATH: /app/data/identity.db
+      PUBLIC_ISSUER: "${IDENTITY_PUBLIC_ISSUER:-http://localhost:7100}"
+      IDENTITY_SESSION_TTL_HOURS: "${IDENTITY_SESSION_TTL_HOURS:-168}"
+      IDENTITY_LOGIN_CSRF_TTL_MINUTES: "${IDENTITY_LOGIN_CSRF_TTL_MINUTES:-10}"
+      IDENTITY_LOGIN_RATE_ATTEMPTS: "${IDENTITY_LOGIN_RATE_ATTEMPTS:-10}"
+      IDENTITY_LOGIN_RATE_WINDOW_MINUTES: "${IDENTITY_LOGIN_RATE_WINDOW_MINUTES:-5}"
+      IDENTITY_SIGNING_KEYS: "${IDENTITY_SIGNING_KEYS:?set IDENTITY_SIGNING_KEYS in .env}"
+      IDENTITY_SIGNING_ACTIVE_KEY_VERSION: "${IDENTITY_SIGNING_ACTIVE_KEY_VERSION:-1}"
+      IDENTITY_AUTHORIZATION_CODE_TTL_MINUTES: "${IDENTITY_AUTHORIZATION_CODE_TTL_MINUTES:-5}"
+      IDENTITY_ACCESS_TOKEN_TTL_MINUTES: "${IDENTITY_ACCESS_TOKEN_TTL_MINUTES:-60}"
+      IDENTITY_ID_TOKEN_TTL_MINUTES: "${IDENTITY_ID_TOKEN_TTL_MINUTES:-5}"
+      IDENTITY_DELEGATED_TOKEN_TTL_MINUTES: "${IDENTITY_DELEGATED_TOKEN_TTL_MINUTES:-5}"
+      IDENTITY_WEBAUTHN_RP_ID: "${IDENTITY_WEBAUTHN_RP_ID:-localhost}"
+      IDENTITY_WEBAUTHN_RP_NAME: "${IDENTITY_WEBAUTHN_RP_NAME:-MW Identity}"
+      IDENTITY_WEBAUTHN_ORIGINS: "${IDENTITY_WEBAUTHN_ORIGINS:-http://localhost:7100}"
+      IDENTITY_WEBAUTHN_CREDENTIAL_KEYS: "${IDENTITY_WEBAUTHN_CREDENTIAL_KEYS:?set IDENTITY_WEBAUTHN_CREDENTIAL_KEYS in .env}"
+      IDENTITY_WEBAUTHN_CREDENTIAL_ACTIVE_KEY_VERSION: "${IDENTITY_WEBAUTHN_CREDENTIAL_ACTIVE_KEY_VERSION:-1}"
+      IDENTITY_WEBAUTHN_CEREMONY_TTL_MINUTES: "${IDENTITY_WEBAUTHN_CEREMONY_TTL_MINUTES:-5}"
+      IDENTITY_TOTP_SECRET_KEYS: "${IDENTITY_TOTP_SECRET_KEYS:?set IDENTITY_TOTP_SECRET_KEYS in .env}"
+      IDENTITY_TOTP_SECRET_ACTIVE_KEY_VERSION: "${IDENTITY_TOTP_SECRET_ACTIVE_KEY_VERSION:-1}"
+      IDENTITY_TOTP_ISSUER: "${IDENTITY_TOTP_ISSUER:-MW Identity}"
+      IDENTITY_STRONG_AUTH_MAX_AGE_MINUTES: "${IDENTITY_STRONG_AUTH_MAX_AGE_MINUTES:-5}"
+      IDENTITY_RECOVERY_TTL_MINUTES: "${IDENTITY_RECOVERY_TTL_MINUTES:-10}"
+      IDENTITY_AUDIT_RETENTION_DAYS: "${IDENTITY_AUDIT_RETENTION_DAYS:-180}"
+      IDENTITY_SIGNING_RETIRED_RETENTION_HOURS: "${IDENTITY_SIGNING_RETIRED_RETENTION_HOURS:-72}"
+    ports:
+      - "127.0.0.1:7100:7100"
+    expose:
+      - "7100"
+    volumes:
+      - identity-data:/app/data
+    networks:
+      - control-plane
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:7100/ready >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+    restart: unless-stopped
+
+  mw-bff:
+    build:
+      context: ./mw-bff
+      args:
+        VERSION: "${BUILD_VERSION:-dev}"
+        COMMIT: "${BUILD_COMMIT:-local}"
+        BUILT_AT: "${BUILD_TIMESTAMP:-unknown}"
+    depends_on:
+      mw-identity:
+        condition: service_healthy
+    environment:
+      APP_ENV: development
+      PORT: "7200"
+      DATABASE_PATH: /app/data/bff.db
+      BFF_PUBLIC_BASE_URL: "${BFF_PUBLIC_BASE_URL:-http://localhost:5173}"
+      BFF_IDENTITY_ISSUER: "${BFF_IDENTITY_ISSUER:-http://localhost:7100}"
+      BFF_IDENTITY_INTERNAL_BASE_URL: "${BFF_IDENTITY_INTERNAL_BASE_URL:-http://mw-identity:7100}"
+      BFF_OIDC_CLIENT_ID: "${BFF_OIDC_CLIENT_ID:?set BFF_OIDC_CLIENT_ID in .env}"
+      BFF_OIDC_CLIENT_SECRET: "${BFF_OIDC_CLIENT_SECRET:?set BFF_OIDC_CLIENT_SECRET in .env}"
+      BFF_TRANSACTION_KEYS: "${BFF_TRANSACTION_KEYS:?set BFF_TRANSACTION_KEYS in .env}"
+      BFF_TRANSACTION_ACTIVE_KEY_VERSION: "${BFF_TRANSACTION_ACTIVE_KEY_VERSION:-1}"
+      BFF_OIDC_TRANSACTION_TTL_MINUTES: "${BFF_OIDC_TRANSACTION_TTL_MINUTES:-10}"
+      BFF_ADMIN_SESSION_TTL_HOURS: "${BFF_ADMIN_SESSION_TTL_HOURS:-8}"
+      BFF_OIDC_CLOCK_SKEW_SECONDS: "${BFF_OIDC_CLOCK_SKEW_SECONDS:-60}"
+      BFF_IDENTITY_HTTP_TIMEOUT_SECONDS: "${BFF_IDENTITY_HTTP_TIMEOUT_SECONDS:-5}"
+      BFF_DELEGATION_SCOPES: "${BFF_DELEGATION_SCOPES:-}"
+      BFF_DELEGATION_CACHE_SKEW_SECONDS: "${BFF_DELEGATION_CACHE_SKEW_SECONDS:-30}"
+      BFF_STRONG_AUTH_MAX_AGE_MINUTES: "${BFF_STRONG_AUTH_MAX_AGE_MINUTES:-5}"
+      BFF_OAUTH_BASE_URL: "${BFF_OAUTH_BASE_URL:-http://host.docker.internal:8282}"
+      BFF_OAUTH_HOST: "${BFF_OAUTH_HOST:-oauth.mattediworks.com}"
+      BFF_OAUTH_AUDIENCE: "${BFF_OAUTH_AUDIENCE:-mw-oauth}"
+      BFF_OAUTH_HTTP_TIMEOUT_SECONDS: "${BFF_OAUTH_HTTP_TIMEOUT_SECONDS:-5}"
+      BFF_MAIL_BASE_URL: "${BFF_MAIL_BASE_URL:-http://host.docker.internal:8082}"
+      BFF_MAIL_HOST: "${BFF_MAIL_HOST:-mailgo.mattediworks.com}"
+      BFF_MAIL_AUDIENCE: "${BFF_MAIL_AUDIENCE:-mw-mail}"
+      BFF_MAIL_HTTP_TIMEOUT_SECONDS: "${BFF_MAIL_HTTP_TIMEOUT_SECONDS:-5}"
+    expose:
+      - "7200"
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - bff-data:/app/data
+    networks:
+      - control-plane
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:7200/ready >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+    restart: unless-stopped
+
+networks:
+  control-plane:
+    driver: bridge
+
+volumes:
+  identity-data:
+  bff-data:
