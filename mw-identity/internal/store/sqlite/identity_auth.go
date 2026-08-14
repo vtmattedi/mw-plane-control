@@ -97,8 +97,9 @@ func (s *Store) CreateIdentitySession(
 			csrf_hash,
 			expires_at_unix,
 			created_at_unix,
-			last_seen_at_unix
-		) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			last_seen_at_unix,
+			auth_method
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		input.ID,
 		input.UserID,
 		input.TokenHash,
@@ -106,6 +107,7 @@ func (s *Store) CreateIdentitySession(
 		input.ExpiresAt.Unix(),
 		input.CreatedAt.Unix(),
 		input.LastSeenAt.Unix(),
+		input.AuthMethod,
 	)
 	if err != nil {
 		return fmt.Errorf("create identity session: %w", err)
@@ -128,6 +130,7 @@ func (s *Store) IdentitySessionByTokenHash(
 			s.expires_at_unix,
 			s.created_at_unix,
 			s.last_seen_at_unix,
+			s.auth_method,
 			u.id,
 			u.email,
 			u.email_normalized,
@@ -163,6 +166,7 @@ func (s *Store) IdentitySessionByTokenHash(
 		&expires,
 		&created,
 		&lastSeen,
+		&session.AuthMethod,
 		&session.User.ID,
 		&session.User.Email,
 		&session.User.EmailNormalized,

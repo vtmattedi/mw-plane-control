@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/delegation"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/identityclient"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/session"
 )
@@ -13,6 +14,8 @@ func New(
 	db *sql.DB,
 	identity *identityclient.Client,
 	sessions *session.Service,
+	delegationClient *delegation.Client,
+	delegationProbeConfig DelegationProbeConfig,
 	authConfig AuthConfig,
 ) http.Handler {
 	if identity == nil {
@@ -30,6 +33,12 @@ func New(
 		identity,
 		sessions,
 		authConfig,
+	)
+
+	delegationProbe := newDelegationProbe(
+		delegationClient,
+		sessions,
+		delegationProbeConfig,
 	)
 
 	proxyClient := &http.Client{
@@ -54,6 +63,15 @@ func New(
 		"GET /health",
 		healthHandler("mw-bff", db),
 	)
+
+	if delegationProbe != nil {
+		mux.HandleFunc(
+			"GET /_test/delegation",
+			func(w http.ResponseWriter, r *http.Request) {
+				delegationProbe.serve(authHandlers, w, r)
+			},
+		)
+	}
 
 	mux.HandleFunc(
 		"GET /auth/login",

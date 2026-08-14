@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/oidc"
@@ -24,9 +25,9 @@ func (s *Store) CreateAuthorizationCode(
 		ctx,
 		`INSERT INTO identity_authorization_codes (
 			id, code_hash, client_id, user_id, redirect_uri, scope_json,
-			code_challenge, nonce, auth_time_unix, expires_at_unix,
+			code_challenge, nonce, auth_time_unix, auth_method, expires_at_unix,
 			consumed_at_unix, created_at_unix
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)`,
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)`,
 		code.ID,
 		code.CodeHash,
 		code.ClientID,
@@ -36,6 +37,7 @@ func (s *Store) CreateAuthorizationCode(
 		code.CodeChallenge,
 		nullableString(code.Nonce),
 		code.AuthTime.Unix(),
+		code.AuthMethod,
 		code.ExpiresAt.Unix(),
 		code.CreatedAt.Unix(),
 	)
@@ -54,7 +56,7 @@ func (s *Store) AuthorizationCodeByHash(
 		ctx,
 		`SELECT
 			id, code_hash, client_id, user_id, redirect_uri, scope_json,
-			code_challenge, nonce, auth_time_unix, expires_at_unix,
+			code_challenge, nonce, auth_time_unix, auth_method, expires_at_unix,
 			consumed_at_unix, created_at_unix
 		FROM identity_authorization_codes
 		WHERE code_hash = ?
@@ -84,6 +86,7 @@ func (s *Store) AuthorizationCodeByHash(
 		&code.CodeChallenge,
 		&nonce,
 		&authTime,
+		&code.AuthMethod,
 		&expires,
 		&consumed,
 		&created,
@@ -157,8 +160,8 @@ func (s *Store) CreateAccessToken(
 		`INSERT INTO identity_access_tokens (
 			id, token_hash, client_id, user_id, scope_json,
 			expires_at_unix, created_at_unix, revoked_at_unix,
-			audience
-		) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?)`,
+			audience, auth_time_unix, auth_method, parent_token_id
+		) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)`,
 		token.ID,
 		token.TokenHash,
 		token.ClientID,
@@ -167,6 +170,9 @@ func (s *Store) CreateAccessToken(
 		token.ExpiresAt.Unix(),
 		token.CreatedAt.Unix(),
 		token.Audience,
+		token.AuthTime.Unix(),
+		token.AuthMethod,
+		nullableOIDCString(token.ParentTokenID),
 	)
 	if err != nil {
 		return fmt.Errorf("create access token: %w", err)
@@ -183,6 +189,7 @@ func (s *Store) AccessTokenByHash(
 		ctx,
 		`SELECT
 			id, token_hash, client_id, user_id, audience, scope_json,
+			auth_time_unix, auth_method, parent_token_id,
 			expires_at_unix, created_at_unix
 		FROM identity_access_tokens
 		WHERE token_hash = ?
@@ -197,6 +204,8 @@ func (s *Store) AccessTokenByHash(
 		scopeJSON string
 		expires   int64
 		created   int64
+		authTime  int64
+		parentID  sql.NullString
 	)
 
 	err := row.Scan(
@@ -206,6 +215,9 @@ func (s *Store) AccessTokenByHash(
 		&token.UserID,
 		&token.Audience,
 		&scopeJSON,
+		&authTime,
+		&token.AuthMethod,
+		&parentID,
 		&expires,
 		&created,
 	)
@@ -222,6 +234,10 @@ func (s *Store) AccessTokenByHash(
 			fmt.Errorf("decode access token scopes: %w", err)
 	}
 
+	token.AuthTime = time.Unix(authTime, 0).UTC()
+	if parentID.Valid {
+		token.ParentTokenID = parentID.String
+	}
 	token.ExpiresAt = time.Unix(expires, 0).UTC()
 	token.CreatedAt = time.Unix(created, 0).UTC()
 	return token, nil
@@ -255,4 +271,11 @@ func (s *Store) DeleteExpiredOAuthArtifacts(
 	}
 
 	return nil
+}
+
+func nullableOIDCString(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return value
 }

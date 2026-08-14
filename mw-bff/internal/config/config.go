@@ -23,6 +23,11 @@ type Config struct {
 	OIDCTransactionTTL          time.Duration
 	AdminSessionTTL             time.Duration
 	OIDCClockSkew               time.Duration
+	DelegationScopes            []string
+	DelegationCacheSkew         time.Duration
+	Step09TestRSURL             string
+	Step09TestAudience          string
+	Step09TestScope             string
 	IdentityHTTPTimeout         time.Duration
 }
 
@@ -75,6 +80,14 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 
+	cacheSkewSeconds, err := positiveInt(
+		"BFF_DELEGATION_CACHE_SKEW_SECONDS",
+		30,
+	)
+	if err != nil {
+		return Config{}, err
+	}
+
 	cfg := Config{
 		AppEnv: getenv(
 			"APP_ENV",
@@ -118,6 +131,11 @@ func Load() (Config, error) {
 		OIDCTransactionTTL:          time.Duration(transactionMinutes) * time.Minute,
 		AdminSessionTTL:             time.Duration(sessionHours) * time.Hour,
 		OIDCClockSkew:               time.Duration(clockSkewSeconds) * time.Second,
+		DelegationScopes:            parseList(os.Getenv("BFF_DELEGATION_SCOPES")),
+		DelegationCacheSkew:         time.Duration(cacheSkewSeconds) * time.Second,
+		Step09TestRSURL:             strings.TrimSpace(os.Getenv("BFF_STEP09_TEST_RS_URL")),
+		Step09TestAudience:          strings.TrimSpace(os.Getenv("BFF_STEP09_TEST_AUDIENCE")),
+		Step09TestScope:             strings.TrimSpace(os.Getenv("BFF_STEP09_TEST_SCOPE")),
 		IdentityHTTPTimeout:         time.Duration(httpTimeoutSeconds) * time.Second,
 	}
 
@@ -220,4 +238,22 @@ func getenv(
 		return fallback
 	}
 	return value
+}
+
+func parseList(value string) []string {
+	fields := strings.FieldsFunc(value, func(r rune) bool { return r == ',' || r == ' ' || r == '\t' || r == '\n' })
+	result := make([]string, 0, len(fields))
+	seen := map[string]struct{}{}
+	for _, field := range fields {
+		field = strings.TrimSpace(field)
+		if field == "" {
+			continue
+		}
+		if _, ok := seen[field]; ok {
+			continue
+		}
+		seen[field] = struct{}{}
+		result = append(result, field)
+	}
+	return result
 }

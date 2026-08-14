@@ -3,6 +3,7 @@ package httpapi
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -97,6 +98,10 @@ func (h *authHandlers) callback(
 			r.URL.Query().Get("state"),
 		)
 	if err != nil {
+		slog.Error(
+			"Identity OIDC callback failed",
+			"error", err,
+		)
 		status := http.StatusBadGateway
 		code := "identity_callback_failed"
 

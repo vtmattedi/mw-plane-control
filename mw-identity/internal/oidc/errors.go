@@ -44,7 +44,7 @@ func invalidGrant(description string) *ProtocolError {
 func unsupportedGrantType() *ProtocolError {
 	return &ProtocolError{
 		Code:        "unsupported_grant_type",
-		Description: "grant_type must be authorization_code",
+		Description: "unsupported grant_type",
 		HTTPStatus:  http.StatusBadRequest,
 	}
 }
@@ -55,4 +55,16 @@ func invalidToken() *ProtocolError {
 		Description: "invalid or expired access token",
 		HTTPStatus:  http.StatusUnauthorized,
 	}
+}
+
+func UnsupportedGrantType() *ProtocolError {
+	return unsupportedGrantType()
+}
+
+func invalidTarget(description string) *ProtocolError {
+	return &ProtocolError{Code: "invalid_target", Description: description, HTTPStatus: http.StatusBadRequest}
+}
+
+func invalidScope(description string) *ProtocolError {
+	return &ProtocolError{Code: "invalid_scope", Description: description, HTTPStatus: http.StatusBadRequest}
 }

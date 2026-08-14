@@ -364,10 +364,11 @@ func (c *Client) exchangeCode(
 		_ = json.Unmarshal(body, &oauthFailure)
 
 		return tokenResponse{}, fmt.Errorf(
-			"%w: token endpoint returned %d (%s)",
+			"%w: token endpoint returned %d (%s: %s)",
 			ErrIdentityProtocol,
 			response.StatusCode,
 			oauthFailure.Error,
+			oauthFailure.ErrorDescription,
 		)
 	}
 

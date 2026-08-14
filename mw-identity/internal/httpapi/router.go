@@ -62,6 +62,7 @@ func New(
 	mux.HandleFunc("GET /oauth/authorize", oauthHandlers.authorize)
 	mux.HandleFunc("POST /oauth/token", oauthHandlers.token)
 	mux.HandleFunc("GET /oauth/userinfo", oauthHandlers.userInfo)
+	mux.HandleFunc("POST /oauth/introspect", oauthHandlers.introspect)
 
 	mux.HandleFunc(
 		"GET /admin/api/whoami",

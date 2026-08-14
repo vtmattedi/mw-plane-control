@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -21,6 +22,7 @@ type ServiceConfig struct {
 	AuthorizationCodeTTL time.Duration
 	AccessTokenTTL       time.Duration
 	IDTokenTTL           time.Duration
+	DelegatedTokenTTL    time.Duration
 }
 
 type Service struct {
@@ -48,6 +50,10 @@ func NewService(
 		config.AccessTokenTTL <= 0 ||
 		config.IDTokenTTL <= 0 {
 		return nil, fmt.Errorf("OIDC TTLs must be positive")
+	}
+
+	if config.DelegatedTokenTTL <= 0 {
+		config.DelegatedTokenTTL = 5 * time.Minute
 	}
 
 	config.Issuer = strings.TrimRight(config.Issuer, "/")
@@ -145,6 +151,7 @@ func (s *Service) IssueAuthorizationCode(
 	authorization ValidatedAuthorization,
 	user auth.User,
 	authTime time.Time,
+	authMethod string,
 ) (string, error) {
 	if !user.Enabled {
 		return "", fmt.Errorf("cannot authorize disabled identity")
@@ -176,6 +183,7 @@ func (s *Service) IssueAuthorizationCode(
 			CodeChallenge: authorization.CodeChallenge,
 			Nonce:         authorization.Nonce,
 			AuthTime:      authTime.UTC(),
+			AuthMethod:    normalizedAuthMethod(authMethod),
 			ExpiresAt:     now.Add(s.config.AuthorizationCodeTTL),
 			CreatedAt:     now,
 		},
@@ -288,6 +296,7 @@ func (s *Service) ExchangeCode(
 		"exp":       now.Add(s.config.IDTokenTTL).Unix(),
 		"iat":       now.Unix(),
 		"auth_time": code.AuthTime.Unix(),
+		"amr":       []string{code.AuthMethod},
 	}
 	if code.Nonce != "" {
 		idClaims["nonce"] = code.Nonce
@@ -301,6 +310,10 @@ func (s *Service) ExchangeCode(
 
 	idToken, err := s.signing.SignJWT(ctx, idClaims)
 	if err != nil {
+		slog.Error(
+			"OIDC ID token signing failed",
+			"error", err,
+		)
 		return TokenResponse{}, serverError("ID token signing failed")
 	}
 
@@ -322,16 +335,23 @@ func (s *Service) ExchangeCode(
 	if err := s.store.CreateAccessToken(
 		ctx,
 		AccessToken{
-			ID:        accessID,
-			TokenHash: hashOpaque(accessToken),
-			ClientID:  app.ClientID,
-			UserID:    user.ID,
-			Audience:  accessAudience,
-			Scopes:    code.Scopes,
-			ExpiresAt: accessExpires,
-			CreatedAt: now,
+			ID:            accessID,
+			TokenHash:     hashOpaque(accessToken),
+			ClientID:      app.ClientID,
+			UserID:        user.ID,
+			Audience:      accessAudience,
+			Scopes:        code.Scopes,
+			AuthTime:      code.AuthTime,
+			AuthMethod:    normalizedAuthMethod(code.AuthMethod),
+			ParentTokenID: "",
+			ExpiresAt:     accessExpires,
+			CreatedAt:     now,
 		},
 	); err != nil {
+		slog.Error(
+			"OIDC access token persistence failed",
+			"error", err,
+		)
 		return TokenResponse{}, serverError("token persistence failed")
 	}
 
@@ -378,6 +398,17 @@ func (s *Service) UserInfo(
 	}
 
 	return claims, nil
+}
+
+func normalizedAuthMethod(value string) string {
+	switch strings.TrimSpace(value) {
+	case "password":
+		return "password"
+	case "webauthn":
+		return "webauthn"
+	default:
+		return "unknown"
+	}
 }
 
 func serverError(description string) *ProtocolError {

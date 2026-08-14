@@ -45,6 +45,7 @@ type SessionRecord struct {
 	ExpiresAt  time.Time
 	CreatedAt  time.Time
 	LastSeenAt time.Time
+	AuthMethod string
 }
 
 type Session struct {
@@ -55,6 +56,7 @@ type Session struct {
 	ExpiresAt  time.Time
 	CreatedAt  time.Time
 	LastSeenAt time.Time
+	AuthMethod string
 }
 
 type Store interface {

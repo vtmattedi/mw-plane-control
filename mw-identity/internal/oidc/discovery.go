@@ -7,6 +7,7 @@ type DiscoveryDocument struct {
 	AuthorizationEndpoint             string   `json:"authorization_endpoint"`
 	TokenEndpoint                     string   `json:"token_endpoint"`
 	JWKSURI                           string   `json:"jwks_uri"`
+	IntrospectionEndpoint             string   `json:"introspection_endpoint"`
 	UserInfoEndpoint                  string   `json:"userinfo_endpoint"`
 	ResponseTypesSupported            []string `json:"response_types_supported"`
 	GrantTypesSupported               []string `json:"grant_types_supported"`
@@ -26,12 +27,14 @@ func Discovery(issuer string) DiscoveryDocument {
 		AuthorizationEndpoint: issuer + "/oauth/authorize",
 		TokenEndpoint:         issuer + "/oauth/token",
 		JWKSURI:               issuer + "/.well-known/jwks.json",
+		IntrospectionEndpoint: issuer + "/oauth/introspect",
 		UserInfoEndpoint:      issuer + "/oauth/userinfo",
 		ResponseTypesSupported: []string{
 			"code",
 		},
 		GrantTypesSupported: []string{
 			"authorization_code",
+			TokenExchangeGrantType,
 		},
 		SubjectTypesSupported: []string{
 			"public",

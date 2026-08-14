@@ -21,6 +21,7 @@ type Config struct {
 	SigningActiveKeyVersion            int
 	AuthorizationCodeTTL               time.Duration
 	AccessTokenTTL                     time.Duration
+	DelegatedTokenTTL                  time.Duration
 	IDTokenTTL                         time.Duration
 	WebAuthnRPID                       string
 	WebAuthnRPName                     string
@@ -92,6 +93,14 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+
+	delegatedMinutes, err := positiveInt(
+		"IDENTITY_DELEGATED_TOKEN_TTL_MINUTES",
+		5,
+	)
+	if err != nil {
+		return Config{}, err
+	}
 	webAuthnKeyVersion, err := positiveInt(
 		"IDENTITY_WEBAUTHN_CREDENTIAL_ACTIVE_KEY_VERSION",
 		1,
@@ -140,6 +149,7 @@ func Load() (Config, error) {
 		SigningActiveKeyVersion: signingVersion,
 		AuthorizationCodeTTL:    time.Duration(codeMinutes) * time.Minute,
 		AccessTokenTTL:          time.Duration(accessMinutes) * time.Minute,
+		DelegatedTokenTTL:       time.Duration(delegatedMinutes) * time.Minute,
 		IDTokenTTL:              time.Duration(idMinutes) * time.Minute,
 		WebAuthnRPID: strings.TrimSpace(getenv(
 			"IDENTITY_WEBAUTHN_RP_ID",

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/config"
+	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/delegation"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/httpapi"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/identityclient"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/secure"
@@ -93,12 +94,12 @@ func main() {
 			ClientID:        cfg.OIDCClientID,
 			ClientSecret:    cfg.OIDCClientSecret,
 			CallbackURL:     cfg.CallbackURL(),
-			Scopes: []string{
+			Scopes: append([]string{
 				"openid",
 				"profile",
 				"email",
 				"identity.admin",
-			},
+			}, cfg.DelegationScopes...),
 			TransactionTTL: cfg.OIDCTransactionTTL,
 			ClockSkew:      cfg.OIDCClockSkew,
 			HTTPTimeout:    cfg.IdentityHTTPTimeout,
@@ -129,6 +130,22 @@ func main() {
 		os.Exit(1)
 	}
 
+	delegationClient, err := delegation.New(
+		delegation.Config{
+			IdentityBaseURL: cfg.IdentityInternalBaseURL,
+			ClientID:        cfg.OIDCClientID,
+			ClientSecret:    cfg.OIDCClientSecret,
+			HTTPTimeout:     cfg.IdentityHTTPTimeout,
+			CacheSkew:       cfg.DelegationCacheSkew,
+		},
+		store,
+		keyring,
+	)
+	if err != nil {
+		slog.Error("delegation client initialization failed", "error", err)
+		os.Exit(1)
+	}
+
 	server := &http.Server{
 		Addr: fmt.Sprintf(
 			":%d",
@@ -138,6 +155,14 @@ func main() {
 			db,
 			identity,
 			sessions,
+			delegationClient,
+			httpapi.DelegationProbeConfig{
+				AppEnv:      cfg.AppEnv,
+				ResourceURL: cfg.Step09TestRSURL,
+				Audience:    cfg.Step09TestAudience,
+				Scope:       cfg.Step09TestScope,
+				HTTPTimeout: cfg.IdentityHTTPTimeout,
+			},
 			httpapi.AuthConfig{
 				AppEnv:                  cfg.AppEnv,
 				PublicBaseURL:           cfg.PublicBaseURL,

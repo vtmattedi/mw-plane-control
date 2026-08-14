@@ -103,6 +103,7 @@ func main() {
 			AuthorizationCodeTTL: cfg.AuthorizationCodeTTL,
 			AccessTokenTTL:       cfg.AccessTokenTTL,
 			IDTokenTTL:           cfg.IDTokenTTL,
+			DelegatedTokenTTL:    cfg.DelegatedTokenTTL,
 		},
 	)
 	if err != nil {

@@ -38,6 +38,7 @@ type AuthorizationCode struct {
 	CodeChallenge string
 	Nonce         string
 	AuthTime      time.Time
+	AuthMethod    string
 	ExpiresAt     time.Time
 	ConsumedAt    *time.Time
 	CreatedAt     time.Time
@@ -53,22 +54,26 @@ type TokenRequest struct {
 }
 
 type TokenResponse struct {
-	AccessToken string `json:"access_token"`
-	TokenType   string `json:"token_type"`
-	ExpiresIn   int64  `json:"expires_in"`
-	Scope       string `json:"scope"`
-	IDToken     string `json:"id_token"`
+	AccessToken     string `json:"access_token"`
+	IssuedTokenType string `json:"issued_token_type,omitempty"`
+	TokenType       string `json:"token_type"`
+	ExpiresIn       int64  `json:"expires_in"`
+	Scope           string `json:"scope"`
+	IDToken         string `json:"id_token,omitempty"`
 }
 
 type AccessToken struct {
-	ID        string
-	TokenHash string
-	ClientID  string
-	UserID    string
-	Audience  string
-	Scopes    []string
-	ExpiresAt time.Time
-	CreatedAt time.Time
+	ID            string
+	TokenHash     string
+	ClientID      string
+	UserID        string
+	Audience      string
+	Scopes        []string
+	AuthTime      time.Time
+	AuthMethod    string
+	ParentTokenID string
+	ExpiresAt     time.Time
+	CreatedAt     time.Time
 }
 
 type Store interface {

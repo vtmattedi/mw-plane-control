@@ -231,6 +231,7 @@ func (s *Service) Login(
 			UserID:     user.ID,
 			TokenHash:  HashToken(sessionToken),
 			CSRFHash:   HashToken(csrfToken),
+			AuthMethod: "password",
 			ExpiresAt:  expiresAt,
 			CreatedAt:  now,
 			LastSeenAt: now,
@@ -299,6 +300,7 @@ func (s *Service) CreateSessionForUser(
 			UserID:     user.ID,
 			TokenHash:  HashToken(sessionToken),
 			CSRFHash:   HashToken(csrfToken),
+			AuthMethod: authMethodFromReason(reason),
 			ExpiresAt:  expiresAt,
 			CreatedAt:  now,
 			LastSeenAt: now,
@@ -328,6 +330,17 @@ func (s *Service) CreateSessionForUser(
 		CSRFToken:    csrfToken,
 		ExpiresAt:    expiresAt,
 	}, nil
+}
+
+func authMethodFromReason(reason string) string {
+	switch strings.TrimSpace(reason) {
+	case "webauthn":
+		return "webauthn"
+	case "password":
+		return "password"
+	default:
+		return "unknown"
+	}
 }
 
 func (s *Service) Session(

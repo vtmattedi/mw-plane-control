@@ -76,6 +76,7 @@ func (h *oauthHandlers) authorize(
 		validated,
 		session.User,
 		session.Session.CreatedAt,
+		session.Session.AuthMethod,
 	)
 	if err != nil {
 		writePlainError(w, http.StatusInternalServerError, "authorization failed")
@@ -133,22 +134,71 @@ func (h *oauthHandlers) token(
 		return
 	}
 
-	response, protocolErr := h.oidc.ExchangeCode(
-		r.Context(),
-		oidc.TokenRequest{
-			GrantType:    r.FormValue("grant_type"),
-			ClientID:     clientID,
-			ClientSecret: clientSecret,
-			Code:         r.FormValue("code"),
-			RedirectURI:  r.FormValue("redirect_uri"),
-			CodeVerifier: r.FormValue("code_verifier"),
-		},
-	)
+	var response oidc.TokenResponse
+	switch r.FormValue("grant_type") {
+	case "authorization_code":
+		response, protocolErr = h.oidc.ExchangeCode(
+			r.Context(),
+			oidc.TokenRequest{
+				GrantType:    r.FormValue("grant_type"),
+				ClientID:     clientID,
+				ClientSecret: clientSecret,
+				Code:         r.FormValue("code"),
+				RedirectURI:  r.FormValue("redirect_uri"),
+				CodeVerifier: r.FormValue("code_verifier"),
+			},
+		)
+	case oidc.TokenExchangeGrantType:
+		response, protocolErr = h.oidc.ExchangeToken(
+			r.Context(),
+			oidc.TokenExchangeRequest{
+				GrantType:          r.FormValue("grant_type"),
+				ClientID:           clientID,
+				ClientSecret:       clientSecret,
+				SubjectToken:       r.FormValue("subject_token"),
+				SubjectTokenType:   r.FormValue("subject_token_type"),
+				RequestedTokenType: r.FormValue("requested_token_type"),
+				Audience:           r.FormValue("audience"),
+				Scope:              r.FormValue("scope"),
+			},
+		)
+	default:
+		protocolErr = oidc.UnsupportedGrantType()
+	}
 	if protocolErr != nil {
 		writeOAuthError(w, protocolErr)
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(response)
+}
+
+func (h *oauthHandlers) introspect(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+	if !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/x-www-form-urlencoded") {
+		writeOAuthError(w, &oidc.ProtocolError{Code: "invalid_request", Description: "content type must be application/x-www-form-urlencoded", HTTPStatus: http.StatusBadRequest})
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 32*1024)
+	if err := r.ParseForm(); err != nil {
+		writeOAuthError(w, &oidc.ProtocolError{Code: "invalid_request", Description: "invalid introspection form", HTTPStatus: http.StatusBadRequest})
+		return
+	}
+	clientID, clientSecret, protocolErr := clientCredentials(r)
+	if protocolErr != nil {
+		writeOAuthError(w, protocolErr)
+		return
+	}
+	response, protocolErr := h.oidc.Introspect(r.Context(), clientID, clientSecret, r.FormValue("token"))
+	if protocolErr != nil {
+		writeOAuthError(w, protocolErr)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(response)
 }
