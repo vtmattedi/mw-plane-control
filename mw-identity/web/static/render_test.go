@@ -127,3 +127,22 @@ func TestRenderLoginLanguagesAndEscaping(t *testing.T) {
 		}
 	}
 }
+
+func TestRenderLoginSelectsRequiredAuthentication(t *testing.T) {
+	var output bytes.Buffer
+	if err := RenderLogin(&output, true, LoginData{RequiredAuth: "webauthn"}); err != nil {
+		t.Fatal(err)
+	}
+	body := output.String()
+	if !strings.Contains(body, `data-required-auth="webauthn"`) {
+		t.Fatal("required WebAuthn mode is missing")
+	}
+	if strings.Count(body, `class="screen active"`) != 1 ||
+		!strings.Contains(body, `data-screen="step-up"`) {
+		t.Fatal("step-up screen is not selected on the server")
+	}
+	if strings.Contains(body, "Use authenticator code") ||
+		strings.Contains(body, `data-step-up-fallback`) {
+		t.Fatal("WebAuthn-only page exposes a weaker authentication fallback")
+	}
+}

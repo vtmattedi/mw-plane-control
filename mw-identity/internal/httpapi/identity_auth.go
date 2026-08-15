@@ -76,7 +76,7 @@ func (h *identityAuthHandlers) loginPage(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
-	requestedAuth := strings.TrimSpace(r.URL.Query().Get("auth"))
+	requestedAuth := requestedLoginAuth(r.URL.Query().Get("auth"))
 	if _, _, err := h.currentSession(r); err == nil && requestedAuth == "" {
 		http.Redirect(w, r, "/account", http.StatusSeeOther)
 		return
@@ -114,9 +114,21 @@ func (h *identityAuthHandlers) loginPage(
 			CSRFToken:       token,
 			ReturnTo:        returnTo,
 			RegistrationURL: registrationURL,
+			RequiredAuth:    requestedAuth,
 		},
 	); err != nil {
 		return
+	}
+}
+
+func requestedLoginAuth(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "strong":
+		return "strong"
+	case "webauthn":
+		return "webauthn"
+	default:
+		return ""
 	}
 }
 

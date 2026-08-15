@@ -17,7 +17,7 @@
     <script src="/static/theme.js" defer></script>
     <script src="/static/portal.js" defer></script>
   </head>
-  <body>
+  <body data-required-auth="{{.RequiredAuth}}">
     <div class="ambient ambient-one"></div>
     <div class="ambient ambient-two"></div>
 
@@ -80,7 +80,10 @@
             </div>
           </div>
 
-          <div class="screen active" data-screen="login">
+          <div
+            class="screen{{if not .RequiredAuth}} active{{end}}"
+            data-screen="login"
+          >
             <div class="screen-heading">
               <span class="mobile-mark">MW</span>
               <h2>Welcome</h2>
@@ -159,7 +162,11 @@
           </div>
 
           <div class="screen" data-screen="totp">
-            <button class="back" type="button" data-show="login">
+            <button
+              class="back"
+              type="button"
+              data-show="login"
+            >
               <svg class="icon" aria-hidden="true">
                 <use href="/static/icons.svg#arrow-left" />
               </svg>
@@ -207,13 +214,21 @@
             </p>
           </div>
 
-          <div class="screen" data-screen="step-up">
-            <button class="back" type="button" data-show="login">
+          <div
+            class="screen{{if .RequiredAuth}} active{{end}}"
+            data-screen="step-up"
+          >
+            {{if ne .RequiredAuth "webauthn"}}<button
+              class="back"
+              type="button"
+              data-show="login"
+              data-step-up-fallback
+            >
               <svg class="icon" aria-hidden="true">
                 <use href="/static/icons.svg#arrow-left" />
               </svg>
               Back
-            </button>
+            </button>{{end}}
             <div class="screen-heading">
               <span class="round-icon"
                 ><svg class="icon" aria-hidden="true">
@@ -241,9 +256,14 @@
                 <use href="/static/icons.svg#arrow-right" />
               </svg>
             </button>
-            <button class="secondary-button" type="button" data-show="totp">
+            {{if ne .RequiredAuth "webauthn"}}<button
+              class="secondary-button"
+              type="button"
+              data-show="totp"
+              data-step-up-fallback
+            >
               Use authenticator code
-            </button>
+            </button>{{end}}
           </div>
 
           <div class="screen" data-screen="consent">

@@ -2,6 +2,8 @@
   "use strict";
   var root = document.documentElement;
   var params = new URLSearchParams(location.search);
+  var requiredAuth = document.body.dataset.requiredAuth || "";
+  var webauthnOnly = requiredAuth === "webauthn";
   var errorBox = document.querySelector("[data-error]");
   var english = root.lang.toLowerCase().indexOf("en") === 0;
   var csrf =
@@ -14,7 +16,14 @@
   document.querySelectorAll("[data-return-to]").forEach(function (input) {
     input.value = params.get("return_to") || input.value || "";
   });
+  var languageLink = document.querySelector("[data-language-link]");
+  if (languageLink && params.toString()) {
+    languageLink.href += "?" + params.toString();
+  }
   function show(name, preserveError) {
+    if (webauthnOnly && name !== "step-up" && name !== "success") {
+      name = "step-up";
+    }
     document.querySelectorAll("[data-screen]").forEach(function (screen) {
       screen.classList.toggle("active", screen.dataset.screen === name);
     });
@@ -36,8 +45,8 @@
     });
   });
   show(
-    params.get("screen") ||
-      (params.get("step_up") === "true" || params.get("auth") === "strong"
+    (webauthnOnly ? "step-up" : params.get("screen")) ||
+      (params.get("step_up") === "true" || requiredAuth === "strong"
         ? "step-up"
         : "login"),
     true,

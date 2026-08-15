@@ -15,6 +15,7 @@ type LoginData struct {
 	Error           string
 	ReturnTo        string
 	RegistrationURL string
+	RequiredAuth    string
 }
 
 type RegistrationData struct {

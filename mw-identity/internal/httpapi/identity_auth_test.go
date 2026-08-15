@@ -116,6 +116,31 @@ func TestEnglishLoginPage(t *testing.T) {
 	}
 }
 
+func TestWebAuthnLoginPageIsPasskeyOnly(t *testing.T) {
+	_, handlers := testAuthHTTP(t)
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"/login/en?auth=webauthn&screen=login&return_to=%2Foauth%2Fauthorize",
+		nil,
+	)
+	rec := httptest.NewRecorder()
+
+	handlers.loginPage(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `data-required-auth="webauthn"`) ||
+		!strings.Contains(body, "Confirm with passkey") {
+		t.Fatal("WebAuthn step-up page was not rendered")
+	}
+	if strings.Contains(body, "Use authenticator code") ||
+		strings.Contains(body, `data-step-up-fallback`) {
+		t.Fatal("WebAuthn step-up page exposes a weaker authentication fallback")
+	}
+}
+
 func TestLogoutRejectsBadCSRF(t *testing.T) {
 	service, handlers := testAuthHTTP(t)
 	password := []byte("correct horse battery staple")
