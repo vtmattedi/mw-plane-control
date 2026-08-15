@@ -303,6 +303,12 @@ func (c *Client) Complete(
 			ErrIdentityProtocol,
 		)
 	}
+	if claims.AccountType != "workforce" {
+		return Identity{}, "", fmt.Errorf(
+			"%w: workforce account required",
+			ErrIdentityProtocol,
+		)
+	}
 
 	authTime := time.Unix(
 		claims.AuthTime,

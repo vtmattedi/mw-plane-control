@@ -29,6 +29,8 @@ type CreateApplicationRequest struct {
 	AuthenticationPolicy   string
 	RedirectURIs           []string
 	PostLogoutRedirectURIs []string
+	DeleteCallbackURI      string
+	AllowPublicSignup      bool
 	Scopes                 []string
 	Claims                 []string
 	Audiences              []string
@@ -68,6 +70,9 @@ func (s *Service) Permissions(
 	clientID string,
 ) ([]string, string, error) {
 	if !user.Enabled {
+		return nil, "", ErrRoleForbidden
+	}
+	if user.AccountType == "public" {
 		return nil, "", ErrRoleForbidden
 	}
 
@@ -159,6 +164,8 @@ func (s *Service) CreateApplication(
 			AuthenticationPolicy:   request.AuthenticationPolicy,
 			RedirectURIs:           request.RedirectURIs,
 			PostLogoutRedirectURIs: request.PostLogoutRedirectURIs,
+			DeleteCallbackURI:      request.DeleteCallbackURI,
+			AllowPublicSignup:      request.AllowPublicSignup,
 			Scopes:                 request.Scopes,
 			Claims:                 request.Claims,
 			Audiences:              request.Audiences,
@@ -215,6 +222,7 @@ func (s *Service) CreateUser(
 		EmailNormalized: normalized,
 		DisplayName:     displayName,
 		PasswordHash:    passwordHash,
+		AccountType:     "workforce",
 		Enabled:         true,
 		IsSuperadmin:    false,
 		CreatedAt:       now,
@@ -232,6 +240,7 @@ func (s *Service) CreateUser(
 	return UserSummary{
 		ID: userID, Email: input.Email, DisplayName: displayName,
 		Enabled: true, IsSuperadmin: false, CreatedAt: now,
+		AccountType: "workforce",
 	}, nil
 }
 
@@ -611,6 +620,14 @@ func normalizeUpdate(
 		)
 	if err != nil {
 		return UpdateApplication{}, ErrInvalid
+	}
+	callbacks, err := normalizeURIs([]string{request.DeleteCallbackURI}, true)
+	if strings.TrimSpace(request.DeleteCallbackURI) == "" {
+		request.DeleteCallbackURI = ""
+	} else if err != nil || len(callbacks) != 1 {
+		return UpdateApplication{}, ErrInvalid
+	} else {
+		request.DeleteCallbackURI = callbacks[0]
 	}
 
 	request.Scopes = normalizeValues(

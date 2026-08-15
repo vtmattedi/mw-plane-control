@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f7f7f5" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="mw-identity-csrf" content="{{.CSRFToken}}" />
+    <title>Sua conta · MW Identity</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Sansation:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/portal.css" />
+    <script src="/static/theme.js" defer></script>
+  </head>
+  <body class="identity-page">
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="MattediWorks">
+        <svg class="brand-symbol" aria-hidden="true">
+          <use href="/static/brand.svg#mark" />
+        </svg>
+        <span>MATTEDI<span>WORKS</span></span>
+      </a>
+      <div class="topbar-actions">
+        <button
+          class="theme-button"
+          type="button"
+          data-theme-toggle
+          aria-label="Alternar tema"
+        >
+          <svg class="icon" aria-hidden="true">
+            <use href="/static/icons.svg#moon" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="account-shell">
+      <section class="account-hero">
+        <div class="account-avatar" aria-hidden="true">
+          {{if .DisplayName}}{{slice .DisplayName 0 1}}{{else}}MW{{end}}
+        </div>
+        <div>
+          <span class="eyebrow dark"><i></i> MW Identity</span>
+          <h1>{{if .DisplayName}}{{.DisplayName}}{{else}}Sua conta{{end}}</h1>
+          <p>{{.Email}}</p>
+        </div>
+        <span class="role-badge"
+          >{{if .IsSuperadmin}}Superadmin{{else}}Conta ativa{{end}}</span
+        >
+      </section>
+
+      <nav class="account-tabs" aria-label="Configurações da conta">
+        <a class="active" href="/account" aria-current="page">Conta</a>
+        <a href="/privacy">Privacidade</a>
+        <a href="/security">Segurança</a>
+      </nav>
+
+      <div class="account-grid">
+        <section class="settings-card" id="passkeys" hidden>
+          <div class="settings-heading">
+            <span class="round-icon"
+              ><svg class="icon" aria-hidden="true">
+                <use href="/static/icons.svg#key" /></svg
+            ></span>
+            <div>
+              <h2>Passkeys</h2>
+              <p>Use biometria, Windows Hello ou uma chave de segurança.</p>
+            </div>
+          </div>
+          <ul class="credential-list" id="passkey-list"></ul>
+          <label
+            >Nome da passkey
+            <input
+              id="passkey-label"
+              maxlength="80"
+              autocomplete="off"
+              placeholder="Windows Hello"
+            />
+          </label>
+          <button class="primary-button" type="button" id="passkey-register">
+            Registrar nova passkey
+          </button>
+          <p
+            class="inline-status"
+            id="passkey-account-status"
+            role="status"
+            aria-live="polite"
+          ></p>
+        </section>
+
+        <section class="settings-card" id="totp" hidden>
+          <div class="settings-heading">
+            <span class="round-icon"
+              ><svg class="icon" aria-hidden="true">
+                <use href="/static/icons.svg#shield" /></svg
+            ></span>
+            <div>
+              <h2>Aplicativo autenticador</h2>
+              <p>Mantenha um código TOTP como método alternativo.</p>
+            </div>
+          </div>
+          <button class="secondary-button flush" type="button" id="totp-setup">
+            Configurar autenticador
+          </button>
+          <code class="totp-secret" id="totp-secret" hidden></code>
+          <input
+            id="totp-code"
+            hidden
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            placeholder="123456"
+          />
+          <button
+            class="primary-button compact"
+            type="button"
+            id="totp-confirm"
+            hidden
+          >
+            Confirmar código
+          </button>
+          <button class="danger-button" type="button" id="totp-disable" hidden>
+            Desativar autenticador
+          </button>
+          <p
+            class="inline-status"
+            id="totp-status"
+            role="status"
+            aria-live="polite"
+          ></p>
+        </section>
+
+        <section class="settings-card account-summary">
+          <div class="settings-heading">
+            <span class="round-icon"
+              ><svg class="icon" aria-hidden="true">
+                <use href="/static/icons.svg#info" /></svg
+            ></span>
+            <div>
+              <h2>Sessão atual</h2>
+              <p>Informações sobre este acesso ao MW Identity.</p>
+            </div>
+          </div>
+          <dl>
+            <div>
+              <dt>E-mail</dt>
+              <dd>{{.Email}}</dd>
+            </div>
+            <div>
+              <dt>Verificação do e-mail</dt>
+              <dd>
+                {{if .EmailVerifiedAt}}Verificado{{else}}Não verificado{{end}}
+              </dd>
+            </div>
+            {{if .Username}}
+            <div>
+              <dt>Nome de usuário</dt>
+              <dd>{{.Username}}</dd>
+            </div>
+            {{end}}
+            <div>
+              <dt>Autenticação</dt>
+              <dd>
+                {{if .AuthMethod}}{{.AuthMethod}}{{else}}Sessão ativa{{end}}
+              </dd>
+            </div>
+            <div>
+              <dt>Permissão</dt>
+              <dd>{{if .IsSuperadmin}}Superadmin{{else}}Usuário{{end}}</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="settings-card account-summary">
+          <div class="settings-heading">
+            <span class="round-icon"
+              ><svg class="icon" aria-hidden="true">
+                <use href="/static/icons.svg#info" /></svg
+            ></span>
+            <div>
+              <h2>Aplicativos conectados</h2>
+              <p>Aplicativos nos quais esta identidade possui acesso.</p>
+            </div>
+          </div>
+          {{if .Applications}}
+          <ul class="connected-app-list">
+            {{range .Applications}}
+            <li>
+              <div><strong>{{.Name}}</strong><span>{{.ClientID}}</span></div>
+              <span class="role-badge">{{.Role}}</span>
+            </li>
+            {{end}}
+          </ul>
+          {{else}}
+          <p>Nenhum aplicativo conectado.</p>
+          {{end}}
+        </section>
+      </div>
+
+      <section class="session-actions">
+        <div>
+          <h2>Encerrar sessão</h2>
+          <p>Saia desta sessão do MW Identity neste navegador.</p>
+        </div>
+        <form method="post" action="/logout">
+          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
+          <button class="secondary-button flush" type="submit">Sair</button>
+        </form>
+      </section>
+
+      {{if not .IsSuperadmin}}
+      <section class="session-actions danger-zone">
+        <div>
+          <h2>Excluir conta</h2>
+          <p>
+            Revoga todos os acessos e solicita a exclusão da conta nos
+            aplicativos conectados. Esta ação não pode ser desfeita.
+          </p>
+        </div>
+        <form
+          method="post"
+          action="/account/delete"
+          class="delete-account-form"
+        >
+          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
+          <label>
+            Digite DELETE para confirmar
+            <input
+              name="confirmation"
+              required
+              pattern="DELETE"
+              autocomplete="off"
+            />
+          </label>
+          <button class="danger-button" type="submit">
+            Excluir minha conta
+          </button>
+        </form>
+      </section>
+      {{end}}
+
+      <footer class="page-footer">
+        <a href="/privacy">Privacidade</a><span>•</span
+        ><a href="/security">Segurança</a><span>•</span
+        ><span>© 2026 MattediWorks</span>
+      </footer>
+    </main>
+    <script src="/webauthn-account.js" defer></script>
+    <script src="/strong-account.js" defer></script>
+  </body>
+</html>

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f7f7f5" />
+    <meta name="color-scheme" content="light dark" />
+    <title>{{.Title}} · MW Identity</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Sansation:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/portal.css" />
+    <script src="/static/theme.js" defer></script>
+  </head>
+  <body class="identity-page">
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="MattediWorks">
+        <svg class="brand-symbol" aria-hidden="true"><use href="/static/brand.svg#mark" /></svg>
+        <span>MATTEDI<span>WORKS</span></span>
+      </a>
+      <button class="theme-button" type="button" data-theme-toggle aria-label="Alternar tema">
+        <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#moon" /></svg>
+      </button>
+    </header>
+    <main class="info-shell">
+      <a class="back-link" href="{{.BackURL}}"><svg class="icon" aria-hidden="true"><use href="/static/icons.svg#arrow-left" /></svg>Voltar</a>
+      <span class="eyebrow dark"><i></i> MW Identity</span>
+      <h1>{{.Title}}</h1>
+      <p class="info-lead">{{.Lead}}</p>
+      <nav class="account-tabs" aria-label="Informações do MW Identity">
+        <a href="/account">Conta</a>
+        <a href="/privacy" class="{{if eq .Kind "privacy"}}active{{end}}" {{if eq .Kind "privacy"}}aria-current="page"{{end}}>Privacidade</a>
+        <a href="/security" class="{{if eq .Kind "security"}}active{{end}}" {{if eq .Kind "security"}}aria-current="page"{{end}}>Segurança</a>
+      </nav>
+      <div class="info-grid">
+        {{range .Sections}}<section class="settings-card"><h2>{{.Title}}</h2><p>{{.Body}}</p></section>{{end}}
+      </div>
+      <p class="info-note">Este é um resumo operacional do MW Identity, não um documento jurídico completo.</p>
+      <footer class="page-footer"><span>© 2026 MattediWorks</span></footer>
+    </main>
+  </body>
+</html>

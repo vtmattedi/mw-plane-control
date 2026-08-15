@@ -11,7 +11,8 @@ func securityHeaders(next http.Handler) http.Handler {
 			"Content-Security-Policy",
 			"default-src 'none'; "+
 				"script-src 'self'; "+
-				"style-src 'self'; "+
+				"style-src 'self' https://fonts.googleapis.com; "+
+				"font-src https://fonts.gstatic.com; "+
 				"img-src 'self'; "+
 				"connect-src 'self'; "+
 				"form-action 'self'; "+

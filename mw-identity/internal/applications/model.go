@@ -23,6 +23,8 @@ type Application struct {
 	ArchivedAt             *time.Time `json:"archived_at,omitempty"`
 	RedirectURIs           []string   `json:"redirect_uris"`
 	PostLogoutRedirectURIs []string   `json:"post_logout_redirect_uris"`
+	DeleteCallbackURI      string     `json:"delete_callback_uri,omitempty"`
+	AllowPublicSignup      bool       `json:"allow_public_signup"`
 	Scopes                 []string   `json:"scopes"`
 	Claims                 []string   `json:"claims"`
 	Audiences              []string   `json:"audiences"`
@@ -40,6 +42,8 @@ type CreateInput struct {
 	Enabled                bool
 	RedirectURIs           []string
 	PostLogoutRedirectURIs []string
+	DeleteCallbackURI      string
+	AllowPublicSignup      bool
 	Scopes                 []string
 	Claims                 []string
 	Audiences              []string

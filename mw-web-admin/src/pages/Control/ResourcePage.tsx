@@ -19,6 +19,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { useConfirm } from '@/components/confirm-context'
+import { OneTimeCredentialDialog } from '@/components/one-time-credential-dialog'
 import {
   Dialog,
   DialogContent,
@@ -71,6 +72,9 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
   const [search, setSearch] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
   const [projectName, setProjectName] = useState('')
+  const [revealedCredential, setRevealedCredential] = useState<string | null>(
+    null,
+  )
   const [createFields, setCreateFields] = useState({
     email: '',
     displayName: '',
@@ -80,6 +84,8 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
     authenticationPolicy: 'standard',
     redirectURIs: '',
     postLogoutRedirectURIs: '',
+    deleteCallbackURI: '',
+    allowPublicSignup: false,
     scopes: 'openid, profile, email',
     claims: '',
     audiences: '',
@@ -123,17 +129,9 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
       const secret =
         record.api_key ?? record.callback_secret ?? record.client_secret
       if (typeof secret === 'string') {
-        toast.success(tr('Operação concluída com sucesso.'), {
-          description: secret,
-          action: {
-            label: tr('Copiar segredo'),
-            onClick: () => void navigator.clipboard.writeText(secret),
-          },
-          duration: 15_000,
-        })
-      } else {
-        toast.success(tr('Operação concluída com sucesso.'))
+        setRevealedCredential(secret)
       }
+      toast.success(tr('Operação concluída com sucesso.'))
       setCreateOpen(false)
       setProjectName('')
       setCreateFields((current) => ({
@@ -144,6 +142,8 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
         clientID: '',
         redirectURIs: '',
         postLogoutRedirectURIs: '',
+        deleteCallbackURI: '',
+        allowPublicSignup: false,
         claims: '',
         audiences: '',
       }))
@@ -258,6 +258,8 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
         authentication_policy: createFields.authenticationPolicy,
         redirect_uris: values(createFields.redirectURIs),
         post_logout_redirect_uris: values(createFields.postLogoutRedirectURIs),
+        delete_callback_uri: createFields.deleteCallbackURI.trim(),
+        allow_public_signup: createFields.allowPublicSignup,
         scopes: values(createFields.scopes),
         claims: values(createFields.claims),
         audiences: values(createFields.audiences),
@@ -577,6 +579,39 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
                     value={createFields.postLogoutRedirectURIs}
                   />
                 </CreateField>
+                <CreateField
+                  className="sm:col-span-2"
+                  label={tr('Callback de exclusão de conta')}
+                >
+                  <Input
+                    disabled={mutation.isPending}
+                    onChange={(deleteCallbackURI) =>
+                      setCreateFields((value) => ({
+                        ...value,
+                        deleteCallbackURI,
+                      }))
+                    }
+                    placeholder="https://app.example.com/internal/identity/account-deleted"
+                    value={createFields.deleteCallbackURI}
+                  />
+                </CreateField>
+                <CreateField label={tr('Cadastro público')}>
+                  <Select
+                    disabled={mutation.isPending}
+                    onChange={(event) =>
+                      setCreateFields((value) => ({
+                        ...value,
+                        allowPublicSignup: event.target.value === 'enabled',
+                      }))
+                    }
+                    value={
+                      createFields.allowPublicSignup ? 'enabled' : 'disabled'
+                    }
+                  >
+                    <option value="disabled">{tr('Desativado')}</option>
+                    <option value="enabled">{tr('Ativado')}</option>
+                  </Select>
+                </CreateField>
                 <CreateField label="Scopes">
                   <Input
                     disabled={mutation.isPending}
@@ -647,6 +682,10 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        <OneTimeCredentialDialog
+          credential={revealedCredential}
+          onClose={() => setRevealedCredential(null)}
+        />
       </div>
     </main>
   )

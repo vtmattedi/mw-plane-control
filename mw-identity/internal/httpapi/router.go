@@ -44,7 +44,7 @@ func New(
 
 	authHandlers := newIdentityAuthHandlers(authService, authConfig)
 	oauthHandlers := newOAuthHandlers(oidcService, authHandlers)
-	adminHandlers := newIdentityAdminHandlers(oidcService, identityAdminService, identityStrongService, strongMaxAge)
+	adminHandlers := newIdentityAdminHandlers(oidcService, identityAdminService, identityStrongService, authService, strongMaxAge)
 	webAuthnHandlers := newIdentityWebAuthnHandlers(identityWebAuthnService, authHandlers, strongMaxAge)
 	strongHandlers := newIdentityStrongHandlers(identityStrongService, identityWebAuthnService, authHandlers, strongMaxAge)
 
@@ -140,6 +140,7 @@ func New(
 		adminHandlers.audit,
 	)
 	mux.HandleFunc("POST /admin/api/users/{user_id}/revoke-sessions", adminHandlers.revokeUserSessions)
+	mux.HandleFunc("DELETE /admin/api/users/{user_id}", adminHandlers.deleteUser)
 
 	mux.HandleFunc("GET /webauthn-login.js", webAuthnHandlers.loginScript)
 	mux.HandleFunc("GET /webauthn-account.js", webAuthnHandlers.accountScript)
@@ -172,9 +173,14 @@ func New(
 	mux.HandleFunc("GET /login", authHandlers.loginPage)
 	mux.HandleFunc("GET /login/en", authHandlers.loginPage)
 	mux.HandleFunc("POST /login", authHandlers.login)
+	mux.HandleFunc("GET /register", authHandlers.registerPage)
+	mux.HandleFunc("POST /register", authHandlers.register)
 	mux.Handle("GET /static/", http.StripPrefix("/static/", webstatic.AssetHandler()))
 	mux.HandleFunc("GET /account", authHandlers.account)
+	mux.HandleFunc("GET /privacy", authHandlers.privacy)
+	mux.HandleFunc("GET /security", authHandlers.security)
 	mux.HandleFunc("POST /logout", authHandlers.logout)
+	mux.HandleFunc("POST /account/delete", authHandlers.deleteAccount)
 
 	return operationalMiddleware(metrics, securityHeaders(mux))
 }

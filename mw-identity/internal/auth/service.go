@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"net/mail"
 	"strings"
 	"time"
@@ -15,15 +16,23 @@ import (
 )
 
 type ServiceConfig struct {
-	SessionTTL time.Duration
+	SessionTTL   time.Duration
+	PublicIssuer string
+}
+
+type LifecycleSigner interface {
+	SignJWT(context.Context, map[string]any) (string, error)
 }
 
 type Service struct {
-	store      Store
-	audit      audit.Recorder
-	sessionTTL time.Duration
-	now        func() time.Time
-	dummyHash  string
+	store           Store
+	audit           audit.Recorder
+	sessionTTL      time.Duration
+	now             func() time.Time
+	dummyHash       string
+	httpClient      *http.Client
+	lifecycleSigner LifecycleSigner
+	publicIssuer    string
 }
 
 type LoginResult struct {
@@ -61,12 +70,18 @@ func NewService(
 	}
 
 	return &Service{
-		store:      store,
-		audit:      auditRecorder,
-		sessionTTL: cfg.SessionTTL,
-		now:        time.Now,
-		dummyHash:  dummyHash,
+		store:        store,
+		audit:        auditRecorder,
+		sessionTTL:   cfg.SessionTTL,
+		now:          time.Now,
+		dummyHash:    dummyHash,
+		httpClient:   deletionHTTPClient(),
+		publicIssuer: strings.TrimRight(strings.TrimSpace(cfg.PublicIssuer), "/"),
 	}, nil
+}
+
+func (s *Service) SetLifecycleSigner(signer LifecycleSigner) {
+	s.lifecycleSigner = signer
 }
 
 func NormalizeEmail(value string) (string, error) {
@@ -112,6 +127,7 @@ func (s *Service) CreateSuperadmin(
 		EmailNormalized: normalized,
 		DisplayName:     displayName,
 		PasswordHash:    passwordHash,
+		AccountType:     "workforce",
 		Enabled:         true,
 		IsSuperadmin:    true,
 		CreatedAt:       now,
@@ -127,6 +143,7 @@ func (s *Service) CreateSuperadmin(
 		EmailNormalized: input.EmailNormalized,
 		DisplayName:     input.DisplayName,
 		PasswordHash:    input.PasswordHash,
+		AccountType:     input.AccountType,
 		Enabled:         input.Enabled,
 		IsSuperadmin:    input.IsSuperadmin,
 		CreatedAt:       input.CreatedAt,

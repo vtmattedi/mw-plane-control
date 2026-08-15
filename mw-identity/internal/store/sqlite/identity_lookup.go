@@ -21,7 +21,12 @@ func (s *Store) IdentityUserByID(
 			enabled,
 			is_superadmin,
 			created_at_unix,
-			updated_at_unix
+			updated_at_unix,
+			username,
+			COALESCE(username_normalized, ''),
+			account_type,
+			email_verified_at_unix,
+			deletion_requested_at_unix
 		FROM identity_users
 		WHERE id = ?`,
 		userID,

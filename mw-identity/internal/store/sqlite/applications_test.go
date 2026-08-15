@@ -40,6 +40,8 @@ func TestApplicationRegistryRoundTrip(t *testing.T) {
 			ClientSecretHash:     "hash-only",
 			ApplicationType:      "confidential",
 			AuthenticationPolicy: "standard",
+			DeleteCallbackURI:    "https://app.example.com/account-deleted",
+			AllowPublicSignup:    true,
 			Enabled:              true,
 			RedirectURIs: []string{
 				"https://admin.mattediworks.com/api/auth/callback",
@@ -80,5 +82,8 @@ func TestApplicationRegistryRoundTrip(t *testing.T) {
 			"client secret hash = %q",
 			app.ClientSecretHash,
 		)
+	}
+	if app.DeleteCallbackURI != "https://app.example.com/account-deleted" || !app.AllowPublicSignup {
+		t.Fatalf("lifecycle settings = callback %q, signup %v", app.DeleteCallbackURI, app.AllowPublicSignup)
 	}
 }

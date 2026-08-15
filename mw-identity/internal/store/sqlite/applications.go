@@ -43,8 +43,10 @@ func (s *Store) CreateApplication(
 			enabled,
 			archived_at_unix,
 			created_at_unix,
-			updated_at_unix
-		) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
+			updated_at_unix,
+			delete_callback_uri,
+			allow_public_signup
+		) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)`,
 		input.ID,
 		input.Name,
 		input.ClientID,
@@ -54,6 +56,8 @@ func (s *Store) CreateApplication(
 		boolInt(input.Enabled),
 		input.CreatedAt.Unix(),
 		input.CreatedAt.Unix(),
+		nullableString(input.DeleteCallbackURI),
+		boolInt(input.AllowPublicSignup),
 	)
 	if err != nil {
 		if strings.Contains(
@@ -143,12 +147,14 @@ func (s *Store) ApplicationByClientID(
 	clientID string,
 ) (applications.Application, error) {
 	var (
-		app      applications.Application
-		secret   sql.NullString
-		archived sql.NullInt64
-		enabled  int
-		created  int64
-		updated  int64
+		app               applications.Application
+		secret            sql.NullString
+		archived          sql.NullInt64
+		enabled           int
+		created           int64
+		updated           int64
+		deleteCallback    sql.NullString
+		allowPublicSignup int
 	)
 
 	err := s.db.QueryRowContext(
@@ -163,7 +169,9 @@ func (s *Store) ApplicationByClientID(
 			enabled,
 			archived_at_unix,
 			created_at_unix,
-			updated_at_unix
+			updated_at_unix,
+			delete_callback_uri,
+			allow_public_signup
 		FROM identity_applications
 		WHERE client_id = ?`,
 		clientID,
@@ -178,6 +186,8 @@ func (s *Store) ApplicationByClientID(
 		&archived,
 		&created,
 		&updated,
+		&deleteCallback,
+		&allowPublicSignup,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return applications.Application{},
@@ -192,6 +202,8 @@ func (s *Store) ApplicationByClientID(
 	}
 
 	app.ClientSecretHash = secret.String
+	app.DeleteCallbackURI = deleteCallback.String
+	app.AllowPublicSignup = allowPublicSignup == 1
 	app.Enabled = enabled == 1
 	app.CreatedAt = time.Unix(created, 0).UTC()
 	app.UpdatedAt = time.Unix(updated, 0).UTC()

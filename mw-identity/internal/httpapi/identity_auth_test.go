@@ -74,7 +74,7 @@ func TestLoginPageCookiePolicy(t *testing.T) {
 		t.Fatalf("status = %d", rec.Code)
 	}
 	if body := rec.Body.String(); !strings.Contains(body, "Boas-vindas") ||
-		!strings.Contains(body, "/static/logo-only.svg") {
+		!strings.Contains(body, "/static/brand.svg#mark") {
 		t.Fatalf("new Portuguese portal was not rendered: %q", body)
 	}
 

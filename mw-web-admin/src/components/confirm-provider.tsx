@@ -1,7 +1,14 @@
-import * as Dialog from '@radix-ui/react-dialog'
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ConfirmContext, type Confirmation } from './confirm-context'
 import { Button } from './ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog'
 
 interface PendingConfirmation extends Confirmation {
   resolve: (confirmed: boolean) => void
@@ -27,56 +34,43 @@ export function AppConfirmProvider({ children }: { children: ReactNode }) {
   return (
     <ConfirmContext.Provider value={value}>
       {children}
-      <Dialog.Root
+      <Dialog
         open={pending !== null}
         onOpenChange={(open) => {
           if (!open && pending) finish(false)
         }}
       >
-        <Dialog.Portal>
-          <Dialog.Overlay className="confirm-overlay" />
-          <Dialog.Content
-            className="confirm-dialog"
-            onOpenAutoFocus={(event) => {
-              event.preventDefault()
-              cancelRef.current?.focus()
-            }}
-            role="alertdialog"
-          >
-            <Dialog.Title
-              style={{
-                fontSize: '1.25rem',
-                fontWeight: 600,
-                marginBottom: '0.5rem',
-                borderBottom: '1px solid var(--border)',
-                paddingBottom: '0.5rem',
-              }}
+        <DialogContent
+          className="confirm-dialog max-w-lg"
+          onOpenAutoFocus={(event) => {
+            event.preventDefault()
+            cancelRef.current?.focus()
+          }}
+          role="alertdialog"
+        >
+          <DialogHeader>
+            <DialogTitle>{pending?.title}</DialogTitle>
+            <DialogDescription>{pending?.description}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              ref={cancelRef}
+              type="button"
+              variant="secondary"
+              onClick={() => finish(false)}
             >
-              {pending?.title}
-            </Dialog.Title>
-            <Dialog.Description style={{ marginBottom: '1rem' }}>
-              {pending?.description}
-            </Dialog.Description>
-            <div className="button-row">
-              <Button
-                ref={cancelRef}
-                type="button"
-                variant="secondary"
-                onClick={() => finish(false)}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={() => finish(true)}
-              >
-                {pending?.confirmLabel ?? 'Confirmar'}
-              </Button>
-            </div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => finish(true)}
+            >
+              {pending?.confirmLabel ?? 'Confirmar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </ConfirmContext.Provider>
   )
 }

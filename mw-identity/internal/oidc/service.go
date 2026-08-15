@@ -309,23 +309,32 @@ func (s *Service) ExchangeCode(
 		return TokenResponse{}, serverError("token generation failed")
 	}
 
+	accountType := strings.TrimSpace(user.AccountType)
+	if accountType == "" {
+		accountType = "workforce"
+	}
 	idClaims := map[string]any{
-		"iss":       s.config.Issuer,
-		"sub":       user.ID,
-		"aud":       app.ClientID,
-		"exp":       now.Add(s.config.IDTokenTTL).Unix(),
-		"iat":       now.Unix(),
-		"auth_time": code.AuthTime.Unix(),
-		"amr":       []string{code.AuthMethod},
+		"iss":             s.config.Issuer,
+		"sub":             user.ID,
+		"aud":             app.ClientID,
+		"exp":             now.Add(s.config.IDTokenTTL).Unix(),
+		"iat":             now.Unix(),
+		"auth_time":       code.AuthTime.Unix(),
+		"amr":             []string{code.AuthMethod},
+		"mw_account_type": accountType,
 	}
 	if code.Nonce != "" {
 		idClaims["nonce"] = code.Nonce
 	}
 	if contains(code.Scopes, "email") {
 		idClaims["email"] = user.Email
+		idClaims["email_verified"] = user.EmailVerifiedAt != nil
 	}
 	if contains(code.Scopes, "profile") {
 		idClaims["name"] = user.DisplayName
+		if user.Username != "" {
+			idClaims["preferred_username"] = user.Username
+		}
 	}
 
 	idToken, err := s.signing.SignJWT(ctx, idClaims)
@@ -407,14 +416,23 @@ func (s *Service) UserInfo(
 		return nil, invalidToken()
 	}
 
+	accountType := strings.TrimSpace(user.AccountType)
+	if accountType == "" {
+		accountType = "workforce"
+	}
 	claims := map[string]any{
-		"sub": user.ID,
+		"sub":             user.ID,
+		"mw_account_type": accountType,
 	}
 	if contains(token.Scopes, "email") {
 		claims["email"] = user.Email
+		claims["email_verified"] = user.EmailVerifiedAt != nil
 	}
 	if contains(token.Scopes, "profile") {
 		claims["name"] = user.DisplayName
+		if user.Username != "" {
+			claims["preferred_username"] = user.Username
+		}
 	}
 
 	return claims, nil

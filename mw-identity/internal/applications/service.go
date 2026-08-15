@@ -26,6 +26,8 @@ type CreateRequest struct {
 	AuthenticationPolicy   string
 	RedirectURIs           []string
 	PostLogoutRedirectURIs []string
+	DeleteCallbackURI      string
+	AllowPublicSignup      bool
 	Scopes                 []string
 	Claims                 []string
 	Audiences              []string
@@ -94,6 +96,10 @@ func (s *Service) Create(
 	if err != nil {
 		return CreateResult{}, ErrInvalidApplication
 	}
+	deleteCallback, err := normalizeOptionalURI(request.DeleteCallbackURI, true)
+	if err != nil {
+		return CreateResult{}, ErrInvalidApplication
+	}
 
 	scopes := normalizeValues(request.Scopes)
 	if len(scopes) == 0 {
@@ -138,6 +144,8 @@ func (s *Service) Create(
 		Enabled:                true,
 		RedirectURIs:           redirectURIs,
 		PostLogoutRedirectURIs: postLogout,
+		DeleteCallbackURI:      deleteCallback,
+		AllowPublicSignup:      request.AllowPublicSignup,
 		Scopes:                 scopes,
 		Claims:                 claims,
 		Audiences:              audiences,
@@ -161,6 +169,8 @@ func (s *Service) Create(
 		Enabled:                input.Enabled,
 		RedirectURIs:           append([]string(nil), input.RedirectURIs...),
 		PostLogoutRedirectURIs: append([]string(nil), input.PostLogoutRedirectURIs...),
+		DeleteCallbackURI:      input.DeleteCallbackURI,
+		AllowPublicSignup:      input.AllowPublicSignup,
 		Scopes:                 append([]string(nil), input.Scopes...),
 		Claims:                 append([]string(nil), input.Claims...),
 		Audiences:              append([]string(nil), input.Audiences...),
@@ -172,6 +182,18 @@ func (s *Service) Create(
 		Application:  app,
 		ClientSecret: rawSecret,
 	}, nil
+}
+
+func normalizeOptionalURI(value string, requiredHTTPS bool) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", nil
+	}
+	values, err := normalizeURIs([]string{value}, requiredHTTPS)
+	if err != nil || len(values) != 1 {
+		return "", fmt.Errorf("invalid URI")
+	}
+	return values[0], nil
 }
 
 func (s *Service) RedirectAllowed(

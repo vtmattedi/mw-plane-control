@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f7f7f5" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Criar conta · MattediWorks</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Sansation:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/portal.css" />
+    <script src="/static/theme.js" defer></script>
+  </head>
+  <body class="identity-page">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="MattediWorks">
+        <svg class="brand-symbol" aria-hidden="true">
+          <use href="/static/brand.svg#mark" />
+        </svg>
+        <span>MATTEDI<span>WORKS</span></span>
+      </a>
+    </header>
+    <main class="account-shell narrow-shell">
+      <section class="settings-card">
+        <div class="settings-heading">
+          <div>
+            <span class="eyebrow dark"><i></i> MW Identity</span>
+            <h1>Criar conta</h1>
+            <p>Crie sua identidade para continuar em {{.AppName}}.</p>
+          </div>
+        </div>
+        {{if .Error}}
+        <p class="form-error" role="alert">{{.Error}}</p>
+        {{end}}
+        <form method="post" action="/register" class="registration-form">
+          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
+          <input type="hidden" name="client_id" value="{{.ClientID}}" />
+          <input type="hidden" name="return_to" value="{{.ReturnTo}}" />
+          <label
+            >Nome de usuário<input
+              name="username"
+              required
+              minlength="3"
+              maxlength="32"
+              autocomplete="username"
+          /></label>
+          <label
+            >E-mail<input
+              name="email"
+              type="email"
+              required
+              autocomplete="email"
+          /></label>
+          <label
+            >Senha<input
+              name="password"
+              type="password"
+              required
+              minlength="12"
+              maxlength="256"
+              autocomplete="new-password"
+          /></label>
+          <p class="inline-status">
+            O e-mail pode ser verificado posteriormente nas configurações da
+            conta.
+          </p>
+          <button class="primary-button" type="submit">Criar conta</button>
+          <a
+            class="secondary-button"
+            href="/login?return_to={{urlquery .ReturnTo}}"
+            >Já tenho uma conta</a
+          >
+        </form>
+      </section>
+    </main>
+  </body>
+</html>

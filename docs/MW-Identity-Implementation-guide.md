@@ -430,6 +430,8 @@ authentication method/assurance context as implemented
 
 Do not put secrets or application-domain objects into ID tokens.
 
+Current application-facing identity claims are documented in [MW-Identity application integration](MW-Identity-application-integration.md). In particular, relying applications key users by `sub`, receive standard `email_verified`, and can distinguish `public` from `workforce` through `mw_account_type`.
+
 ---
 
 ## 17. Access-token model

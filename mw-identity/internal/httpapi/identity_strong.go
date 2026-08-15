@@ -10,6 +10,7 @@ import (
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identitystrong"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identitywebauthn"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/portal"
+	webstatic "github.com/vtmattedi/mw-plane-control/mw-identity/web/static"
 )
 
 const identityRecoveryHeader = "X-MW-Recovery"
@@ -139,7 +140,7 @@ func (h *identityStrongHandlers) loginTOTP(w http.ResponseWriter, r *http.Reques
 func (h *identityStrongHandlers) recoveryPage(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	_ = portal.RenderRecovery(w)
+	_ = webstatic.RenderRecovery(w)
 }
 func (h *identityStrongHandlers) recoveryScript(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/javascript; charset=utf-8")

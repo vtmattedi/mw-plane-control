@@ -121,11 +121,15 @@ func (s *Store) UpdateIdentityApplication(
 		`UPDATE identity_applications
 		 SET name = ?,
 		     authentication_policy = ?,
+		     delete_callback_uri = ?,
+		     allow_public_signup = ?,
 		     updated_at_unix = ?
 		 WHERE id = ?
 		   AND archived_at_unix IS NULL`,
 		value.Name,
 		value.AuthenticationPolicy,
+		nullableString(value.DeleteCallbackURI),
+		boolInt(value.AllowPublicSignup),
 		now.Unix(),
 		id,
 	)
@@ -323,6 +327,10 @@ func (s *Store) ListIdentityUsers(
 			display_name,
 			enabled,
 			is_superadmin,
+			account_type,
+			username,
+			email_verified_at_unix,
+			deletion_requested_at_unix,
 			created_at_unix
 		 FROM identity_users
 		 ORDER BY created_at_unix DESC, id DESC`,
@@ -338,10 +346,12 @@ func (s *Store) ListIdentityUsers(
 	var result []identityadmin.UserSummary
 	for rows.Next() {
 		var (
-			user        identityadmin.UserSummary
-			enabled     int
-			superadmin  int
-			createdUnix int64
+			user              identityadmin.UserSummary
+			enabled           int
+			superadmin        int
+			createdUnix       int64
+			emailVerified     sql.NullInt64
+			deletionRequested sql.NullInt64
 		)
 
 		if err := rows.Scan(
@@ -350,6 +360,10 @@ func (s *Store) ListIdentityUsers(
 			&user.DisplayName,
 			&enabled,
 			&superadmin,
+			&user.AccountType,
+			&user.Username,
+			&emailVerified,
+			&deletionRequested,
 			&createdUnix,
 		); err != nil {
 			return nil, err
@@ -361,6 +375,14 @@ func (s *Store) ListIdentityUsers(
 			createdUnix,
 			0,
 		).UTC()
+		if emailVerified.Valid {
+			value := time.Unix(emailVerified.Int64, 0).UTC()
+			user.EmailVerifiedAt = &value
+		}
+		if deletionRequested.Valid {
+			value := time.Unix(deletionRequested.Int64, 0).UTC()
+			user.DeletionRequestedAt = &value
+		}
 
 		result = append(result, user)
 	}

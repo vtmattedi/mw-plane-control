@@ -56,7 +56,10 @@ func Discovery(issuer string) DiscoveryDocument {
 			"iat",
 			"auth_time",
 			"email",
+			"email_verified",
 			"name",
+			"preferred_username",
+			"mw_account_type",
 		},
 		CodeChallengeMethodsSupported: []string{
 			"S256",

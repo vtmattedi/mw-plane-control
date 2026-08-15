@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { EntityCreationDialog } from './entity-creation-dialog'
 import { AppConfirmProvider } from './confirm-provider'
 import { useConfirm } from './confirm-context'
+import dialogStyles from './ui/dialog.module.scss'
 
 function Harness() {
   const confirm = useConfirm()
@@ -89,6 +90,6 @@ describe('confirmação global', () => {
     expect(editDialog).toBeInTheDocument()
     expect(
       screen.getByRole('alertdialog', { name: 'Salvar alterações?' }),
-    ).toHaveClass('confirm-dialog')
+    ).toHaveClass('confirm-dialog', dialogStyles.content)
   })
 })

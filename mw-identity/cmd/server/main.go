@@ -62,7 +62,8 @@ func main() {
 		store,
 		store,
 		auth.ServiceConfig{
-			SessionTTL: cfg.IdentitySessionTTL,
+			SessionTTL:   cfg.IdentitySessionTTL,
+			PublicIssuer: cfg.PublicIssuer,
 		},
 	)
 	if err != nil {
@@ -95,6 +96,7 @@ func main() {
 		slog.Error("active signing key initialization failed", "error", err)
 		os.Exit(1)
 	}
+	authService.SetLifecycleSigner(signingManager)
 
 	oidcService, err := oidc.NewService(
 		store,
@@ -158,6 +160,7 @@ func main() {
 				LoginCSRFTTL:           cfg.LoginCSRFTTL,
 				LoginRateLimitAttempts: cfg.LoginRateLimitAttempts,
 				LoginRateLimitWindow:   cfg.LoginRateLimitWindow,
+				StrongAuthMaxAge:       cfg.StrongAuthMaxAge,
 			},
 			httpapi.OIDCMetadataConfig{
 				PublicIssuer:   cfg.PublicIssuer,

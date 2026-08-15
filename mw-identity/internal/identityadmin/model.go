@@ -34,18 +34,24 @@ type UpdateApplication struct {
 	AuthenticationPolicy   string   `json:"authentication_policy"`
 	RedirectURIs           []string `json:"redirect_uris"`
 	PostLogoutRedirectURIs []string `json:"post_logout_redirect_uris"`
+	DeleteCallbackURI      string   `json:"delete_callback_uri"`
+	AllowPublicSignup      bool     `json:"allow_public_signup"`
 	Scopes                 []string `json:"scopes"`
 	Claims                 []string `json:"claims"`
 	Audiences              []string `json:"audiences"`
 }
 
 type UserSummary struct {
-	ID           string    `json:"id"`
-	Email        string    `json:"email"`
-	DisplayName  string    `json:"display_name"`
-	Enabled      bool      `json:"enabled"`
-	IsSuperadmin bool      `json:"is_superadmin"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID                  string     `json:"id"`
+	Email               string     `json:"email"`
+	DisplayName         string     `json:"display_name"`
+	Enabled             bool       `json:"enabled"`
+	IsSuperadmin        bool       `json:"is_superadmin"`
+	AccountType         string     `json:"account_type"`
+	Username            string     `json:"username,omitempty"`
+	EmailVerifiedAt     *time.Time `json:"email_verified_at"`
+	DeletionRequestedAt *time.Time `json:"deletion_requested_at"`
+	CreatedAt           time.Time  `json:"created_at"`
 }
 
 type CreateUserRequest struct {

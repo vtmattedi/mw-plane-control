@@ -1,16 +1,5 @@
 package portal
 
-import (
-	"html/template"
-	"io"
-)
-
-var recoveryTemplate = template.Must(template.New("recovery").Parse(`<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MW Identity — Recovery</title></head>
-<body><main><h1>MW Identity recovery</h1><p>This recovery capability is operator-issued. The token stays in the URL fragment and is never sent automatically to the server.</p><button id="recovery-start" type="button">Register replacement passkey</button><p id="recovery-status" role="status" aria-live="polite"></p><script src="/recovery.js" defer></script></main></body></html>`))
-
-func RenderRecovery(w io.Writer) error { return recoveryTemplate.Execute(w, nil) }
-
 const IdentityStrongAccountJS = `(async () => {
   const csrf = document.querySelector('meta[name="mw-identity-csrf"]')?.content || '';
   const root = document.getElementById('totp'); if (!root) return;

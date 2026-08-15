@@ -59,6 +59,11 @@
   text-rendering: optimizeLegibility;
 }
 
+.mw-wordmark-text {
+  font-family: 'Sansation', 'Inter', system-ui, sans-serif;
+  font-weight: 700;
+}
+
 * {
   scrollbar-color: color-mix(in srgb, var(--primary) 42%, var(--muted))
     transparent;

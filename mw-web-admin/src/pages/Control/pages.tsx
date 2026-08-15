@@ -31,6 +31,8 @@ const configs: Record<string, ResourcePageConfig> = {
     columns: [
       { key: 'display_name', label: 'Nome' },
       { key: 'email', label: 'E-mail' },
+      { key: 'account_type', label: 'Tipo de conta' },
+      { key: 'email_verified_at', label: 'E-mail verificado' },
       { key: 'enabled', label: 'Status' },
       { key: 'is_superadmin', label: 'Superadmin' },
       { key: 'created_at', label: 'Criado em' },

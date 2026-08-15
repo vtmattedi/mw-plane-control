@@ -24,6 +24,18 @@ func (s *Store) CreateIdentityUser(
 	ctx context.Context,
 	input auth.NewUser,
 ) error {
+	accountType := strings.TrimSpace(input.AccountType)
+	if accountType == "" {
+		accountType = "workforce"
+	}
+	var usernameNormalized any
+	if value := strings.TrimSpace(input.UsernameNormalized); value != "" {
+		usernameNormalized = value
+	}
+	var emailVerifiedAt any
+	if input.EmailVerifiedAt != nil {
+		emailVerifiedAt = input.EmailVerifiedAt.Unix()
+	}
 	_, err := s.db.ExecContext(
 		ctx,
 		`INSERT INTO identity_users (
@@ -35,8 +47,12 @@ func (s *Store) CreateIdentityUser(
 			enabled,
 			is_superadmin,
 			created_at_unix,
-			updated_at_unix
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			updated_at_unix,
+			username,
+			username_normalized,
+			account_type,
+			email_verified_at_unix
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		input.ID,
 		input.Email,
 		input.EmailNormalized,
@@ -46,6 +62,10 @@ func (s *Store) CreateIdentityUser(
 		boolInt(input.IsSuperadmin),
 		input.CreatedAt.Unix(),
 		input.CreatedAt.Unix(),
+		input.Username,
+		usernameNormalized,
+		accountType,
+		emailVerifiedAt,
 	)
 	if err != nil {
 		if strings.Contains(
@@ -75,9 +95,15 @@ func (s *Store) IdentityUserByEmail(
 			enabled,
 			is_superadmin,
 			created_at_unix,
-			updated_at_unix
+			updated_at_unix,
+			username,
+			COALESCE(username_normalized, ''),
+			account_type,
+			email_verified_at_unix,
+			deletion_requested_at_unix
 		FROM identity_users
-		WHERE email_normalized = ?`,
+		WHERE email_normalized = ? OR username_normalized = ?`,
+		normalizedEmail,
 		normalizedEmail,
 	)
 
@@ -142,7 +168,12 @@ func (s *Store) IdentitySessionByTokenHash(
 			u.enabled,
 			u.is_superadmin,
 			u.created_at_unix,
-			u.updated_at_unix
+			u.updated_at_unix,
+			u.username,
+			COALESCE(u.username_normalized, ''),
+			u.account_type,
+			u.email_verified_at_unix,
+			u.deletion_requested_at_unix
 		FROM identity_sessions s
 		JOIN identity_users u ON u.id = s.user_id
 		WHERE s.token_hash = ?
@@ -152,15 +183,17 @@ func (s *Store) IdentitySessionByTokenHash(
 	)
 
 	var (
-		session     auth.Session
-		expires     int64
-		created     int64
-		lastSeen    int64
-		authTime    int64
-		userCreated int64
-		userUpdated int64
-		enabled     int
-		superadmin  int
+		session           auth.Session
+		expires           int64
+		created           int64
+		lastSeen          int64
+		authTime          int64
+		userCreated       int64
+		userUpdated       int64
+		emailVerified     sql.NullInt64
+		deletionRequested sql.NullInt64
+		enabled           int
+		superadmin        int
 	)
 
 	err := row.Scan(
@@ -181,6 +214,11 @@ func (s *Store) IdentitySessionByTokenHash(
 		&superadmin,
 		&userCreated,
 		&userUpdated,
+		&session.User.Username,
+		&session.User.UsernameNormalized,
+		&session.User.AccountType,
+		&emailVerified,
+		&deletionRequested,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return auth.Session{}, auth.ErrNotFound
@@ -200,6 +238,14 @@ func (s *Store) IdentitySessionByTokenHash(
 	session.User.IsSuperadmin = superadmin == 1
 	session.User.CreatedAt = time.Unix(userCreated, 0).UTC()
 	session.User.UpdatedAt = time.Unix(userUpdated, 0).UTC()
+	if emailVerified.Valid {
+		value := time.Unix(emailVerified.Int64, 0).UTC()
+		session.User.EmailVerifiedAt = &value
+	}
+	if deletionRequested.Valid {
+		value := time.Unix(deletionRequested.Int64, 0).UTC()
+		session.User.DeletionRequestedAt = &value
+	}
 
 	_, _ = s.db.ExecContext(
 		ctx,
@@ -320,11 +366,13 @@ type rowScanner interface {
 
 func scanUser(row rowScanner) (auth.User, error) {
 	var (
-		user       auth.User
-		enabled    int
-		superadmin int
-		created    int64
-		updated    int64
+		user              auth.User
+		enabled           int
+		superadmin        int
+		created           int64
+		updated           int64
+		emailVerified     sql.NullInt64
+		deletionRequested sql.NullInt64
 	)
 
 	err := row.Scan(
@@ -337,6 +385,11 @@ func scanUser(row rowScanner) (auth.User, error) {
 		&superadmin,
 		&created,
 		&updated,
+		&user.Username,
+		&user.UsernameNormalized,
+		&user.AccountType,
+		&emailVerified,
+		&deletionRequested,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return auth.User{}, auth.ErrNotFound
@@ -349,6 +402,14 @@ func scanUser(row rowScanner) (auth.User, error) {
 	user.IsSuperadmin = superadmin == 1
 	user.CreatedAt = time.Unix(created, 0).UTC()
 	user.UpdatedAt = time.Unix(updated, 0).UTC()
+	if emailVerified.Valid {
+		value := time.Unix(emailVerified.Int64, 0).UTC()
+		user.EmailVerifiedAt = &value
+	}
+	if deletionRequested.Valid {
+		value := time.Unix(deletionRequested.Int64, 0).UTC()
+		user.DeletionRequestedAt = &value
+	}
 
 	return user, nil
 }

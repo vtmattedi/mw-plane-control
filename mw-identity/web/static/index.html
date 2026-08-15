@@ -7,7 +7,14 @@
     <meta name="color-scheme" content="light dark" />
     <meta name="csrf-token" content="{{.CSRFToken}}" />
     <title>Entrar · MattediWorks</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Sansation:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="/static/portal.css" />
+    <script src="/static/theme.js" defer></script>
     <script src="/static/portal.js" defer></script>
   </head>
   <body>
@@ -16,7 +23,9 @@
 
     <header class="topbar">
       <a class="brand" href="/" aria-label="MattediWorks">
-        <img class="brand-symbol" src="/static/logo-only.svg" alt="" />
+        <svg class="brand-symbol" aria-hidden="true">
+          <use href="/static/brand.svg#mark" />
+        </svg>
         <span>MATTEDI<span>WORKS</span></span>
       </a>
       <div class="topbar-actions">
@@ -44,11 +53,12 @@
             MattediWorks.
           </p>
         </div>
-        <img
-          class="context-brand"
-          src="/static/logo-below.svg"
-          alt="MattediWorks"
-        />
+        <div class="context-brand" aria-label="MattediWorks">
+          <svg class="brand-symbol" aria-hidden="true">
+            <use href="/static/brand.svg#mark" />
+          </svg>
+          <strong>MATTEDI<span>WORKS</span></strong>
+        </div>
         <div class="trust">
           <span class="shield"
             ><svg class="icon" aria-hidden="true">
@@ -90,12 +100,11 @@
               />
               <input type="hidden" name="language" value="pt-BR" />
               <label
-                >E-mail<input
+                >E-mail ou usuário<input
                   name="email"
-                  type="email"
+                  type="text"
                   autocomplete="username"
-                  inputmode="email"
-                  placeholder="voce@mattediworks.com"
+                  placeholder="voce@mattediworks.com ou usuário"
                   required
                   autofocus
               /></label>
@@ -117,10 +126,11 @@
                 ></label
               >
               <div class="form-row">
-                <label class="check"
-                  ><input name="remember" type="checkbox" /><span
-                    >Manter conectado</span
-                  ></label
+                <label class="switch"
+                  ><input name="remember" type="checkbox" role="switch" /><i
+                    aria-hidden="true"
+                  ></i
+                  ><span>Manter conectado</span></label
                 ><button class="text-button" type="button" data-show="recovery">
                   Recuperar acesso
                 </button>
@@ -131,6 +141,11 @@
                   <use href="/static/icons.svg#arrow-right" />
                 </svg>
               </button>
+              {{if .RegistrationURL}}<a
+                class="secondary-button"
+                href="{{.RegistrationURL}}"
+                >Criar conta</a
+              >{{end}}
             </form>
             <div class="divider"><span>ou</span></div>
             <button class="passkey-button" type="button" data-passkey-login>

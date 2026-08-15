@@ -21,8 +21,8 @@ export function MwWordmark({ className }: { className?: string }) {
           d="M117.43 951.38c35.96 43.38 101.53 42.47 136.5.4 34.65-41.68 24.74-105.9-24.95-134.74l.25-495.72 218.58 217.98 217.27-216.74 1.27 165.12 85.17 83.81-.63-456.14-303.78 303.27L143.91 116.1l-.28 700.49c-51.13 30.58-61.17 92.6-26.19 134.79Z"
         />
       </svg>
-      <span className="text-foreground text-sm font-extrabold tracking-[0.14em]">
-        MATTEDI<span className="text-brand-orange">WORKS</span>
+      <span className="mw-wordmark-text text-foreground text-sm tracking-[0.14em]">
+        MATTEDI<span className="text-brand-orange font-normal">WORKS</span>
       </span>
     </span>
   )

@@ -14,9 +14,12 @@ func TestEmbeddedPortalBundleIsComplete(t *testing.T) {
 		"indexEN.html",
 		"portal.css",
 		"portal.js",
+		"theme.js",
 		"icons.svg",
-		"logo-only.svg",
-		"logo-below.svg",
+		"brand.svg",
+		"account.html",
+		"info.html",
+		"recovery.html",
 	} {
 		value, err := Files.ReadFile(name)
 		if err != nil {
@@ -24,6 +27,19 @@ func TestEmbeddedPortalBundleIsComplete(t *testing.T) {
 		}
 		if len(value) == 0 {
 			t.Fatalf("embedded asset %q is empty", name)
+		}
+	}
+}
+
+func TestRenderRecoveryUsesSharedPortalAssets(t *testing.T) {
+	var output bytes.Buffer
+	if err := RenderRecovery(&output); err != nil {
+		t.Fatal(err)
+	}
+	body := output.String()
+	for _, want := range []string{"Recuperar identidade", "/static/portal.css", "/static/brand.svg#mark", `id="recovery-start"`} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("recovery page does not contain %q", want)
 		}
 	}
 }
@@ -36,6 +52,8 @@ func TestAssetHandlerServesOnlyPublicAssets(t *testing.T) {
 		contentType string
 	}{
 		{path: "/portal.css", status: 200, contentType: "text/css; charset=utf-8"},
+		{path: "/theme.js", status: 200, contentType: "text/javascript; charset=utf-8"},
+		{path: "/brand.svg", status: 200, contentType: "image/svg+xml"},
 		{path: "/icons.svg", status: 200, contentType: "image/svg+xml"},
 		{path: "/index.html", status: 404},
 	} {
@@ -47,6 +65,37 @@ func TestAssetHandlerServesOnlyPublicAssets(t *testing.T) {
 		if test.contentType != "" && recorder.Header().Get("Content-Type") != test.contentType {
 			t.Fatalf("%s content type = %q", test.path, recorder.Header().Get("Content-Type"))
 		}
+	}
+}
+
+func TestRenderAccountAndInformationPages(t *testing.T) {
+	var accountOutput bytes.Buffer
+	if err := RenderAccount(&accountOutput, AccountData{
+		Email: "admin@example.com", DisplayName: "Álvaro", IsSuperadmin: true,
+		CSRFToken: `token"><script>`, AuthMethod: "webauthn",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	accountBody := accountOutput.String()
+	for _, want := range []string{"Á", "admin@example.com", "Passkeys", "Aplicativo autenticador", "/static/brand.svg#mark"} {
+		if !strings.Contains(accountBody, want) {
+			t.Fatalf("account page does not contain %q", want)
+		}
+	}
+	if strings.Contains(accountBody, `token"><script>`) {
+		t.Fatal("account template data was not escaped")
+	}
+
+	var infoOutput bytes.Buffer
+	if err := RenderInfo(&infoOutput, InfoData{
+		Kind: "security", Title: "Segurança", Lead: "Resumo", BackURL: "/",
+		Sections: []InfoSection{{Title: "Passkeys", Body: "Proteção"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if body := infoOutput.String(); !strings.Contains(body, "Segurança") ||
+		!strings.Contains(body, `aria-current="page"`) {
+		t.Fatal("security information page was not rendered")
 	}
 }
 

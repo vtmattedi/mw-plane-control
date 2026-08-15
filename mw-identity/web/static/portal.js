@@ -8,30 +8,12 @@
     document.querySelector('meta[name="csrf-token"]').content ||
     params.get("csrf") ||
     "";
-  var languageLink = document.querySelector("[data-language-link]");
-  if (languageLink && params.toString()) {
-    languageLink.href += "?" + params.toString();
-  }
-
   document.querySelectorAll("[data-csrf]").forEach(function (input) {
     input.value = csrf;
   });
   document.querySelectorAll("[data-return-to]").forEach(function (input) {
     input.value = params.get("return_to") || input.value || "";
   });
-  var storedTheme = localStorage.getItem("mw-identity-theme");
-  if (storedTheme) root.dataset.theme = storedTheme;
-  document
-    .querySelector("[data-theme-toggle]")
-    .addEventListener("click", function () {
-      var dark =
-        root.dataset.theme === "dark" ||
-        (!root.dataset.theme &&
-          matchMedia("(prefers-color-scheme: dark)").matches);
-      root.dataset.theme = dark ? "light" : "dark";
-      localStorage.setItem("mw-identity-theme", root.dataset.theme);
-    });
-
   function show(name, preserveError) {
     document.querySelectorAll("[data-screen]").forEach(function (screen) {
       screen.classList.toggle("active", screen.dataset.screen === name);

@@ -1,11 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AppWindow, KeyRound, Save, ShieldCheck, UserRound } from 'lucide-react'
+import {
+  AppWindow,
+  KeyRound,
+  Save,
+  ShieldCheck,
+  Trash2,
+  UserRound,
+} from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useConfirm } from '@/components/confirm-context'
 import { PageHeader } from '@/components/control/page-header'
+import { OneTimeCredentialDialog } from '@/components/one-time-credential-dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -28,6 +36,8 @@ type Application = {
   archived_at?: string
   redirect_uris: string[]
   post_logout_redirect_uris: string[]
+  delete_callback_uri?: string
+  allow_public_signup: boolean
   scopes: string[]
   claims: string[]
   audiences: string[]
@@ -40,6 +50,8 @@ type ApplicationForm = {
   authentication_policy: string
   redirect_uris: string
   post_logout_redirect_uris: string
+  delete_callback_uri: string
+  allow_public_signup: boolean
   scopes: string
   claims: string
   audiences: string
@@ -60,6 +72,9 @@ export function IdentityApplicationDetailPage() {
   const confirm = useConfirm()
   const queryClient = useQueryClient()
   const [form, setForm] = useState<ApplicationForm | null>(null)
+  const [revealedCredential, setRevealedCredential] = useState<string | null>(
+    null,
+  )
   const query = useQuery({
     queryKey: ['identity-application', applicationID],
     queryFn: () =>
@@ -76,6 +91,8 @@ export function IdentityApplicationDetailPage() {
       authentication_policy,
       redirect_uris,
       post_logout_redirect_uris,
+      delete_callback_uri,
+      allow_public_signup,
       scopes,
       claims,
       audiences,
@@ -85,6 +102,8 @@ export function IdentityApplicationDetailPage() {
       authentication_policy,
       redirect_uris: (redirect_uris ?? []).join(', '),
       post_logout_redirect_uris: (post_logout_redirect_uris ?? []).join(', '),
+      delete_callback_uri: delete_callback_uri ?? '',
+      allow_public_signup: allow_public_signup === true,
       scopes: (scopes ?? []).join(', '),
       claims: (claims ?? []).join(', '),
       audiences: (audiences ?? []).join(', '),
@@ -105,16 +124,8 @@ export function IdentityApplicationDetailPage() {
       sessionStorage.removeItem(pendingApplicationKey)
       const secret = body.client_secret
       if (typeof secret === 'string') {
-        toast.success(tr('Credencial rotacionada.'), {
-          description: tr(
-            'Este segredo é exibido apenas uma vez. Guarde-o agora.',
-          ),
-          action: {
-            label: tr('Copiar segredo'),
-            onClick: () => void navigator.clipboard.writeText(secret),
-          },
-          duration: 15_000,
-        })
+        setRevealedCredential(secret)
+        toast.success(tr('Credencial rotacionada.'))
       } else {
         toast.success(tr('Configuração salva.'))
       }
@@ -267,6 +278,32 @@ export function IdentityApplicationDetailPage() {
                     value={form.post_logout_redirect_uris}
                   />
                 </Field>
+                <Field
+                  className="sm:col-span-2"
+                  label={tr('Callback de exclusão de conta')}
+                >
+                  <Input
+                    onChange={(delete_callback_uri) =>
+                      setForm({ ...form, delete_callback_uri })
+                    }
+                    placeholder="https://app.example.com/internal/identity/account-deleted"
+                    value={form.delete_callback_uri}
+                  />
+                </Field>
+                <Field label={tr('Cadastro público')}>
+                  <Select
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        allow_public_signup: event.target.value === 'enabled',
+                      })
+                    }
+                    value={form.allow_public_signup ? 'enabled' : 'disabled'}
+                  >
+                    <option value="disabled">{tr('Desativado')}</option>
+                    <option value="enabled">{tr('Ativado')}</option>
+                  </Select>
+                </Field>
                 <Field label="Scopes">
                   <Input
                     onChange={(scopes) => setForm({ ...form, scopes })}
@@ -333,6 +370,10 @@ export function IdentityApplicationDetailPage() {
           )}
         </CardContent>
       </Card>
+      <OneTimeCredentialDialog
+        credential={revealedCredential}
+        onClose={() => setRevealedCredential(null)}
+      />
     </DetailShell>
   )
 }
@@ -341,6 +382,7 @@ export function IdentityUserDetailPage() {
   const { userID = '' } = useParams()
   const { tr } = usePreferences()
   const confirm = useConfirm()
+  const navigate = useNavigate()
   const usersQuery = useQuery({
     queryKey: ['control-resource', '/identity/users'],
     queryFn: () => controlRequest<unknown>('/identity/users'),
@@ -373,11 +415,52 @@ export function IdentityUserDetailPage() {
       )
     },
   })
+  const remove = useMutation({
+    mutationFn: () =>
+      controlRequest<{ deleted: boolean }>(
+        `/identity/users/${encodeURIComponent(userID)}`,
+        { method: 'DELETE' },
+      ),
+    onSuccess: (result) => {
+      sessionStorage.removeItem('mw-identity-user-delete')
+      toast.success(
+        tr(
+          result.deleted
+            ? 'Conta excluída.'
+            : 'Conta desativada; callbacks pendentes podem ser tentados novamente.',
+        ),
+      )
+      navigate('/identity/users', { replace: true })
+    },
+    onError: (error) => {
+      if (
+        error instanceof ControlApiError &&
+        error.code === 'step_up_required'
+      ) {
+        sessionStorage.setItem('mw-identity-user-delete', userID)
+        beginStepUp(window.location.pathname)
+        return
+      }
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : tr('Não foi possível excluir a conta.'),
+      )
+    },
+  })
 
   useEffect(() => {
     if (sessionStorage.getItem('mw-identity-user-revoke') !== userID) return
     sessionStorage.removeItem('mw-identity-user-revoke')
     revoke.mutate()
+    // Resume only once after the Identity callback.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userID])
+
+  useEffect(() => {
+    if (sessionStorage.getItem('mw-identity-user-delete') !== userID) return
+    sessionStorage.removeItem('mw-identity-user-delete')
+    remove.mutate()
     // Resume only once after the Identity callback.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userID])
@@ -391,6 +474,17 @@ export function IdentityUserDetailPage() {
       confirmLabel: tr('Revogar sessões'),
     })
     if (accepted) revoke.mutate()
+  }
+
+  async function deleteUser() {
+    const accepted = await confirm({
+      title: tr('Excluir conta?'),
+      description: tr(
+        'O acesso será revogado imediatamente e a exclusão será enviada aos aplicativos conectados.',
+      ),
+      confirmLabel: tr('Excluir conta'),
+    })
+    if (accepted) remove.mutate()
   }
 
   return (
@@ -436,6 +530,13 @@ export function IdentityUserDetailPage() {
             variant="destructive"
           >
             <ShieldCheck /> {tr('Revogar sessões')}
+          </Button>
+          <Button
+            disabled={!user || user.is_superadmin === true || remove.isPending}
+            onClick={() => void deleteUser()}
+            variant="destructive"
+          >
+            <Trash2 /> {tr('Excluir conta')}
           </Button>
         </CardContent>
       </Card>

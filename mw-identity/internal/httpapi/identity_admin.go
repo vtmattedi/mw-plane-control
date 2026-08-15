@@ -19,6 +19,7 @@ type identityAdminHandlers struct {
 	oidc         *oidc.Service
 	admin        *identityadmin.Service
 	strong       *identitystrong.Service
+	auth         *auth.Service
 	strongMaxAge time.Duration
 }
 
@@ -28,8 +29,34 @@ type identityAdminPrincipal struct {
 	permissions []string
 }
 
-func newIdentityAdminHandlers(oidcService *oidc.Service, adminService *identityadmin.Service, strongService *identitystrong.Service, strongMaxAge time.Duration) *identityAdminHandlers {
-	return &identityAdminHandlers{oidc: oidcService, admin: adminService, strong: strongService, strongMaxAge: strongMaxAge}
+func newIdentityAdminHandlers(oidcService *oidc.Service, adminService *identityadmin.Service, strongService *identitystrong.Service, authService *auth.Service, strongMaxAge time.Duration) *identityAdminHandlers {
+	return &identityAdminHandlers{oidc: oidcService, admin: adminService, strong: strongService, auth: authService, strongMaxAge: strongMaxAge}
+}
+
+func (h *identityAdminHandlers) deleteUser(w http.ResponseWriter, r *http.Request) {
+	principal, protocolErr, err := h.principal(r, identityadmin.PermissionUsersWrite)
+	if h.handlePrincipalError(w, protocolErr, err) {
+		return
+	}
+	target := strings.TrimSpace(r.PathValue("user_id"))
+	if target == "" || target == principal.access.User.ID {
+		writeJSONError(w, http.StatusBadRequest, "invalid_request")
+		return
+	}
+	result, err := h.auth.DeleteAccount(r.Context(), target, remoteIP(r))
+	if errors.Is(err, auth.ErrAccountDeletionForbidden) {
+		writeJSONError(w, http.StatusForbidden, "account_deletion_forbidden")
+		return
+	}
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "identity_admin_failed")
+		return
+	}
+	status := http.StatusOK
+	if !result.Deleted {
+		status = http.StatusAccepted
+	}
+	writeJSON(w, status, result)
 }
 
 func (h *identityAdminHandlers) principal(
@@ -204,6 +231,8 @@ func (h *identityAdminHandlers) createApplication(
 		AuthenticationPolicy   string   `json:"authentication_policy"`
 		RedirectURIs           []string `json:"redirect_uris"`
 		PostLogoutRedirectURIs []string `json:"post_logout_redirect_uris"`
+		DeleteCallbackURI      string   `json:"delete_callback_uri"`
+		AllowPublicSignup      bool     `json:"allow_public_signup"`
 		Scopes                 []string `json:"scopes"`
 		Claims                 []string `json:"claims"`
 		Audiences              []string `json:"audiences"`
@@ -224,6 +253,8 @@ func (h *identityAdminHandlers) createApplication(
 			AuthenticationPolicy:   request.AuthenticationPolicy,
 			RedirectURIs:           request.RedirectURIs,
 			PostLogoutRedirectURIs: request.PostLogoutRedirectURIs,
+			DeleteCallbackURI:      request.DeleteCallbackURI,
+			AllowPublicSignup:      request.AllowPublicSignup,
 			Scopes:                 request.Scopes,
 			Claims:                 request.Claims,
 			Audiences:              request.Audiences,

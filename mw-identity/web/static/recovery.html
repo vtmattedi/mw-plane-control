@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f7f7f5" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Recuperação · MW Identity</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Sansation:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/portal.css" />
+    <script src="/static/theme.js" defer></script>
+  </head>
+  <body class="identity-page">
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="MattediWorks">
+        <svg class="brand-symbol" aria-hidden="true">
+          <use href="/static/brand.svg#mark" />
+        </svg>
+        <span>MATTEDI<span>WORKS</span></span>
+      </a>
+      <button
+        class="theme-button"
+        type="button"
+        data-theme-toggle
+        aria-label="Alternar tema"
+      >
+        <svg class="icon" aria-hidden="true">
+          <use href="/static/icons.svg#moon" />
+        </svg>
+      </button>
+    </header>
+    <main class="info-shell recovery-shell">
+      <a class="back-link" href="/login"
+        ><svg class="icon" aria-hidden="true">
+          <use href="/static/icons.svg#arrow-left" /></svg
+        >Voltar ao login</a
+      >
+      <span class="round-icon"
+        ><svg class="icon" aria-hidden="true">
+          <use href="/static/icons.svg#rotate" /></svg
+      ></span>
+      <h1>Recuperar identidade</h1>
+      <p class="info-lead">
+        Esta recuperação é iniciada por um operador. A capacidade permanece no
+        fragmento da URL e não é enviada automaticamente ao servidor.
+      </p>
+      <div class="notice">
+        <span
+          ><svg class="icon" aria-hidden="true">
+            <use href="/static/icons.svg#shield" /></svg
+        ></span>
+        <p>
+          <strong>Confirme o ambiente</strong>Continue apenas em um dispositivo
+          confiável e registre uma nova passkey para substituir o acesso
+          anterior.
+        </p>
+      </div>
+      <button class="primary-button" id="recovery-start" type="button">
+        Registrar passkey substituta<svg class="icon" aria-hidden="true">
+          <use href="/static/icons.svg#arrow-right" />
+        </svg>
+      </button>
+      <p
+        class="inline-status"
+        id="recovery-status"
+        role="status"
+        aria-live="polite"
+      ></p>
+      <footer class="page-footer">
+        <a href="/privacy">Privacidade</a><span>•</span
+        ><a href="/security">Segurança</a><span>•</span
+        ><span>© 2026 MattediWorks</span>
+      </footer>
+    </main>
+    <script src="/recovery.js" defer></script>
+  </body>
+</html>

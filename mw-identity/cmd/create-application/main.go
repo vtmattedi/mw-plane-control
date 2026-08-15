@@ -40,6 +40,16 @@ func main() {
 		"standard",
 		"application authentication policy",
 	)
+	deleteCallbackURI := flag.String(
+		"delete-callback-uri",
+		"",
+		"optional HTTPS account-deletion callback URI",
+	)
+	allowPublicSignup := flag.Bool(
+		"allow-public-signup",
+		false,
+		"allow this application to create public Identity accounts",
+	)
 	asJSON := flag.Bool(
 		"json",
 		false,
@@ -146,6 +156,8 @@ func main() {
 			AuthenticationPolicy:   *policy,
 			RedirectURIs:           redirectURIs,
 			PostLogoutRedirectURIs: postLogoutURIs,
+			DeleteCallbackURI:      *deleteCallbackURI,
+			AllowPublicSignup:      *allowPublicSignup,
 			Scopes:                 scopes,
 			Claims:                 claims,
 			Audiences:              audiences,

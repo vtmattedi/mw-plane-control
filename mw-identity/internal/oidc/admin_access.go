@@ -82,6 +82,12 @@ func (s *Service) AuthorizeIdentityUser(
 	if !user.Enabled {
 		return accessDenied()
 	}
+	if user.AccountType == "public" && contains(
+		authorization.Application.Audiences,
+		IdentityAdminAudience,
+	) {
+		return accessDenied()
+	}
 	if user.IsSuperadmin &&
 		contains(
 			authorization.Scopes,

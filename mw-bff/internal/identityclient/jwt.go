@@ -23,16 +23,17 @@ type idTokenHeader struct {
 }
 
 type idTokenClaims struct {
-	Issuer   string          `json:"iss"`
-	Subject  string          `json:"sub"`
-	Audience json.RawMessage `json:"aud"`
-	Expires  int64           `json:"exp"`
-	IssuedAt int64           `json:"iat"`
-	AuthTime int64           `json:"auth_time"`
-	AMR      []string        `json:"amr"`
-	Nonce    string          `json:"nonce"`
-	Email    string          `json:"email"`
-	Name     string          `json:"name"`
+	Issuer      string          `json:"iss"`
+	Subject     string          `json:"sub"`
+	Audience    json.RawMessage `json:"aud"`
+	Expires     int64           `json:"exp"`
+	IssuedAt    int64           `json:"iat"`
+	AuthTime    int64           `json:"auth_time"`
+	AMR         []string        `json:"amr"`
+	Nonce       string          `json:"nonce"`
+	Email       string          `json:"email"`
+	Name        string          `json:"name"`
+	AccountType string          `json:"mw_account_type"`
 }
 
 type publicJWKS struct {
@@ -49,13 +50,14 @@ type publicJWK struct {
 }
 
 type validatedClaims struct {
-	Issuer     string
-	Subject    string
-	AuthTime   int64
-	AuthMethod string
-	Nonce      string
-	Email      string
-	Name       string
+	Issuer      string
+	Subject     string
+	AuthTime    int64
+	AuthMethod  string
+	Nonce       string
+	Email       string
+	Name        string
+	AccountType string
 }
 
 func (c *Client) validateIDToken(
@@ -227,13 +229,14 @@ func (c *Client) validateIDToken(
 		authMethod = strings.TrimSpace(claims.AMR[0])
 	}
 	return validatedClaims{
-		Issuer:     claims.Issuer,
-		Subject:    claims.Subject,
-		AuthTime:   claims.AuthTime,
-		AuthMethod: authMethod,
-		Nonce:      claims.Nonce,
-		Email:      claims.Email,
-		Name:       claims.Name,
+		Issuer:      claims.Issuer,
+		Subject:     claims.Subject,
+		AuthTime:    claims.AuthTime,
+		AuthMethod:  authMethod,
+		Nonce:       claims.Nonce,
+		Email:       claims.Email,
+		Name:        claims.Name,
+		AccountType: claims.AccountType,
 	}, nil
 }
 

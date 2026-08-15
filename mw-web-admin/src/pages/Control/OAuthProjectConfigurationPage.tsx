@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { KeyRound, Settings2, Trash2 } from 'lucide-react'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useConfirm } from '@/components/confirm-context'
 import { PageHeader } from '@/components/control/page-header'
+import { OneTimeCredentialDialog } from '@/components/one-time-credential-dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select } from '@/components/ui/select'
@@ -22,6 +23,9 @@ export default function OAuthProjectConfigurationPage() {
   const confirm = useConfirm()
   const { tr } = usePreferences()
   const queryClient = useQueryClient()
+  const [revealedCredential, setRevealedCredential] = useState<string | null>(
+    null,
+  )
   const projectsQuery = useQuery({
     queryKey: ['control-resource', '/oauth/projects'],
     queryFn: () => controlRequest<unknown>('/oauth/projects'),
@@ -53,16 +57,8 @@ export default function OAuthProjectConfigurationPage() {
       }
       const secret = data.api_key ?? data.callback_secret ?? data.client_secret
       if (typeof secret === 'string') {
-        toast.success(tr('Credencial rotacionada.'), {
-          description: tr(
-            'Copie a nova credencial exibida na resposta segura.',
-          ),
-          action: {
-            label: tr('Copiar segredo'),
-            onClick: () => void navigator.clipboard.writeText(secret),
-          },
-          duration: 15_000,
-        })
+        setRevealedCredential(secret)
+        toast.success(tr('Credencial rotacionada.'))
       } else {
         toast.success(tr('Configuração salva.'))
       }
@@ -245,6 +241,10 @@ export default function OAuthProjectConfigurationPage() {
             </Button>
           </CardContent>
         </Card>
+        <OneTimeCredentialDialog
+          credential={revealedCredential}
+          onClose={() => setRevealedCredential(null)}
+        />
       </div>
     </main>
   )

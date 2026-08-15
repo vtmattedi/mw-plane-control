@@ -101,6 +101,8 @@ applications
   archived_at nullable
   application_type
   authentication_policy
+  allow_public_signup
+  delete_callback_uri nullable
   created_at
   updated_at
 ```
@@ -242,9 +244,12 @@ PATCH  /admin/api/applications/{id}
 POST   /admin/api/applications/{id}/rotate-secret
 POST   /admin/api/applications/{id}/disable
 POST   /admin/api/applications/{id}/enable
+DELETE /admin/api/users/{id}
 ```
 
 Ordinary clients must not self-edit security-sensitive registration settings.
+
+For the relying-party login flow, user claims, public enrollment, connected applications, and the signed deletion callback contract, see [MW-Identity application integration](../MW-Identity-application-integration.md).
 
 ## Security invariants
 

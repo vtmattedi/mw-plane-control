@@ -7,35 +7,46 @@ import (
 )
 
 var (
-	ErrNotFound        = errors.New("identity record not found")
-	ErrEmailExists     = errors.New("identity email already exists")
-	ErrInvalidLogin    = errors.New("invalid email or password")
-	ErrUserDisabled    = errors.New("identity user is disabled")
-	ErrInvalidSession  = errors.New("invalid or expired identity session")
-	ErrRecoveryPending = errors.New("identity recovery is pending")
+	ErrNotFound                 = errors.New("identity record not found")
+	ErrEmailExists              = errors.New("identity email already exists")
+	ErrUsernameExists           = errors.New("identity username already exists")
+	ErrInvalidLogin             = errors.New("invalid email or password")
+	ErrUserDisabled             = errors.New("identity user is disabled")
+	ErrInvalidSession           = errors.New("invalid or expired identity session")
+	ErrRecoveryPending          = errors.New("identity recovery is pending")
+	ErrAccountDeletionForbidden = errors.New("account deletion is forbidden")
 )
 
 type User struct {
-	ID              string
-	Email           string
-	EmailNormalized string
-	DisplayName     string
-	PasswordHash    string
-	Enabled         bool
-	IsSuperadmin    bool
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	ID                  string
+	Email               string
+	EmailNormalized     string
+	DisplayName         string
+	Username            string
+	UsernameNormalized  string
+	AccountType         string
+	EmailVerifiedAt     *time.Time
+	DeletionRequestedAt *time.Time
+	PasswordHash        string
+	Enabled             bool
+	IsSuperadmin        bool
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
 }
 
 type NewUser struct {
-	ID              string
-	Email           string
-	EmailNormalized string
-	DisplayName     string
-	PasswordHash    string
-	Enabled         bool
-	IsSuperadmin    bool
-	CreatedAt       time.Time
+	ID                 string
+	Email              string
+	EmailNormalized    string
+	DisplayName        string
+	Username           string
+	UsernameNormalized string
+	AccountType        string
+	EmailVerifiedAt    *time.Time
+	PasswordHash       string
+	Enabled            bool
+	IsSuperadmin       bool
+	CreatedAt          time.Time
 }
 
 type SessionRecord struct {
@@ -60,6 +71,35 @@ type Session struct {
 	LastSeenAt time.Time
 	AuthMethod string
 	AuthTime   time.Time
+}
+
+type ConnectedApplication struct {
+	ID                string    `json:"id"`
+	Name              string    `json:"name"`
+	ClientID          string    `json:"client_id"`
+	Role              string    `json:"role"`
+	DeleteCallbackURI string    `json:"-"`
+	ConnectedAt       time.Time `json:"connected_at"`
+}
+
+type DeletionDelivery struct {
+	ApplicationID string `json:"application_id"`
+	ClientID      string `json:"client_id"`
+	Status        string `json:"status"`
+	Attempts      int    `json:"attempts"`
+}
+
+type DeleteAccountResult struct {
+	Deleted    bool               `json:"deleted"`
+	Deliveries []DeletionDelivery `json:"deliveries"`
+}
+
+type SignupApplication struct {
+	ID                string
+	Name              string
+	ClientID          string
+	AllowPublicSignup bool
+	Enabled           bool
 }
 
 type Store interface {
@@ -105,4 +145,10 @@ type Store interface {
 		context.Context,
 		time.Time,
 	) error
+
+	ListIdentityUserApplications(context.Context, string) ([]ConnectedApplication, error)
+	BeginIdentityUserDeletion(context.Context, string, time.Time) error
+	DeleteIdentityUser(context.Context, string) error
+	PublicSignupApplication(context.Context, string) (SignupApplication, error)
+	CreatePublicIdentityUser(context.Context, NewUser, string) error
 }

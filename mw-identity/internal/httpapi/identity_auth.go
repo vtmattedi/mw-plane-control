@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/auth"
-	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/portal"
 	webstatic "github.com/vtmattedi/mw-plane-control/mw-identity/web/static"
 )
 
@@ -105,18 +105,115 @@ func (h *identityAuthHandlers) loginPage(
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 
+	returnTo := safeReturnTo(r.URL.Query().Get("return_to"))
+	registrationURL := h.registrationURL(r, returnTo)
 	if err := webstatic.RenderLogin(
 		w,
 		loginPageEnglish(r),
 		webstatic.LoginData{
-			CSRFToken: token,
-			ReturnTo: safeReturnTo(
-				r.URL.Query().Get("return_to"),
-			),
+			CSRFToken:       token,
+			ReturnTo:        returnTo,
+			RegistrationURL: registrationURL,
 		},
 	); err != nil {
 		return
 	}
+}
+
+func (h *identityAuthHandlers) registrationURL(r *http.Request, returnTo string) string {
+	parsed, err := url.Parse(returnTo)
+	if err != nil || parsed.Path != "/oauth/authorize" {
+		return ""
+	}
+	clientID := parsed.Query().Get("client_id")
+	if _, err := h.service.PublicSignupApplication(r.Context(), clientID); err != nil {
+		return ""
+	}
+	values := url.Values{"client_id": {clientID}, "return_to": {returnTo}}
+	return "/register?" + values.Encode()
+}
+
+func (h *identityAuthHandlers) registerPage(w http.ResponseWriter, r *http.Request) {
+	clientID := strings.TrimSpace(r.URL.Query().Get("client_id"))
+	returnTo := safeReturnTo(r.URL.Query().Get("return_to"))
+	parsedReturn, _ := url.Parse(returnTo)
+	app, err := h.service.PublicSignupApplication(r.Context(), clientID)
+	if err != nil || parsedReturn.Query().Get("client_id") != clientID || h.registrationURL(r, returnTo) == "" {
+		http.NotFound(w, r)
+		return
+	}
+	token, err := auth.NewOpaqueToken("login_csrf_")
+	if err != nil {
+		writePlainError(w, http.StatusInternalServerError, "could not initialize registration")
+		return
+	}
+	h.setLoginCSRFCookie(w, token)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	_ = webstatic.RenderRegistration(w, webstatic.RegistrationData{
+		CSRFToken: token, ReturnTo: returnTo, ClientID: clientID, AppName: app.Name,
+	})
+}
+
+func (h *identityAuthHandlers) register(w http.ResponseWriter, r *http.Request) {
+	if !h.limiter.Allow(remoteIP(r)) {
+		writePlainError(w, http.StatusTooManyRequests, "too many registration attempts")
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 32*1024)
+	if err := r.ParseForm(); err != nil || !h.validLoginCSRF(r, r.FormValue("csrf_token")) {
+		writePlainError(w, http.StatusForbidden, "invalid registration request")
+		return
+	}
+	clientID := strings.TrimSpace(r.FormValue("client_id"))
+	returnTo := safeReturnTo(r.FormValue("return_to"))
+	parsedReturn, _ := url.Parse(returnTo)
+	app, appErr := h.service.PublicSignupApplication(r.Context(), clientID)
+	if appErr != nil || parsedReturn.Query().Get("client_id") != clientID || h.registrationURL(r, returnTo) == "" {
+		writePlainError(w, http.StatusForbidden, "registration is not allowed")
+		return
+	}
+	password := []byte(r.FormValue("password"))
+	defer auth.ZeroBytes(password)
+	user, err := h.service.RegisterPublic(r.Context(), auth.RegisterPublicRequest{
+		ClientID: clientID, Email: r.FormValue("email"), Username: r.FormValue("username"), Password: password,
+	}, remoteIP(r))
+	if err != nil {
+		token, tokenErr := auth.NewOpaqueToken("login_csrf_")
+		if tokenErr != nil {
+			writePlainError(w, http.StatusInternalServerError, "registration failed")
+			return
+		}
+		h.setLoginCSRFCookie(w, token)
+		message := "Não foi possível criar a conta. Confira os dados informados."
+		if errors.Is(err, auth.ErrEmailExists) || errors.Is(err, auth.ErrUsernameExists) {
+			message = "O e-mail ou nome de usuário já está em uso."
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = webstatic.RenderRegistration(w, webstatic.RegistrationData{
+			CSRFToken: token, Error: message, ReturnTo: returnTo, ClientID: clientID, AppName: app.Name,
+		})
+		return
+	}
+	session, err := h.service.CreateSessionForUser(r.Context(), user.ID, remoteIP(r), "password")
+	if err != nil {
+		writePlainError(w, http.StatusInternalServerError, "registration login failed")
+		return
+	}
+	setSessionCookie(w, sessionCookieName, session.SessionToken, session.ExpiresAt, h.secure, true)
+	setSessionCookie(w, csrfCookieName, session.CSRFToken, session.ExpiresAt, h.secure, false)
+	clearCookie(w, loginCSRFCookieName, h.secure, false)
+	h.limiter.Reset(remoteIP(r))
+	http.Redirect(w, r, returnTo, http.StatusSeeOther)
+}
+
+func (h *identityAuthHandlers) setLoginCSRFCookie(w http.ResponseWriter, token string) {
+	http.SetCookie(w, &http.Cookie{
+		Name: loginCSRFCookieName, Value: token, Path: "/",
+		MaxAge: int(h.config.LoginCSRFTTL.Seconds()), HttpOnly: false,
+		Secure: h.secure, SameSite: http.SameSiteStrictMode,
+	})
 }
 
 func (h *identityAuthHandlers) login(
@@ -280,16 +377,96 @@ func (h *identityAuthHandlers) account(
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
+	applications, err := h.service.ConnectedApplications(r.Context(), result.User.ID)
+	if err != nil {
+		writePlainError(w, http.StatusInternalServerError, "could not load connected applications")
+		return
+	}
 
-	_ = portal.RenderAccount(
+	_ = webstatic.RenderAccount(
 		w,
-		portal.AccountData{
-			Email:        result.User.Email,
-			DisplayName:  result.User.DisplayName,
-			IsSuperadmin: result.User.IsSuperadmin,
-			CSRFToken:    csrfToken,
+		webstatic.AccountData{
+			Email:           result.User.Email,
+			DisplayName:     result.User.DisplayName,
+			IsSuperadmin:    result.User.IsSuperadmin,
+			CSRFToken:       csrfToken,
+			AuthMethod:      result.Session.AuthMethod,
+			Username:        result.User.Username,
+			AccountType:     result.User.AccountType,
+			EmailVerifiedAt: result.User.EmailVerifiedAt,
+			Applications:    applications,
 		},
 	)
+}
+
+func (h *identityAuthHandlers) deleteAccount(w http.ResponseWriter, r *http.Request) {
+	_, result, err := h.currentSession(r)
+	if err != nil {
+		h.clearAuthCookies(w)
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	if h.config.StrongAuthMaxAge > 0 && time.Since(result.Session.AuthTime) > h.config.StrongAuthMaxAge {
+		writePlainError(w, http.StatusForbidden, "recent authentication required")
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 8*1024)
+	if err := r.ParseForm(); err != nil {
+		writePlainError(w, http.StatusBadRequest, "invalid account deletion form")
+		return
+	}
+	csrfCookie := cookieValue(r, csrfCookieName)
+	if csrfCookie == "" ||
+		!auth.TokensEqual(csrfCookie, r.FormValue("csrf_token")) ||
+		!auth.TokenMatchesHash(csrfCookie, result.Session.CSRFHash) ||
+		r.FormValue("confirmation") != "DELETE" {
+		writePlainError(w, http.StatusForbidden, "invalid account deletion request")
+		return
+	}
+
+	deletion, err := h.service.DeleteAccount(r.Context(), result.User.ID, remoteIP(r))
+	if errors.Is(err, auth.ErrAccountDeletionForbidden) {
+		writePlainError(w, http.StatusForbidden, "superadmin accounts cannot be self-deleted")
+		return
+	}
+	if err != nil {
+		writePlainError(w, http.StatusInternalServerError, "account deletion failed")
+		return
+	}
+	h.clearAuthCookies(w)
+	if deletion.Deleted {
+		http.Redirect(w, r, "/login?account_deleted=1", http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/login?deletion_pending=1", http.StatusSeeOther)
+}
+
+func (h *identityAuthHandlers) privacy(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_ = webstatic.RenderInfo(w, webstatic.InfoData{
+		Kind: "privacy", Title: "Privacidade", BackURL: "/",
+		Lead: "Como o MW Identity usa e protege os dados necessários para autenticar sua conta.",
+		Sections: []webstatic.InfoSection{
+			{Title: "Dados da conta", Body: "O serviço mantém seu identificador estável, nome de usuário, nome, e-mail, estado de verificação e configurações de autenticação. Aplicativos recebem apenas os dados permitidos pelos escopos autorizados."},
+			{Title: "Aplicativos conectados", Body: "A página da conta mostra os aplicativos aos quais sua identidade está atribuída. Cada aplicativo mantém separadamente seus próprios perfis e dados de negócio."},
+			{Title: "Sessões e auditoria", Body: "Sessões, eventos de segurança e ações administrativas são registrados para proteção, investigação e operação do serviço."},
+			{Title: "Credenciais", Body: "Senhas e tokens não são armazenados em texto puro. Segredos sensíveis usam hash ou criptografia apropriada ao seu propósito."},
+			{Title: "Exclusão da conta", Body: "Ao excluir sua conta, o MW Identity revoga imediatamente os acessos e notifica os aplicativos conectados. Cada aplicativo exclui ou anonimiza seus dados conforme suas obrigações de retenção. Falhas de entrega mantêm a identidade desativada e a exclusão pendente para nova tentativa administrativa."},
+		},
+	})
+}
+
+func (h *identityAuthHandlers) security(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_ = webstatic.RenderInfo(w, webstatic.InfoData{
+		Kind: "security", Title: "Segurança", BackURL: "/",
+		Lead: "Controles disponíveis para manter sua identidade e o ecossistema MattediWorks protegidos.",
+		Sections: []webstatic.InfoSection{
+			{Title: "Passkeys", Body: "Passkeys são o método principal para acessos administrativos e confirmações de alta segurança."},
+			{Title: "Código autenticador", Body: "TOTP funciona como alternativa controlada. Ações críticas ainda podem exigir uma confirmação recente com passkey."},
+			{Title: "Recuperação", Body: "A recuperação é iniciada por um operador e usa uma capacidade curta e de uso único para substituir a confiança comprometida."},
+		},
+	})
 }
 
 func (h *identityAuthHandlers) logout(
