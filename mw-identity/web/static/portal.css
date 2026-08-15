@@ -865,14 +865,67 @@ footer a {
 .danger-button {
   margin-top: 10px;
 }
+.totp-enrollment {
+  display: grid;
+  grid-template-columns: minmax(180px, 256px) minmax(0, 1fr);
+  align-items: center;
+  gap: 22px;
+  margin-top: 18px;
+}
+.totp-enrollment[hidden] {
+  display: none;
+}
+.totp-qr-frame {
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+}
+.totp-qr-frame img {
+  display: block;
+  width: 100%;
+  max-width: 256px;
+  height: auto;
+  image-rendering: pixelated;
+}
+.totp-enrollment-copy > strong,
+.totp-enrollment-copy > span,
+.totp-enrollment-copy > label {
+  display: block;
+}
+.totp-enrollment-copy > p,
+.totp-enrollment-copy > span,
+.totp-enrollment-copy > label {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+.totp-enrollment-copy > p {
+  margin: 5px 0 13px;
+}
+.totp-enrollment-copy > label {
+  margin: 13px 0 6px;
+  font-weight: 650;
+}
 .totp-secret {
   display: block;
-  margin: 15px 0;
+  margin: 6px 0 0;
   padding: 12px;
   overflow-wrap: anywhere;
   border-radius: 10px;
   background: var(--soft);
   color: var(--ink);
+}
+@media (max-width: 680px) {
+  .totp-enrollment {
+    grid-template-columns: 1fr;
+  }
+  .totp-qr-frame {
+    width: min(100%, 280px);
+    margin-inline: auto;
+  }
 }
 .inline-status {
   min-height: 18px;

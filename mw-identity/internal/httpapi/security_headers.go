@@ -13,7 +13,7 @@ func securityHeaders(next http.Handler) http.Handler {
 				"script-src 'self'; "+
 				"style-src 'self' https://fonts.googleapis.com; "+
 				"font-src https://fonts.gstatic.com; "+
-				"img-src 'self'; "+
+				"img-src 'self' data:; "+
 				"connect-src 'self'; "+
 				"form-action 'self'; "+
 				"frame-ancestors 'none'; "+

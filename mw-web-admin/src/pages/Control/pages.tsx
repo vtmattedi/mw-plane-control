@@ -19,6 +19,8 @@ import { ResourcePage, type ResourcePageConfig } from './ResourcePage'
 const security =
   'Operações sensíveis exigem autenticação forte recente. Tokens e segredos permanecem no BFF e nunca são expostos ao navegador.'
 
+const mailMonthlyLimit = 2_500
+
 const configs: Record<string, ResourcePageConfig> = {
   identityUsers: {
     module: 'Identity',
@@ -281,6 +283,8 @@ const configs: Record<string, ResourcePageConfig> = {
       'Inspeção de tentativas, entrega, bounce, supressão e reclamações.',
     icon: Mail,
     endpoint: '/mail/emails?limit=50&offset=0',
+    usageEndpoint: '/mail/emails/by-project',
+    monthlyMailLimit: mailMonthlyLimit,
     collectionKey: 'emails',
     columns: [
       { key: 'subject', label: 'Assunto' },

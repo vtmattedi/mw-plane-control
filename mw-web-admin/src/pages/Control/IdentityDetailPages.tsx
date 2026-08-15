@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  Archive,
   AppWindow,
   KeyRound,
   Save,
@@ -24,6 +25,7 @@ import {
   ControlApiError,
   controlRequest,
 } from '@/lib/control-api'
+import { splitFormValues, trimPastedValue } from '@/lib/form-values'
 import { usePreferences } from '@/preferences/preferences-context'
 
 type Application = {
@@ -59,18 +61,12 @@ type ApplicationForm = {
 
 const pendingApplicationKey = 'mw-identity-application-pending'
 
-function splitValues(value: string) {
-  return value
-    .split(/[\n,]/)
-    .map((item) => item.trim())
-    .filter(Boolean)
-}
-
 export function IdentityApplicationDetailPage() {
   const { applicationID = '' } = useParams()
   const { tr } = usePreferences()
   const confirm = useConfirm()
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const [form, setForm] = useState<ApplicationForm | null>(null)
   const [revealedCredential, setRevealedCredential] = useState<string | null>(
     null,
@@ -113,19 +109,29 @@ export function IdentityApplicationDetailPage() {
   const mutation = useMutation({
     mutationFn: (operation: {
       path: string
-      method: 'PATCH' | 'POST'
+      method: 'DELETE' | 'PATCH' | 'POST'
       body?: unknown
     }) =>
       controlRequest<Record<string, unknown>>(operation.path, {
         method: operation.method,
         body: JSON.stringify(operation.body ?? {}),
       }),
-    onSuccess: (body) => {
+    onSuccess: (body, operation) => {
       sessionStorage.removeItem(pendingApplicationKey)
+      if (operation.method === 'DELETE') {
+        toast.success(tr('Aplicação excluída permanentemente.'))
+        void queryClient.invalidateQueries({
+          queryKey: ['control-resource', '/identity/applications'],
+        })
+        navigate('/identity/applications')
+        return
+      }
       const secret = body.client_secret
-      if (typeof secret === 'string') {
+      if (typeof secret === 'string' && secret.length > 0) {
         setRevealedCredential(secret)
         toast.success(tr('Credencial rotacionada.'))
+      } else if (operation.path.endsWith('/archive')) {
+        toast.success(tr('Aplicação arquivada.'))
       } else {
         toast.success(tr('Configuração salva.'))
       }
@@ -159,7 +165,7 @@ export function IdentityApplicationDetailPage() {
       mutation.mutate(
         JSON.parse(raw) as {
           path: string
-          method: 'PATCH' | 'POST'
+          method: 'DELETE' | 'PATCH' | 'POST'
           body?: unknown
         },
       )
@@ -204,6 +210,37 @@ export function IdentityApplicationDetailPage() {
       })
   }
 
+  async function archiveApplication() {
+    const accepted = await confirm({
+      title: tr('Arquivar aplicação?'),
+      description: tr(
+        'Novos logins serão bloqueados e a aplicação não poderá ser reativada. O Client ID continuará reservado até uma exclusão permanente.',
+      ),
+      confirmLabel: tr('Arquivar aplicação'),
+    })
+    if (accepted)
+      mutation.mutate({
+        path: `/identity/applications/${applicationID}/archive`,
+        method: 'POST',
+      })
+  }
+
+  async function deleteApplication() {
+    if (!query.data) return
+    const accepted = await confirm({
+      title: tr('Excluir aplicação permanentemente?'),
+      description: tr(
+        `Esta ação não pode ser desfeita. O Client ID ${query.data.client_id} será liberado. A exclusão será recusada se existirem usuários associados, códigos de autorização ou tokens emitidos.`,
+      ),
+      confirmLabel: tr('Excluir permanentemente'),
+    })
+    if (accepted)
+      mutation.mutate({
+        path: `/identity/applications/${applicationID}`,
+        method: 'DELETE',
+      })
+  }
+
   return (
     <DetailShell
       icon={AppWindow}
@@ -224,152 +261,204 @@ export function IdentityApplicationDetailPage() {
           )}
           {form && query.data && (
             <>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label={tr('Nome')}>
-                  <Input
-                    onChange={(name) => setForm({ ...form, name })}
-                    value={form.name}
-                  />
-                </Field>
-                <Field label="Client ID">
-                  <Input
-                    disabled
-                    onChange={() => undefined}
-                    value={query.data.client_id}
-                  />
-                </Field>
-                <Field label={tr('Tipo')}>
-                  <Input
-                    disabled
-                    onChange={() => undefined}
-                    value={query.data.application_type}
-                  />
-                </Field>
-                <Field label={tr('Política')}>
-                  <Select
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        authentication_policy: event.target.value,
+              <fieldset
+                className="contents"
+                disabled={Boolean(query.data.archived_at)}
+              >
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label={tr('Nome')}>
+                    <Input
+                      onChange={(name) => setForm({ ...form, name })}
+                      value={form.name}
+                    />
+                  </Field>
+                  <Field label="Client ID">
+                    <Input
+                      disabled
+                      onChange={() => undefined}
+                      value={query.data.client_id}
+                    />
+                  </Field>
+                  <Field label={tr('Tipo')}>
+                    <Input
+                      disabled
+                      onChange={() => undefined}
+                      value={query.data.application_type}
+                    />
+                  </Field>
+                  <Field label={tr('Política')}>
+                    <Select
+                      onChange={(event) =>
+                        setForm({
+                          ...form,
+                          authentication_policy: event.target.value,
+                        })
+                      }
+                      value={form.authentication_policy}
+                    >
+                      <option value="standard">Standard</option>
+                      <option value="strong">Strong</option>
+                    </Select>
+                  </Field>
+                  <Field className="sm:col-span-2" label="Redirect URIs">
+                    <Input
+                      onChange={(redirect_uris) =>
+                        setForm({ ...form, redirect_uris })
+                      }
+                      value={form.redirect_uris}
+                    />
+                  </Field>
+                  <Field
+                    className="sm:col-span-2"
+                    label="Post logout redirect URIs"
+                  >
+                    <Input
+                      onChange={(post_logout_redirect_uris) =>
+                        setForm({ ...form, post_logout_redirect_uris })
+                      }
+                      value={form.post_logout_redirect_uris}
+                    />
+                  </Field>
+                  <Field
+                    className="sm:col-span-2"
+                    label={tr('Callback de exclusão de conta')}
+                  >
+                    <Input
+                      onChange={(delete_callback_uri) =>
+                        setForm({ ...form, delete_callback_uri })
+                      }
+                      placeholder="https://app.example.com/internal/identity/account-deleted"
+                      value={form.delete_callback_uri}
+                    />
+                  </Field>
+                  <Field label={tr('Cadastro público')}>
+                    <Select
+                      onChange={(event) =>
+                        setForm({
+                          ...form,
+                          allow_public_signup: event.target.value === 'enabled',
+                        })
+                      }
+                      value={form.allow_public_signup ? 'enabled' : 'disabled'}
+                    >
+                      <option value="disabled">{tr('Desativado')}</option>
+                      <option value="enabled">{tr('Ativado')}</option>
+                    </Select>
+                  </Field>
+                  <Field label="Scopes">
+                    <Input
+                      onChange={(scopes) => setForm({ ...form, scopes })}
+                      value={form.scopes}
+                    />
+                  </Field>
+                  <Field label="Audiences">
+                    <Input
+                      onChange={(audiences) => setForm({ ...form, audiences })}
+                      value={form.audiences}
+                    />
+                  </Field>
+                  <Field className="sm:col-span-2" label="Claims">
+                    <Input
+                      onChange={(claims) => setForm({ ...form, claims })}
+                      value={form.claims}
+                    />
+                  </Field>
+                </div>
+              </fieldset>
+              {!query.data.archived_at && (
+                <div className="flex flex-wrap gap-3">
+                  <Button
+                    disabled={
+                      mutation.isPending ||
+                      !form.name.trim() ||
+                      !form.redirect_uris.trim()
+                    }
+                    onClick={() =>
+                      mutation.mutate({
+                        path: `/identity/applications/${applicationID}`,
+                        method: 'PATCH',
+                        body: {
+                          ...form,
+                          redirect_uris: splitFormValues(form.redirect_uris),
+                          post_logout_redirect_uris: splitFormValues(
+                            form.post_logout_redirect_uris,
+                          ),
+                          delete_callback_uri: trimPastedValue(
+                            form.delete_callback_uri,
+                          ),
+                          scopes: splitFormValues(form.scopes),
+                          claims: splitFormValues(form.claims),
+                          audiences: splitFormValues(form.audiences),
+                        },
                       })
                     }
-                    value={form.authentication_policy}
                   >
-                    <option value="standard">Standard</option>
-                    <option value="strong">Strong</option>
-                  </Select>
-                </Field>
-                <Field className="sm:col-span-2" label="Redirect URIs">
-                  <Input
-                    onChange={(redirect_uris) =>
-                      setForm({ ...form, redirect_uris })
-                    }
-                    value={form.redirect_uris}
-                  />
-                </Field>
-                <Field
-                  className="sm:col-span-2"
-                  label="Post logout redirect URIs"
-                >
-                  <Input
-                    onChange={(post_logout_redirect_uris) =>
-                      setForm({ ...form, post_logout_redirect_uris })
-                    }
-                    value={form.post_logout_redirect_uris}
-                  />
-                </Field>
-                <Field
-                  className="sm:col-span-2"
-                  label={tr('Callback de exclusão de conta')}
-                >
-                  <Input
-                    onChange={(delete_callback_uri) =>
-                      setForm({ ...form, delete_callback_uri })
-                    }
-                    placeholder="https://app.example.com/internal/identity/account-deleted"
-                    value={form.delete_callback_uri}
-                  />
-                </Field>
-                <Field label={tr('Cadastro público')}>
-                  <Select
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        allow_public_signup: event.target.value === 'enabled',
-                      })
-                    }
-                    value={form.allow_public_signup ? 'enabled' : 'disabled'}
-                  >
-                    <option value="disabled">{tr('Desativado')}</option>
-                    <option value="enabled">{tr('Ativado')}</option>
-                  </Select>
-                </Field>
-                <Field label="Scopes">
-                  <Input
-                    onChange={(scopes) => setForm({ ...form, scopes })}
-                    value={form.scopes}
-                  />
-                </Field>
-                <Field label="Audiences">
-                  <Input
-                    onChange={(audiences) => setForm({ ...form, audiences })}
-                    value={form.audiences}
-                  />
-                </Field>
-                <Field className="sm:col-span-2" label="Claims">
-                  <Input
-                    onChange={(claims) => setForm({ ...form, claims })}
-                    value={form.claims}
-                  />
-                </Field>
-              </div>
-              <div className="flex flex-wrap gap-3">
-                <Button
-                  disabled={
-                    mutation.isPending ||
-                    !form.name.trim() ||
-                    !form.redirect_uris.trim()
-                  }
-                  onClick={() =>
-                    mutation.mutate({
-                      path: `/identity/applications/${applicationID}`,
-                      method: 'PATCH',
-                      body: {
-                        ...form,
-                        redirect_uris: splitValues(form.redirect_uris),
-                        post_logout_redirect_uris: splitValues(
-                          form.post_logout_redirect_uris,
-                        ),
-                        scopes: splitValues(form.scopes),
-                        claims: splitValues(form.claims),
-                        audiences: splitValues(form.audiences),
-                      },
-                    })
-                  }
-                >
-                  <Save /> {tr('Salvar')}
-                </Button>
-                <Button
-                  disabled={mutation.isPending}
-                  onClick={() => void changeState()}
-                  variant="outline"
-                >
-                  {tr(query.data.enabled ? 'Desativar' : 'Ativar')}
-                </Button>
-                {query.data.application_type === 'confidential' && (
+                    <Save /> {tr('Salvar')}
+                  </Button>
                   <Button
                     disabled={mutation.isPending}
-                    onClick={() => void rotateSecret()}
+                    onClick={() => void changeState()}
                     variant="outline"
                   >
-                    <KeyRound /> {tr('Rotacionar segredo')}
+                    {tr(query.data.enabled ? 'Desativar' : 'Ativar')}
                   </Button>
-                )}
-              </div>
+                  {query.data.application_type === 'confidential' && (
+                    <Button
+                      disabled={mutation.isPending}
+                      onClick={() => void rotateSecret()}
+                      variant="outline"
+                    >
+                      <KeyRound /> {tr('Rotacionar segredo')}
+                    </Button>
+                  )}
+                </div>
+              )}
+              {query.data.application_type === 'public' && (
+                <p className="border-border/70 bg-muted/40 text-muted-foreground rounded-xl border p-3 text-sm leading-6">
+                  {tr(
+                    'Cliente público: use o Client ID com Authorization Code + PKCE. Este tipo de cliente não possui segredo e não requer rotação de credenciais.',
+                  )}
+                </p>
+              )}
             </>
           )}
         </CardContent>
       </Card>
+      {query.data && (
+        <Card className="border-destructive/25 mt-6 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-destructive flex items-center gap-2">
+              {query.data.archived_at ? <Trash2 /> : <Archive />}
+              {tr('Zona de perigo')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-muted-foreground text-sm leading-6">
+              {tr(
+                query.data.archived_at
+                  ? 'A exclusão permanente remove o cadastro e libera o Client ID. Ela só é permitida quando não existem usuários associados, códigos de autorização ou tokens emitidos.'
+                  : 'Arquivar bloqueia logins e alterações, preserva o histórico e mantém o Client ID reservado.',
+              )}
+            </p>
+            <Button
+              disabled={mutation.isPending}
+              variant="destructive"
+              onClick={() =>
+                void (query.data.archived_at
+                  ? deleteApplication()
+                  : archiveApplication())
+              }
+            >
+              {query.data.archived_at ? <Trash2 /> : <Archive />}
+              {tr(
+                query.data.archived_at
+                  ? 'Excluir permanentemente'
+                  : 'Arquivar aplicação',
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
       <OneTimeCredentialDialog
         credential={revealedCredential}
         onClose={() => setRevealedCredential(null)}

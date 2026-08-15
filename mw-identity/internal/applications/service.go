@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 )
 
 type Service struct {
@@ -249,7 +250,7 @@ func normalizeURIs(
 	seen := make(map[string]struct{})
 
 	for _, value := range values {
-		value = strings.TrimSpace(value)
+		value = trimPastedValue(value)
 		if value == "" {
 			continue
 		}
@@ -279,6 +280,12 @@ func normalizeURIs(
 
 	sort.Strings(result)
 	return result, nil
+}
+
+func trimPastedValue(value string) string {
+	return strings.TrimFunc(value, func(r rune) bool {
+		return unicode.IsSpace(r) || r == '\u200b' || r == '\ufeff'
+	})
 }
 
 func normalizeValues(values []string) []string {

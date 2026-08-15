@@ -4,11 +4,13 @@ const IdentityStrongAccountJS = `(async () => {
   const csrf = document.querySelector('meta[name="mw-identity-csrf"]')?.content || '';
   const root = document.getElementById('totp'); if (!root) return;
   const status = document.getElementById('totp-status'); const secret = document.getElementById('totp-secret');
+  const enrollment = document.getElementById('totp-enrollment'); const qrCode = document.getElementById('totp-qr-code');
   const code = document.getElementById('totp-code'); const setup = document.getElementById('totp-setup'); const confirm = document.getElementById('totp-confirm'); const disable = document.getElementById('totp-disable');
   const api = async (path, options={}) => { options.headers = {...(options.headers||{}), 'X-MW-CSRF': csrf}; const r=await fetch(path,options); if(!r.ok){let b={};try{b=await r.json()}catch{};throw new Error(b?.error?.code||b?.error||('HTTP '+r.status));} return r; };
-  async function load(){const r=await fetch('/api/strong/status',{cache:'no-store'});if(!r.ok)return;const b=await r.json();root.hidden=false;disable.hidden=!b.totp_enabled;if(status)status.textContent=b.totp_enabled?'Authenticator fallback enabled.':'Authenticator fallback disabled.';}
-  setup?.addEventListener('click',async()=>{try{const r=await api('/api/totp/setup',{method:'POST'});const b=await r.json();secret.textContent=b.secret;secret.hidden=false;confirm.hidden=false;code.hidden=false;}catch(e){status.textContent=e.message;}});
-  confirm?.addEventListener('click',async()=>{try{await api('/api/totp/confirm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:code.value})});secret.hidden=true;confirm.hidden=true;code.hidden=true;await load();}catch(e){status.textContent=e.message;}});
+  async function load(){const r=await fetch('/api/strong/status',{cache:'no-store'});if(!r.ok)return;const b=await r.json();root.hidden=false;setup.hidden=b.totp_enabled;disable.hidden=!b.totp_enabled;if(status)status.textContent=b.totp_enabled?'Authenticator fallback enabled.':'Authenticator fallback disabled.';}
+  setup?.addEventListener('click',async()=>{setup.disabled=true;try{const r=await api('/api/totp/setup',{method:'POST'});const b=await r.json();secret.textContent=b.secret;qrCode.src=b.qr_code_data_url;enrollment.hidden=false;code.focus();}catch(e){status.textContent=e.message;}finally{setup.disabled=false;}});
+  code?.addEventListener('input',()=>{code.value=code.value.replace(/\D/g,'').slice(0,6);});
+  confirm?.addEventListener('click',async()=>{try{await api('/api/totp/confirm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:code.value})});enrollment.hidden=true;qrCode.removeAttribute('src');secret.textContent='';code.value='';await load();}catch(e){status.textContent=e.message;}});
   disable?.addEventListener('click',async()=>{try{await api('/api/totp/disable',{method:'POST'});await load();}catch(e){status.textContent=e.message;}});
   await load();
 })();`

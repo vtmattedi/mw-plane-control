@@ -1,11 +1,13 @@
 package httpapi
 
 import (
+	"encoding/base64"
 	"errors"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/skip2/go-qrcode"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/auth"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identitystrong"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identitywebauthn"
@@ -14,6 +16,14 @@ import (
 )
 
 const identityRecoveryHeader = "X-MW-Recovery"
+
+const totpQRCodeSize = 256
+
+type totpSetupResponse struct {
+	Secret        string `json:"secret"`
+	OTPAuthURI    string `json:"otpauth_uri"`
+	QRCodeDataURL string `json:"qr_code_data_url"`
+}
 
 type identityStrongHandlers struct {
 	service      *identitystrong.Service
@@ -58,7 +68,24 @@ func (h *identityStrongHandlers) setupTOTP(w http.ResponseWriter, r *http.Reques
 		writeJSONError(w, 500, "totp_setup_failed")
 		return
 	}
-	writeJSON(w, 200, result)
+	payload, err := newTOTPSetupResponse(result)
+	if err != nil {
+		writeJSONError(w, 500, "totp_setup_failed")
+		return
+	}
+	writeJSON(w, 200, payload)
+}
+
+func newTOTPSetupResponse(result identitystrong.TOTPSetup) (totpSetupResponse, error) {
+	png, err := qrcode.Encode(result.OTPAuthURI, qrcode.Medium, totpQRCodeSize)
+	if err != nil {
+		return totpSetupResponse{}, err
+	}
+	return totpSetupResponse{
+		Secret:        result.Secret,
+		OTPAuthURI:    result.OTPAuthURI,
+		QRCodeDataURL: "data:image/png;base64," + base64.StdEncoding.EncodeToString(png),
+	}, nil
 }
 
 func (h *identityStrongHandlers) confirmTOTP(w http.ResponseWriter, r *http.Request) {

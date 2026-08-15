@@ -376,6 +376,38 @@ func (s *Service) SetApplicationState(
 	return updated, nil
 }
 
+func (s *Service) DeleteApplication(
+	ctx context.Context,
+	actor auth.User,
+	remoteIP string,
+	id string,
+) error {
+	app, err := s.store.IdentityApplicationByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if app.ArchivedAt == nil {
+		return ErrArchiveRequired
+	}
+
+	if err := s.store.PurgeIdentityApplication(ctx, id, app.ClientID); err != nil {
+		return err
+	}
+
+	_ = s.recordAudit(
+		ctx,
+		actor,
+		remoteIP,
+		"identity.application.deleted",
+		map[string]any{
+			"application_id": id,
+			"client_id":      app.ClientID,
+		},
+	)
+
+	return nil
+}
+
 func (s *Service) RotateSecret(
 	ctx context.Context,
 	actor auth.User,

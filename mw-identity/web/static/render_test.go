@@ -77,7 +77,7 @@ func TestRenderAccountAndInformationPages(t *testing.T) {
 		t.Fatal(err)
 	}
 	accountBody := accountOutput.String()
-	for _, want := range []string{"Á", "admin@example.com", "Passkeys", "Aplicativo autenticador", "/static/brand.svg#mark"} {
+	for _, want := range []string{"Á", "admin@example.com", "Passkeys", "Aplicativo autenticador", "totp-qr-code", "/static/brand.svg#mark"} {
 		if !strings.Contains(accountBody, want) {
 			t.Fatalf("account page does not contain %q", want)
 		}

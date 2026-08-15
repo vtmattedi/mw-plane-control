@@ -12,10 +12,12 @@ import (
 )
 
 var (
-	ErrNotFound      = errors.New("Identity admin record not found")
-	ErrInvalid       = errors.New("invalid Identity admin request")
-	ErrArchived      = errors.New("application is archived")
-	ErrRoleForbidden = errors.New("role is not permitted")
+	ErrNotFound         = errors.New("Identity admin record not found")
+	ErrInvalid          = errors.New("invalid Identity admin request")
+	ErrArchived         = errors.New("application is archived")
+	ErrArchiveRequired  = errors.New("application must be archived before deletion")
+	ErrApplicationInUse = errors.New("application has dependent identity data")
+	ErrRoleForbidden    = errors.New("role is not permitted")
 )
 
 const (
@@ -115,6 +117,12 @@ type Store interface {
 		bool,
 		*time.Time,
 		time.Time,
+	) error
+
+	PurgeIdentityApplication(
+		context.Context,
+		string,
+		string,
 	) error
 
 	UpdateIdentityApplicationSecretHash(

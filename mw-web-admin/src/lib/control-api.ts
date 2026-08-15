@@ -109,6 +109,10 @@ function readableError(code: string) {
     email_exists: 'Já existe uma identidade com este e-mail.',
     client_id_exists: 'Já existe uma aplicação com este Client ID.',
     invalid_request: 'Revise os campos informados e tente novamente.',
+    application_archive_required:
+      'Arquive a aplicação antes de excluí-la permanentemente.',
+    application_in_use:
+      'Esta aplicação ainda possui usuários associados, códigos de autorização ou tokens emitidos.',
   }
   return labels[code] ?? 'Não foi possível concluir a solicitação.'
 }

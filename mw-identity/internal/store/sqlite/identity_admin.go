@@ -281,6 +281,61 @@ func (s *Store) SetIdentityApplicationState(
 	return nil
 }
 
+func (s *Store) PurgeIdentityApplication(
+	ctx context.Context,
+	id string,
+	clientID string,
+) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin Identity application purge: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var dependencies int
+	err = tx.QueryRowContext(
+		ctx,
+		`SELECT
+			(SELECT COUNT(1) FROM identity_application_assignments WHERE application_id = ?) +
+			(SELECT COUNT(1) FROM identity_authorization_codes WHERE client_id = ?) +
+			(SELECT COUNT(1) FROM identity_access_tokens WHERE client_id = ?)`,
+		id,
+		clientID,
+		clientID,
+	).Scan(&dependencies)
+	if err != nil {
+		return fmt.Errorf("check Identity application dependencies: %w", err)
+	}
+	if dependencies != 0 {
+		return identityadmin.ErrApplicationInUse
+	}
+
+	result, err := tx.ExecContext(
+		ctx,
+		`DELETE FROM identity_applications
+		 WHERE id = ?
+		   AND client_id = ?
+		   AND archived_at_unix IS NOT NULL`,
+		id,
+		clientID,
+	)
+	if err != nil {
+		return fmt.Errorf("purge Identity application: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected != 1 {
+		return identityadmin.ErrNotFound
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit Identity application purge: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) UpdateIdentityApplicationSecretHash(
 	ctx context.Context,
 	id string,

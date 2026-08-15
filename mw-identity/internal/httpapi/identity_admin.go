@@ -265,14 +265,15 @@ func (h *identityAdminHandlers) createApplication(
 		return
 	}
 
-	writeJSON(
-		w,
-		http.StatusCreated,
-		map[string]any{
-			"application":   result.Application,
-			"client_secret": result.ClientSecret,
-		},
-	)
+	writeJSON(w, http.StatusCreated, applicationCreationResponse(result))
+}
+
+func applicationCreationResponse(result identityadmin.CreateApplicationResult) map[string]any {
+	response := map[string]any{"application": result.Application}
+	if result.ClientSecret != "" {
+		response["client_secret"] = result.ClientSecret
+	}
+	return response
 }
 
 func (h *identityAdminHandlers) updateApplication(
@@ -340,6 +341,32 @@ func (h *identityAdminHandlers) applicationState(
 
 		writeJSON(w, http.StatusOK, app)
 	}
+}
+
+func (h *identityAdminHandlers) deleteApplication(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	principal, protocolErr, err := h.principal(
+		r,
+		identityadmin.PermissionApplicationsWrite,
+	)
+	if h.handlePrincipalError(w, protocolErr, err) {
+		return
+	}
+
+	err = h.admin.DeleteApplication(
+		r.Context(),
+		principal.access.User,
+		remoteIP(r),
+		r.PathValue("id"),
+	)
+	if err != nil {
+		h.writeAdminError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]bool{"deleted": true})
 }
 
 func (h *identityAdminHandlers) rotateSecret(
@@ -627,6 +654,20 @@ func (h *identityAdminHandlers) writeAdminError(
 			w,
 			http.StatusConflict,
 			"application_archived",
+		)
+
+	case errors.Is(err, identityadmin.ErrArchiveRequired):
+		writeJSONError(
+			w,
+			http.StatusConflict,
+			"application_archive_required",
+		)
+
+	case errors.Is(err, identityadmin.ErrApplicationInUse):
+		writeJSONError(
+			w,
+			http.StatusConflict,
+			"application_in_use",
 		)
 
 	case errors.Is(

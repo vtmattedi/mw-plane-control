@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlertTriangle,
   Database,
+  Gauge,
   KeyRound,
   RefreshCw,
   Search,
@@ -36,6 +37,7 @@ import {
   ControlApiError,
   controlRequest,
 } from '@/lib/control-api'
+import { splitFormValues, trimPastedValue } from '@/lib/form-values'
 import styles from './resource-page.module.scss'
 import { usePreferences } from '@/preferences/preferences-context'
 
@@ -53,6 +55,8 @@ export type ResourcePageConfig = {
   securityNote?: string
   projectActions?: 'oauth' | 'mail'
   createKind?: 'identity-application' | 'identity-user'
+  monthlyMailLimit?: number
+  usageEndpoint?: string
   rowHref?: (row: Record<string, unknown>) => string | undefined
 }
 
@@ -67,7 +71,7 @@ const pendingMutationKey = 'mw-control-pending-mutation'
 const identityUserDraftKey = 'mw-identity-user-create-draft'
 
 export function ResourcePage({ config }: { config: ResourcePageConfig }) {
-  const { tr } = usePreferences()
+  const { language, tr } = usePreferences()
   const confirm = useConfirm()
   const [search, setSearch] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
@@ -97,6 +101,20 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
     enabled: Boolean(config.endpoint),
     retry: 1,
   })
+  const usageQuery = useQuery({
+    queryKey: ['control-resource-usage', config.usageEndpoint],
+    queryFn: () => controlRequest<unknown>(config.usageEndpoint!),
+    enabled: Boolean(config.usageEndpoint && config.monthlyMailLimit),
+    retry: 1,
+  })
+  const monthlyMailUsage = useMemo(
+    () =>
+      collectionFrom(usageQuery.data, 'projects').reduce((total, project) => {
+        const count = Number(project.email_count)
+        return total + (Number.isFinite(count) ? count : 0)
+      }, 0),
+    [usageQuery.data],
+  )
   const rows = useMemo(() => {
     const source = config.endpoint
       ? collectionFrom(query.data, config.collectionKey ?? 'items')
@@ -128,7 +146,7 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
       const record = (body ?? {}) as Record<string, unknown>
       const secret =
         record.api_key ?? record.callback_secret ?? record.client_secret
-      if (typeof secret === 'string') {
+      if (typeof secret === 'string' && secret.length > 0) {
         setRevealedCredential(secret)
       }
       toast.success(tr('Operação concluída com sucesso.'))
@@ -235,12 +253,6 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
     setCreateOpen(true)
   }
 
-  const values = (value: string) =>
-    value
-      .split(/[\n,]/)
-      .map((item) => item.trim())
-      .filter(Boolean)
-
   function submitCreate() {
     if (config.createKind === 'identity-user') {
       runMutation('/identity/users', 'POST', {
@@ -256,13 +268,18 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
         client_id: createFields.clientID.trim(),
         application_type: createFields.applicationType,
         authentication_policy: createFields.authenticationPolicy,
-        redirect_uris: values(createFields.redirectURIs),
-        post_logout_redirect_uris: values(createFields.postLogoutRedirectURIs),
-        delete_callback_uri: createFields.deleteCallbackURI.trim(),
+        redirect_uris: splitFormValues(createFields.redirectURIs),
+        post_logout_redirect_uris: splitFormValues(
+          createFields.postLogoutRedirectURIs,
+        ),
+        delete_callback_uri:
+          createFields.applicationType === 'public'
+            ? trimPastedValue(createFields.deleteCallbackURI)
+            : '',
         allow_public_signup: createFields.allowPublicSignup,
-        scopes: values(createFields.scopes),
-        claims: values(createFields.claims),
-        audiences: values(createFields.audiences),
+        scopes: splitFormValues(createFields.scopes),
+        claims: splitFormValues(createFields.claims),
+        audiences: splitFormValues(createFields.audiences),
       })
       return
     }
@@ -289,13 +306,27 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
           className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
           aria-label={tr('Resumo')}
         >
-          <MetricCard
-            icon={Database}
-            label={tr('Registros')}
-            note={tr('Disponíveis neste ambiente')}
-            value={query.isLoading ? '…' : rows.length}
-            tone="accent"
-          />
+          {config.monthlyMailLimit ? (
+            <MetricCard
+              icon={Gauge}
+              label={tr('Uso mensal')}
+              note={tr('Cota mensal de mensagens')}
+              value={
+                usageQuery.isLoading
+                  ? '…'
+                  : `${usageQuery.isError ? '—' : monthlyMailUsage.toLocaleString(language === 'pt' ? 'pt-BR' : 'en-US')} / ${config.monthlyMailLimit.toLocaleString(language === 'pt' ? 'pt-BR' : 'en-US')}`
+              }
+              tone="accent"
+            />
+          ) : (
+            <MetricCard
+              icon={Database}
+              label={tr('Registros')}
+              note={tr('Disponíveis neste ambiente')}
+              value={query.isLoading ? '…' : rows.length}
+              tone="accent"
+            />
+          )}
           <MetricCard
             icon={ShieldCheck}
             label={tr('Ativos')}
@@ -514,7 +545,7 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
                     value={projectName}
                   />
                 </CreateField>
-                <CreateField label="Client ID">
+                <CreateField label={tr('Client ID')}>
                   <Input
                     disabled={mutation.isPending}
                     onChange={(clientID) =>
@@ -534,8 +565,8 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
                     }
                     value={createFields.applicationType}
                   >
-                    <option value="confidential">Confidential</option>
-                    <option value="public">Public</option>
+                    <option value="confidential">{tr('Confidencial')}</option>
+                    <option value="public">{tr('Pública')}</option>
                   </Select>
                 </CreateField>
                 <CreateField label={tr('Política')}>
@@ -549,11 +580,14 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
                     }
                     value={createFields.authenticationPolicy}
                   >
-                    <option value="standard">Standard</option>
-                    <option value="strong">Strong</option>
+                    <option value="standard">{tr('Padrão')}</option>
+                    <option value="strong">{tr('Forte')}</option>
                   </Select>
                 </CreateField>
-                <CreateField className="sm:col-span-2" label="Redirect URIs">
+                <CreateField
+                  className="sm:col-span-2"
+                  label={tr('URIs de redirecionamento')}
+                >
                   <Input
                     disabled={mutation.isPending}
                     onChange={(redirectURIs) =>
@@ -565,7 +599,7 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
                 </CreateField>
                 <CreateField
                   className="sm:col-span-2"
-                  label="Post logout redirect URIs"
+                  label={tr('URIs de redirecionamento após logout (opcional)')}
                 >
                   <Input
                     disabled={mutation.isPending}
@@ -579,22 +613,24 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
                     value={createFields.postLogoutRedirectURIs}
                   />
                 </CreateField>
-                <CreateField
-                  className="sm:col-span-2"
-                  label={tr('Callback de exclusão de conta')}
-                >
-                  <Input
-                    disabled={mutation.isPending}
-                    onChange={(deleteCallbackURI) =>
-                      setCreateFields((value) => ({
-                        ...value,
-                        deleteCallbackURI,
-                      }))
-                    }
-                    placeholder="https://app.example.com/internal/identity/account-deleted"
-                    value={createFields.deleteCallbackURI}
-                  />
-                </CreateField>
+                {createFields.applicationType === 'public' && (
+                  <CreateField
+                    className="sm:col-span-2"
+                    label={tr('Callback de exclusão de conta')}
+                  >
+                    <Input
+                      disabled={mutation.isPending}
+                      onChange={(deleteCallbackURI) =>
+                        setCreateFields((value) => ({
+                          ...value,
+                          deleteCallbackURI,
+                        }))
+                      }
+                      placeholder="https://app.example.com/internal/identity/account-deleted"
+                      value={createFields.deleteCallbackURI}
+                    />
+                  </CreateField>
+                )}
                 <CreateField label={tr('Cadastro público')}>
                   <Select
                     disabled={mutation.isPending}
@@ -612,7 +648,7 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
                     <option value="enabled">{tr('Ativado')}</option>
                   </Select>
                 </CreateField>
-                <CreateField label="Scopes">
+                <CreateField label={tr('Escopos')}>
                   <Input
                     disabled={mutation.isPending}
                     onChange={(scopes) =>
@@ -621,7 +657,7 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
                     value={createFields.scopes}
                   />
                 </CreateField>
-                <CreateField label="Audiences">
+                <CreateField label={tr('Audiências')}>
                   <Input
                     disabled={mutation.isPending}
                     onChange={(audiences) =>
@@ -630,7 +666,10 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
                     value={createFields.audiences}
                   />
                 </CreateField>
-                <CreateField className="sm:col-span-2" label="Claims">
+                <CreateField
+                  className="sm:col-span-2"
+                  label={tr('Claims (opcional)')}
+                >
                   <Input
                     disabled={mutation.isPending}
                     onChange={(claims) =>

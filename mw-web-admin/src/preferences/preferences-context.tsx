@@ -82,6 +82,8 @@ const english: Record<string, string> = {
   'O módulo ainda não respondeu. A navegação permanece disponível e os dados serão exibidos assim que o serviço estiver conectado.':
     'The module has not responded yet. Navigation remains available and data will appear as soon as the service is connected.',
   Registros: 'Records',
+  'Uso mensal': 'Monthly usage',
+  'Cota mensal de mensagens': 'Monthly message quota',
   Ativos: 'Active',
   Proteção: 'Protection',
   Sincronização: 'Synchronization',
@@ -195,6 +197,17 @@ const english: Record<string, string> = {
   'E-mail': 'Email',
   Tipo: 'Type',
   Política: 'Policy',
+  'Client ID': 'Client ID',
+  Confidencial: 'Confidential',
+  Pública: 'Public',
+  Padrão: 'Standard',
+  Forte: 'Strong',
+  'URIs de redirecionamento': 'Redirect URIs',
+  'URIs de redirecionamento após logout (opcional)':
+    'Post-logout redirect URIs (optional)',
+  Escopos: 'Scopes',
+  Audiências: 'Audiences',
+  'Claims (opcional)': 'Claims (optional)',
   Usuário: 'User',
   Identidade: 'Identity',
   Método: 'Method',
@@ -300,6 +313,8 @@ const english: Record<string, string> = {
     'Public contracts and integration guides for MW OAuth consumers.',
   'Contratos públicos e guias de integração para consumidores do MW Mail.':
     'Public contracts and integration guides for MW Mail consumers.',
+  'Cliente público: use o Client ID com Authorization Code + PKCE. Este tipo de cliente não possui segredo e não requer rotação de credenciais.':
+    'Public client: use the Client ID with Authorization Code + PKCE. This client type has no secret and requires no credential rotation.',
   'Projetos remetentes, chaves de API e domínios de requisição permitidos.':
     'Sender projects, API keys, and allowed request domains.',
   'Domínios de requisição, credenciais e políticas de entrega por projeto.':

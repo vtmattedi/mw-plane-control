@@ -153,3 +153,34 @@ func TestRedirectRequiresHTTPSOutsideLocalhost(
 		)
 	}
 }
+
+func TestCreateTrimsInvisibleCharactersAroundURIs(t *testing.T) {
+	store := &memoryApplicationStore{}
+	service, _ := NewService(store)
+
+	result, err := service.Create(context.Background(), CreateRequest{
+		Name:            "Working On IT",
+		ClientID:        "mw-woi",
+		ApplicationType: "public",
+		RedirectURIs: []string{
+			"\u200bhttps://woi.mattediworks.com/api/auth/mw/callback\ufeff",
+		},
+		PostLogoutRedirectURIs: []string{
+			"\u200bhttps://woi.mattediworks.com/",
+		},
+		DeleteCallbackURI: "\ufeffhttps://woi.mattediworks.com/api/auth/mw/lifecycle",
+		Scopes:            []string{"openid", "profile", "email"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := result.Application.RedirectURIs[0]; got != "https://woi.mattediworks.com/api/auth/mw/callback" {
+		t.Fatalf("redirect URI = %q", got)
+	}
+	if got := result.Application.PostLogoutRedirectURIs[0]; got != "https://woi.mattediworks.com/" {
+		t.Fatalf("post-logout URI = %q", got)
+	}
+	if got := result.Application.DeleteCallbackURI; got != "https://woi.mattediworks.com/api/auth/mw/lifecycle" {
+		t.Fatalf("delete callback URI = %q", got)
+	}
+}

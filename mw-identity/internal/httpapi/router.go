@@ -112,6 +112,10 @@ func New(
 		adminHandlers.applicationState("archive"),
 	)
 	mux.HandleFunc(
+		"DELETE /admin/api/applications/{id}",
+		adminHandlers.deleteApplication,
+	)
+	mux.HandleFunc(
 		"POST /admin/api/applications/{id}/rotate-secret",
 		adminHandlers.rotateSecret,
 	)

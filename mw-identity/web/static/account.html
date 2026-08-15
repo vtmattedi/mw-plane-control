@@ -108,22 +108,41 @@
           <button class="secondary-button flush" type="button" id="totp-setup">
             Configurar autenticador
           </button>
-          <code class="totp-secret" id="totp-secret" hidden></code>
-          <input
-            id="totp-code"
-            hidden
-            inputmode="numeric"
-            autocomplete="one-time-code"
-            placeholder="123456"
-          />
-          <button
-            class="primary-button compact"
-            type="button"
-            id="totp-confirm"
-            hidden
-          >
-            Confirmar código
-          </button>
+          <div class="totp-enrollment" id="totp-enrollment" hidden>
+            <div class="totp-qr-frame">
+              <img
+                id="totp-qr-code"
+                width="256"
+                height="256"
+                alt="QR code para configurar o aplicativo autenticador"
+              />
+            </div>
+            <div class="totp-enrollment-copy">
+              <strong>Escaneie o QR code</strong>
+              <p>
+                Use Google Authenticator, Microsoft Authenticator, 1Password ou
+                outro aplicativo compatível com TOTP.
+              </p>
+              <span>Ou informe esta chave manualmente:</span>
+              <code class="totp-secret" id="totp-secret"></code>
+              <label for="totp-code">Código gerado pelo aplicativo</label>
+              <input
+                id="totp-code"
+                inputmode="numeric"
+                autocomplete="one-time-code"
+                pattern="[0-9]{6}"
+                maxlength="6"
+                placeholder="123456"
+              />
+              <button
+                class="primary-button compact"
+                type="button"
+                id="totp-confirm"
+              >
+                Confirmar código
+              </button>
+            </div>
+          </div>
           <button class="danger-button" type="button" id="totp-disable" hidden>
             Desativar autenticador
           </button>
