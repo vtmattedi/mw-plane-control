@@ -139,6 +139,22 @@ export default function OAuthProjectConfigurationPage() {
     }
   }
 
+  async function rotateCallbackSecret() {
+    const accepted = await confirm({
+      title: tr('Rotacionar segredo de callback?'),
+      description: tr(
+        'O segredo atual deixará de validar callbacks e o novo será exibido apenas uma vez.',
+      ),
+      confirmLabel: tr('Rotacionar segredo'),
+    })
+    if (accepted) {
+      update.mutate({
+        path: `/oauth/projects/${projectID}/rotate-callback-secret`,
+        method: 'POST',
+      })
+    }
+  }
+
   async function deleteProject() {
     const accepted = await confirm({
       title: tr('Excluir projeto?'),
@@ -215,6 +231,13 @@ export default function OAuthProjectConfigurationPage() {
                 onClick={() => void rotateKey()}
               >
                 <KeyRound /> {tr('Rotacionar chave')}
+              </Button>
+              <Button
+                disabled={!project || update.isPending}
+                onClick={() => void rotateCallbackSecret()}
+                variant="outline"
+              >
+                <KeyRound /> {tr('Rotacionar segredo de callback')}
               </Button>
             </div>
           </CardContent>

@@ -20,7 +20,10 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { useConfirm } from '@/components/confirm-context'
-import { OneTimeCredentialDialog } from '@/components/one-time-credential-dialog'
+import {
+  OneTimeCredentialDialog,
+  type OneTimeCredential,
+} from '@/components/one-time-credential-dialog'
 import {
   Dialog,
   DialogContent,
@@ -76,9 +79,9 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
   const [search, setSearch] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
   const [projectName, setProjectName] = useState('')
-  const [revealedCredential, setRevealedCredential] = useState<string | null>(
-    null,
-  )
+  const [revealedCredentials, setRevealedCredentials] = useState<
+    OneTimeCredential[] | null
+  >(null)
   const [createFields, setCreateFields] = useState({
     email: '',
     displayName: '',
@@ -144,10 +147,38 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
     onSuccess: (body) => {
       sessionStorage.removeItem(pendingMutationKey)
       const record = (body ?? {}) as Record<string, unknown>
-      const secret =
-        record.api_key ?? record.callback_secret ?? record.client_secret
-      if (typeof secret === 'string' && secret.length > 0) {
-        setRevealedCredential(secret)
+      const credentials: OneTimeCredential[] = []
+      if (typeof record.api_key === 'string' && record.api_key.length > 0) {
+        credentials.push({
+          label:
+            config.projectActions === 'oauth'
+              ? 'MW_OAUTH_PROJECT_KEY'
+              : config.projectActions === 'mail'
+                ? 'MW_EMAIL_API_KEY'
+                : 'API key',
+          value: record.api_key,
+        })
+      }
+      if (
+        typeof record.callback_secret === 'string' &&
+        record.callback_secret.length > 0
+      ) {
+        credentials.push({
+          label: 'MW_OAUTH_CALLBACK_SECRET',
+          value: record.callback_secret,
+        })
+      }
+      if (
+        typeof record.client_secret === 'string' &&
+        record.client_secret.length > 0
+      ) {
+        credentials.push({
+          label: 'Client secret',
+          value: record.client_secret,
+        })
+      }
+      if (credentials.length > 0) {
+        setRevealedCredentials(credentials)
       }
       toast.success(tr('Operação concluída com sucesso.'))
       setCreateOpen(false)
@@ -722,8 +753,13 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
           </DialogContent>
         </Dialog>
         <OneTimeCredentialDialog
-          credential={revealedCredential}
-          onClose={() => setRevealedCredential(null)}
+          credentials={revealedCredentials}
+          onClose={() => setRevealedCredentials(null)}
+          title={
+            revealedCredentials && revealedCredentials.length > 1
+              ? tr('Credenciais do projeto')
+              : tr('Nova credencial')
+          }
         />
       </div>
     </main>

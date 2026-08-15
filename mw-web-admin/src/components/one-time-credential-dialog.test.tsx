@@ -25,4 +25,41 @@ describe('credencial exibida uma única vez', () => {
     await user.click(screen.getByRole('button', { name: 'Concluir' }))
     expect(onClose).toHaveBeenCalledOnce()
   })
+
+  it('mostra e copia separadamente as credenciais de um projeto OAuth', async () => {
+    const user = userEvent.setup()
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    })
+
+    render(
+      <OneTimeCredentialDialog
+        credentials={[
+          { label: 'MW_OAUTH_PROJECT_KEY', value: 'project-key' },
+          { label: 'MW_OAUTH_CALLBACK_SECRET', value: 'callback-secret' },
+        ]}
+        onClose={() => undefined}
+        title="Credenciais do projeto"
+      />,
+    )
+
+    expect(
+      screen.getByRole('dialog', { name: 'Credenciais do projeto' }),
+    ).toBeVisible()
+    expect(screen.getByLabelText('MW_OAUTH_PROJECT_KEY')).toHaveValue(
+      'project-key',
+    )
+    expect(screen.getByLabelText('MW_OAUTH_CALLBACK_SECRET')).toHaveValue(
+      'callback-secret',
+    )
+
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Copiar MW_OAUTH_CALLBACK_SECRET',
+      }),
+    )
+    expect(writeText).toHaveBeenCalledWith('callback-secret')
+  })
 })
