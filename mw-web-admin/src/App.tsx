@@ -29,13 +29,15 @@ import {
   OAuthDocsPage,
   OAuthMetricsPage,
   OAuthProjectsPage,
-  OAuthProvidersPage,
   OAuthServerPage,
 } from '@/pages/Control/pages'
 
 const OAuthDocPage = lazy(() => import('@/pages/Control/OAuthDocPage'))
 const OAuthProjectConfigurationPage = lazy(
   () => import('@/pages/Control/OAuthProjectConfigurationPage'),
+)
+const OAuthProvidersPage = lazy(
+  () => import('@/pages/Control/OAuthProvidersPage'),
 )
 const MailConfigurationPage = lazy(
   () => import('@/pages/Control/MailConfigurationPage'),
@@ -155,7 +157,14 @@ function AppRoutes() {
               </DeferredPage>
             }
           />
-          <Route path="oauth/providers" element={<OAuthProvidersPage />} />
+          <Route
+            path="oauth/providers"
+            element={
+              <DeferredPage>
+                <OAuthProvidersPage />
+              </DeferredPage>
+            }
+          />
           <Route path="oauth/audit" element={<OAuthAuditPage />} />
           <Route path="oauth/metrics" element={<OAuthMetricsPage />} />
           <Route path="oauth/server" element={<OAuthServerPage />} />
