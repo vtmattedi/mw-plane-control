@@ -24,6 +24,7 @@ export interface InputProps extends Omit<
   indicatorPosition?: 'left' | 'right'
   indicatorSeparator?: boolean
   inputClassName?: string
+  disableRightToFillWithPlaceholder?: boolean
   lgpd?: boolean
   lgpdNoLink?: boolean
   onChange: (value: string) => void
@@ -102,6 +103,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     type,
     value,
     variant,
+    disableRightToFillWithPlaceholder = false,
     ...props
   },
   ref,
@@ -181,6 +183,18 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
 
           const digits = event.target.value.replace(/\D/g, '')
           onChange(digits ? (Number(digits) / 100).toFixed(2) : '')
+        }}
+        onKeyDown={(event) => {
+          props.onKeyDown?.(event)
+
+          if (event.defaultPrevented) return
+          if (event.key !== 'ArrowRight') return
+          if (disableRightToFillWithPlaceholder) return
+          if (value !== '') return
+          if (!props.placeholder) return
+
+          event.preventDefault()
+          onChange(props.placeholder)
         }}
       />
     </span>
