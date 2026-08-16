@@ -644,7 +644,7 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
                     value={createFields.postLogoutRedirectURIs}
                   />
                 </CreateField>
-                {createFields.applicationType === 'public' && (
+                {createFields.allowPublicSignup && (
                   <CreateField
                     className="sm:col-span-2"
                     label={tr('Callback de exclusão de conta')}
