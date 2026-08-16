@@ -131,6 +131,44 @@ const english: Record<string, string> = {
     'Enter the initial password again to create the user.',
   'Nova atribuição': 'New assignment',
   'Configurar provedor': 'Configure provider',
+  'Configurar Google': 'Configure Google',
+  'Configure políticas e limites dos provedores OAuth por projeto.':
+    'Configure OAuth provider policies and limits per project.',
+  'Cada projeto possui sua própria política de provedor.':
+    'Each project has its own provider policy.',
+  'O Client ID e o segredo do Google são credenciais globais do servidor MW OAuth e não são expostos aqui. Esta página controla somente a política de cada projeto.':
+    'The Google client ID and secret are global MW OAuth server credentials and are not exposed here. This page controls only each project’s policy.',
+  'Ativar Google': 'Enable Google',
+  'Quando desativado, novas autorizações deste projeto serão recusadas.':
+    'When disabled, new authorizations for this project are rejected.',
+  'Escopos permitidos': 'Allowed scopes',
+  'Um escopo por linha ou separado por vírgula.':
+    'Use one scope per line or separate scopes with commas.',
+  'URLs de callback permitidas': 'Allowed callback URLs',
+  'Endpoints backend que receberão o POST assinado do MW OAuth. Correspondência exata.':
+    'Backend endpoints that receive the signed MW OAuth POST. Exact matching applies.',
+  'URLs de retorno permitidas': 'Allowed return URLs',
+  'Páginas para onde o usuário poderá retornar após a integração. Correspondência exata.':
+    'Pages users may return to after integration. Exact matching applies.',
+  Limites: 'Limits',
+  'Por minuto': 'Per minute',
+  'Por hora': 'Per hour',
+  'Máximo pendente': 'Maximum pending',
+  'Salvar configuração': 'Save configuration',
+  'Configuração do provedor salva.': 'Provider configuration saved.',
+  'Não foi possível carregar a configuração do Google.':
+    'The Google configuration could not be loaded.',
+  'Revise a configuração do provedor.': 'Review the provider configuration.',
+  'Os limites devem ser números inteiros positivos.':
+    'Limits must be positive integers.',
+  'Use URLs HTTPS absolutas, exatas e sem query string ou fragmento. HTTP é permitido apenas para loopback local.':
+    'Use exact absolute HTTPS URLs without query strings or fragments. HTTP is allowed only for local loopback.',
+  'Informe pelo menos um escopo antes de ativar o Google.':
+    'Add at least one scope before enabling Google.',
+  'Informe pelo menos uma URL de callback antes de ativar o Google.':
+    'Add at least one callback URL before enabling Google.',
+  'Informe pelo menos uma URL de retorno antes de ativar o Google.':
+    'Add at least one return URL before enabling Google.',
   'Configurar projeto': 'Configure project',
   'Criado em': 'Created at',
   'Atualizado em': 'Updated at',

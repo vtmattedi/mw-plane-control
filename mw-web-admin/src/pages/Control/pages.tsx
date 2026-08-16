@@ -8,7 +8,6 @@ import {
   KeyRound,
   Link2,
   Mail,
-  Network,
   ServerCog,
   Settings2,
   ShieldCheck,
@@ -147,23 +146,6 @@ const configs: Record<string, ResourcePageConfig> = {
       row.id != null
         ? `/oauth/projects/${String(row.id)}/configuration`
         : undefined,
-  },
-  oauthProviders: {
-    module: 'OAuth',
-    title: 'Provedores',
-    description: 'Políticas de acesso do Google e configuração por projeto.',
-    icon: Network,
-    columns: [
-      { key: 'project', label: 'Projeto' },
-      { key: 'provider', label: 'Provedor' },
-      { key: 'status', label: 'Status' },
-      { key: 'updated_at', label: 'Atualizado em' },
-    ],
-    action: 'Configurar provedor',
-    emptyTitle: 'Selecione um projeto OAuth',
-    emptyDescription:
-      'A política do provedor é gerenciada dentro de cada projeto.',
-    securityNote: security,
   },
   oauthAudit: {
     module: 'OAuth',
@@ -369,9 +351,6 @@ export const IdentityAuditPage = () => (
 )
 export const OAuthProjectsPage = () => (
   <ResourcePage config={configs.oauthProjects} />
-)
-export const OAuthProvidersPage = () => (
-  <ResourcePage config={configs.oauthProviders} />
 )
 export const OAuthAuditPage = () => <ResourcePage config={configs.oauthAudit} />
 export const OAuthMetricsPage = () => (

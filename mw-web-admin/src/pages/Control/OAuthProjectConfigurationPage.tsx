@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { KeyRound, Settings2, Trash2 } from 'lucide-react'
+import { KeyRound, Network, Settings2, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -238,6 +238,15 @@ export default function OAuthProjectConfigurationPage() {
                 variant="outline"
               >
                 <KeyRound /> {tr('Rotacionar segredo de callback')}
+              </Button>
+              <Button
+                disabled={!project}
+                onClick={() =>
+                  navigate(`/oauth/providers?project=${projectID}`)
+                }
+                variant="outline"
+              >
+                <Network /> {tr('Configurar Google')}
               </Button>
             </div>
           </CardContent>
