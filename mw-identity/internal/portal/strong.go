@@ -2,12 +2,32 @@ package portal
 
 const IdentityStrongAccountJS = `(async () => {
   const csrf = document.querySelector('meta[name="mw-identity-csrf"]')?.content || '';
-  const root = document.getElementById('totp'); if (!root) return;
+  const root = document.getElementById('totp');
   const status = document.getElementById('totp-status'); const secret = document.getElementById('totp-secret');
   const enrollment = document.getElementById('totp-enrollment'); const qrCode = document.getElementById('totp-qr-code');
   const code = document.getElementById('totp-code'); const setup = document.getElementById('totp-setup'); const confirm = document.getElementById('totp-confirm'); const disable = document.getElementById('totp-disable');
+  const strongStatus = document.getElementById('strong-auth-status');
   const api = async (path, options={}) => { options.headers = {...(options.headers||{}), 'X-MW-CSRF': csrf}; const r=await fetch(path,options); if(!r.ok){let b={};try{b=await r.json()}catch{};throw new Error(b?.error?.code||b?.error||('HTTP '+r.status));} return r; };
-  async function load(){const r=await fetch('/api/strong/status',{cache:'no-store'});if(!r.ok)return;const b=await r.json();root.hidden=false;setup.hidden=b.totp_enabled;disable.hidden=!b.totp_enabled;if(status)status.textContent=b.totp_enabled?'Authenticator fallback enabled.':'Authenticator fallback disabled.';}
+  function relativeTime(unixSeconds){
+    const diff = Math.max(0, Math.floor(Date.now()/1000) - unixSeconds);
+    if (diff < 60) return 'agora mesmo';
+    if (diff < 3600) return 'há ' + Math.floor(diff/60) + ' min';
+    if (diff < 86400) return 'há ' + Math.floor(diff/3600) + ' h';
+    return 'há ' + Math.floor(diff/86400) + ' d';
+  }
+  async function load(){
+    const r=await fetch('/api/strong/status',{cache:'no-store'});
+    if(!r.ok)return;
+    const b=await r.json();
+    if (strongStatus) {
+      strongStatus.classList.toggle('weak', !b.recent_webauthn);
+      strongStatus.textContent = b.recent_webauthn
+        ? 'Autenticação reforçada confirmada ' + relativeTime(b.auth_time) + '.'
+        : 'Sem confirmação reforçada recente (sessão iniciada ' + relativeTime(b.auth_time) + '). Confirme sua identidade para ações sensíveis.';
+    }
+    if (!root) return;
+    root.hidden=false;setup.hidden=b.totp_enabled;disable.hidden=!b.totp_enabled;if(status)status.textContent=b.totp_enabled?'Authenticator fallback enabled.':'Authenticator fallback disabled.';
+  }
   setup?.addEventListener('click',async()=>{setup.disabled=true;try{const r=await api('/api/totp/setup',{method:'POST'});const b=await r.json();secret.textContent=b.secret;qrCode.src=b.qr_code_data_url;enrollment.hidden=false;code.focus();}catch(e){status.textContent=e.message;}finally{setup.disabled=false;}});
   code?.addEventListener('input',()=>{code.value=code.value.replace(/\D/g,'').slice(0,6);});
   confirm?.addEventListener('click',async()=>{try{await api('/api/totp/confirm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:code.value})});enrollment.hidden=true;qrCode.removeAttribute('src');secret.textContent='';code.value='';await load();}catch(e){status.textContent=e.message;}});
