@@ -935,6 +935,12 @@ footer a {
   min-height: 18px;
   margin-top: 12px !important;
 }
+.inline-status.weak {
+  color: var(--danger);
+}
+#strong-auth-status + .secondary-button.flush {
+  margin-top: 10px;
+}
 .account-summary dl {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

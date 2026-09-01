@@ -193,6 +193,17 @@
               <dd>{{if .IsSuperadmin}}Superadmin{{else}}Usuário{{end}}</dd>
             </div>
           </dl>
+          <p
+            class="inline-status"
+            id="strong-auth-status"
+            role="status"
+            aria-live="polite"
+          ></p>
+          <a
+            class="secondary-button flush"
+            href="/login?auth=strong&amp;return_to=/account"
+            >Confirmar identidade novamente</a
+          >
         </section>
 
         <section class="settings-card account-summary">
