@@ -679,7 +679,8 @@ input::placeholder {
 .button-grid .secondary-button {
   margin: 0;
 }
-.error-message {
+.error-message,
+.form-error {
   margin-top: 16px;
   padding: 12px;
   border: 1px solid color-mix(in srgb, var(--danger) 25%, var(--line));

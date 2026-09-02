@@ -7,22 +7,55 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identitystrong"
+	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identitywebauthn"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/oidc"
 )
 
 type oauthHandlers struct {
-	oidc *oidc.Service
-	auth *identityAuthHandlers
+	oidc     *oidc.Service
+	auth     *identityAuthHandlers
+	webauthn *identitywebauthn.Service
+	strong   *identitystrong.Service
 }
 
 func newOAuthHandlers(
 	oidcService *oidc.Service,
 	authHandlers *identityAuthHandlers,
+	webauthnService *identitywebauthn.Service,
+	strongService *identitystrong.Service,
 ) *oauthHandlers {
 	return &oauthHandlers{
-		oidc: oidcService,
-		auth: authHandlers,
+		oidc:     oidcService,
+		auth:     authHandlers,
+		webauthn: webauthnService,
+		strong:   strongService,
 	}
+}
+
+// redirectToStrongSetup sends a user who cannot possibly satisfy a step-up
+// challenge (no passkey, no TOTP) to the account page to enroll one, instead
+// of the step-up screen, which would otherwise be a dead end. The original
+// authorize request is preserved so the account page can offer a way back in.
+func (h *oauthHandlers) redirectToStrongSetup(w http.ResponseWriter, r *http.Request) {
+	values := url.Values{
+		"strong_setup_required": {"1"},
+		"continue_to":           {r.URL.RequestURI()},
+	}
+	http.Redirect(w, r, "/account?"+values.Encode(), http.StatusSeeOther)
+}
+
+// hasStrongCredential reports whether the user has any credential capable of
+// satisfying a step-up/strong-auth challenge (a passkey or an enrolled TOTP
+// authenticator). Users with neither can never complete a step-up prompt, so
+// callers must route them to enroll one instead of showing that prompt.
+func (h *oauthHandlers) hasStrongCredential(r *http.Request, userID string) bool {
+	credentials, err := h.webauthn.ListCredentials(r.Context(), userID)
+	if err == nil && len(credentials) > 0 {
+		return true
+	}
+	totpEnabled, err := h.strong.TOTPStatus(r.Context(), userID)
+	return err == nil && totpEnabled
 }
 
 func (h *oauthHandlers) authorize(
@@ -67,11 +100,19 @@ func (h *oauthHandlers) authorize(
 	if validated.RequireWebAuthn {
 		maxAge := time.Duration(validated.MaxAgeSeconds) * time.Second
 		if !recentWebAuthnSession(session.Session, maxAge, time.Now()) {
+			if !h.hasStrongCredential(r, session.User.ID) {
+				h.redirectToStrongSetup(w, r)
+				return
+			}
 			loginURL := "/login?return_to=" + url.QueryEscape(r.URL.RequestURI()) + "&auth=webauthn"
 			http.Redirect(w, r, loginURL, http.StatusSeeOther)
 			return
 		}
 	} else if validated.Application.AuthenticationPolicy == "strong" && !strongSessionMethod(session.Session.AuthMethod) {
+		if !h.hasStrongCredential(r, session.User.ID) {
+			h.redirectToStrongSetup(w, r)
+			return
+		}
 		loginURL := "/login?return_to=" + url.QueryEscape(r.URL.RequestURI()) + "&auth=strong"
 		http.Redirect(w, r, loginURL, http.StatusSeeOther)
 		return
