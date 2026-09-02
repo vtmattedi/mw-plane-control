@@ -41,6 +41,19 @@
     </header>
 
     <main class="account-shell">
+      <div class="notice" id="strong-setup-banner" hidden>
+        <span
+          ><svg class="icon" aria-hidden="true">
+            <use href="/static/icons.svg#shield" /></svg
+        ></span>
+        <p>
+          <strong>Configuração necessária</strong>O aplicativo que você
+          estava acessando exige uma confirmação reforçada (passkey ou
+          autenticador). Configure um método abaixo e depois
+          <a id="strong-setup-continue" href="#">continue por aqui</a>.
+        </p>
+      </div>
+
       <section class="account-hero">
         <div class="account-avatar" aria-hidden="true">
           {{if .DisplayName}}{{slice .DisplayName 0 1}}{{else}}MW{{end}}
@@ -282,5 +295,18 @@
     </main>
     <script src="/webauthn-account.js" defer></script>
     <script src="/strong-account.js" defer></script>
+    <script>
+      (function () {
+        var params = new URLSearchParams(location.search);
+        if (params.get("strong_setup_required") !== "1") return;
+        var continueTo = params.get("continue_to");
+        if (!continueTo || continueTo.charAt(0) !== "/") return;
+        var banner = document.getElementById("strong-setup-banner");
+        var link = document.getElementById("strong-setup-continue");
+        if (!banner || !link) return;
+        link.href = continueTo;
+        banner.hidden = false;
+      })();
+    </script>
   </body>
 </html>

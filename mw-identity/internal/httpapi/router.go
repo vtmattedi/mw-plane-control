@@ -43,7 +43,7 @@ func New(
 	}
 
 	authHandlers := newIdentityAuthHandlers(authService, authConfig)
-	oauthHandlers := newOAuthHandlers(oidcService, authHandlers)
+	oauthHandlers := newOAuthHandlers(oidcService, authHandlers, identityWebAuthnService, identityStrongService)
 	adminHandlers := newIdentityAdminHandlers(oidcService, identityAdminService, identityStrongService, authService, strongMaxAge)
 	webAuthnHandlers := newIdentityWebAuthnHandlers(identityWebAuthnService, authHandlers, strongMaxAge)
 	strongHandlers := newIdentityStrongHandlers(identityStrongService, identityWebAuthnService, authHandlers, strongMaxAge)
