@@ -37,7 +37,8 @@ Configure Stackport with:
 
 - Name: `mw-plane-control`
 - Compose file: `docker-compose.stackport.yml`
-- Internal port: assigned by Stackport through `${{SP:AUTO}}`
+- Public route service: `gateway`
+- Public route container port: `8080` (HTTP)
 - Primary domain: `admin.mattediworks.com`
 - Health endpoint: `/_gateway-health`
 - Health interval: `30` seconds
@@ -47,13 +48,21 @@ Use the heavily documented root `.env.example` as the canonical key/value
 checklist, replacing every placeholder with a production secret. Do not commit
 the resulting `.env`.
 
-Only the Gateway publishes a host port. Identity and BFF are private Compose
-services, and both SQLite databases use persistent named volumes.
+Managed Stackport projects do not allow host port publication. This Compose file
+uses `expose` for Gateway (`8080`), Identity (`7100`), and BFF (`7200`), with no
+`ports` entries. Both SQLite databases use persistent named volumes. The default
+`docker-compose.yml` and `docker-compose-dev.yml` are local configurations; select
+`docker-compose.stackport.yml` explicitly in Stackport.
 
 The Gateway accepts both `admin.mattediworks.com` and
-`identity.mattediworks.com` on the same published port. Stackport's primary
-route covers the admin hostname; the Identity hostname must also be routed by
-the host Nginx to that same internal port and have its own TLS certificate.
+`identity.mattediworks.com` on container port `8080`. Configure both public routes
+in the project's domain settings:
+
+- `admin.mattediworks.com` -> `gateway` -> `8080`
+- `identity.mattediworks.com` -> `gateway` -> `8080`
+
+Stackport handles public HTTPS and certificates. Preserve the request hostname
+when forwarding to the Gateway so Nginx selects the correct virtual host.
 
 Before deployment, the production Identity application for the BFF must allow:
 
@@ -61,13 +70,11 @@ Before deployment, the production Identity application for the BFF must allow:
 - Scopes: `openid profile email identity.admin`
 - Audience: `mw-identity-admin`
 
-The `${{SP:AUTO}}` Gateway port is a Stackport template token. Stackport replaces
-it before invoking Docker Compose, so a stock local Compose command cannot parse
-the unprocessed production file. Validate the local service topology and the
-production frontend image with:
+Validate the production Compose file without printing its resolved secrets, and
+build the production frontend image with:
 
 ```powershell
-docker compose --env-file .env -f docker-compose-dev.yml config
+docker compose --env-file .env -f docker-compose.stackport.yml config --quiet
 docker build -f infra/gateway/Dockerfile.stackport `
   --build-arg VITE_ADMIN_API_BASE_URL=https://admin.mattediworks.com/api `
   --build-arg VITE_IDENTITY_PUBLIC_URL=https://identity.mattediworks.com `

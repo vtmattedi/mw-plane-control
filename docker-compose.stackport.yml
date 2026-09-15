@@ -7,8 +7,8 @@ services:
         VITE_ADMIN_API_BASE_URL: "${VITE_ADMIN_API_BASE_URL:-https://admin.mattediworks.com/api}"
         VITE_IDENTITY_PUBLIC_URL: "${VITE_IDENTITY_PUBLIC_URL:-https://identity.mattediworks.com}"
         VITE_EMAIL_API_BASE_URL: "${VITE_EMAIL_API_BASE_URL:-https://mailgo.mattediworks.com}"
-    ports:
-      - "127.0.0.1:7007:8080"
+    expose:
+      - "8080"
     depends_on:
       mw-bff:
         condition: service_healthy
