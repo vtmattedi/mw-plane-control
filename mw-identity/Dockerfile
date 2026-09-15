@@ -65,6 +65,11 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -o /out/config-check \
     ./cmd/config-check
 
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
+    -o /out/recovery \
+    ./cmd/recovery
+
 FROM alpine:3.22
 
 RUN apk add --no-cache ca-certificates tzdata \
@@ -86,6 +91,7 @@ COPY --from=build /out/backup-db /app/backup-db
 COPY --from=build /out/verify-db /app/verify-db
 COPY --from=build /out/maintenance /app/maintenance
 COPY --from=build /out/config-check /app/config-check
+COPY --from=build /out/recovery /app/recovery
 
 USER app
 

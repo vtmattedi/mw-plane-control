@@ -3,6 +3,7 @@ module github.com/vtmattedi/mw-plane-control/mw-identity
 go 1.26.5
 
 require (
+	filippo.io/age v1.3.2
 	github.com/go-webauthn/webauthn v0.17.4
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	golang.org/x/crypto v0.55.0
@@ -11,6 +12,7 @@ require (
 )
 
 require (
+	filippo.io/hpke v0.4.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.2 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
