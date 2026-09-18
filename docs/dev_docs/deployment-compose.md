@@ -29,6 +29,9 @@ volumes.
 
 ## Stackport
 
+For domain setup, first root login, and OAuth/Mail/WOI registration, follow
+[Stackport onboarding](stackport-onboarding.md).
+
 Stackport must use `docker-compose.stackport.yml`. Its Gateway image runs the
 Vite production build and copies `dist` into Nginx. The Identity Docker build
 compiles the HTML/CSS/JS/SVG portal into the Go server through `go:embed`.

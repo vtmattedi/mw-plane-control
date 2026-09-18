@@ -12,25 +12,28 @@ mw-identity
 
 `mw-web-admin` is a build-time project, not a runtime container.
 
-## One published host port
+## Managed Stackport ingress
 
-Only gateway publishes a host/loopback port.
+Managed projects never publish host ports. Gateway exposes container port 8080.
 
 Target shape:
 
 ```text
-127.0.0.1:<host-port> -> gateway:8080
+Stackport nginx -> gateway:8080 over stackport-proxy
 ```
 
 BFF and Identity use private Docker ports only.
 
-This keeps StackPort close to:
+Configure each domain with its service and container port:
 
 ```text
-one Compose stack -> one target port
+admin.mattediworks.com -> gateway:8080
+identity.mattediworks.com -> gateway:8080
 ```
 
-while extending it to permit multiple domains pointing to that target.
+Stackport attaches routed services to its proxy network. Local Compose files may
+publish loopback ports for native development; the managed production file must
+not contain `ports` or host networking.
 
 ## Gateway routing
 
@@ -108,7 +111,7 @@ https://identity.mattediworks.com
 
 Plan one private control-plane network.
 
-Only gateway is host-facing.
+Only gateway is attached to public domain routes.
 
 BFF and Identity are reachable by Docker service DNS names.
 
@@ -123,7 +126,7 @@ federation.
 
 Outer StackPort/host Nginx terminates TLS.
 
-Inner gateway can use HTTP on loopback/private networking.
+Inner gateway uses HTTP on private Docker networking.
 
 The canonical public issuer/origins come from fixed trusted configuration, not
 from Docker service names.
