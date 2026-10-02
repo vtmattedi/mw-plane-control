@@ -121,6 +121,7 @@ func (s *Store) UpdateIdentityApplication(
 		`UPDATE identity_applications
 		 SET name = ?,
 		     authentication_policy = ?,
+		     access_policy = ?,
 		     delete_callback_uri = ?,
 		     allow_public_signup = ?,
 		     updated_at_unix = ?
@@ -128,6 +129,7 @@ func (s *Store) UpdateIdentityApplication(
 		   AND archived_at_unix IS NULL`,
 		value.Name,
 		value.AuthenticationPolicy,
+		value.AccessPolicy,
 		nullableString(value.DeleteCallbackURI),
 		boolInt(value.AllowPublicSignup),
 		now.Unix(),
@@ -145,6 +147,28 @@ func (s *Store) UpdateIdentityApplication(
 	}
 	if affected != 1 {
 		return identityadmin.ErrNotFound
+	}
+	if value.AccessPolicy == "default_deny" {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM identity_authorization_codes
+			WHERE client_id = (SELECT client_id FROM identity_applications WHERE id = ?)
+			  AND user_id NOT IN (
+				SELECT user_id FROM identity_application_assignments
+				WHERE application_id = ? AND access_effect = 'allow'
+			  )
+			  AND user_id NOT IN (SELECT id FROM identity_users WHERE is_superadmin = 1)`, id, id); err != nil {
+			return fmt.Errorf("revoke authorization codes after access policy update: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE identity_access_tokens
+			SET revoked_at_unix = ?
+			WHERE client_id = (SELECT client_id FROM identity_applications WHERE id = ?)
+			  AND revoked_at_unix IS NULL
+			  AND user_id NOT IN (
+				SELECT user_id FROM identity_application_assignments
+				WHERE application_id = ? AND access_effect = 'allow'
+			  )
+			  AND user_id NOT IN (SELECT id FROM identity_users WHERE is_superadmin = 1)`, now.Unix(), id, id); err != nil {
+			return fmt.Errorf("revoke access tokens after access policy update: %w", err)
+		}
 	}
 
 	for _, table := range []string{
@@ -455,6 +479,7 @@ func (s *Store) ListIdentityAssignments(
 			application_id,
 			user_id,
 			role,
+			access_effect,
 			created_at_unix,
 			updated_at_unix
 		 FROM identity_application_assignments
@@ -481,6 +506,7 @@ func (s *Store) ListIdentityAssignments(
 			&value.ApplicationID,
 			&value.UserID,
 			&value.Role,
+			&value.AccessEffect,
 			&createdUnix,
 			&updatedUnix,
 		); err != nil {
@@ -506,22 +532,30 @@ func (s *Store) UpsertIdentityAssignment(
 	ctx context.Context,
 	value identityadmin.Assignment,
 ) error {
-	_, err := s.db.ExecContext(
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin upsert Identity assignment: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	_, err = tx.ExecContext(
 		ctx,
 		`INSERT INTO identity_application_assignments (
 			application_id,
 			user_id,
 			role,
+			access_effect,
 			created_at_unix,
 			updated_at_unix
-		) VALUES (?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?)
 		ON CONFLICT(application_id, user_id)
 		DO UPDATE SET
 			role = excluded.role,
+			access_effect = excluded.access_effect,
 			updated_at_unix = excluded.updated_at_unix`,
 		value.ApplicationID,
 		value.UserID,
 		value.Role,
+		value.AccessEffect,
 		value.CreatedAt.Unix(),
 		value.UpdatedAt.Unix(),
 	)
@@ -530,6 +564,23 @@ func (s *Store) UpsertIdentityAssignment(
 			"upsert Identity assignment: %w",
 			err,
 		)
+	}
+	if value.AccessEffect == "deny" {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM identity_authorization_codes
+			WHERE client_id = (SELECT client_id FROM identity_applications WHERE id = ?)
+			  AND user_id = ?`, value.ApplicationID, value.UserID); err != nil {
+			return fmt.Errorf("revoke denied user's authorization codes: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE identity_access_tokens
+			SET revoked_at_unix = ?
+			WHERE client_id = (SELECT client_id FROM identity_applications WHERE id = ?)
+			  AND user_id = ?
+			  AND revoked_at_unix IS NULL`, value.UpdatedAt.Unix(), value.ApplicationID, value.UserID); err != nil {
+			return fmt.Errorf("revoke denied user's access tokens: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit Identity assignment: %w", err)
 	}
 	return nil
 }
@@ -575,7 +626,8 @@ func (s *Store) IdentityAssignmentRole(
 		`SELECT role
 		 FROM identity_application_assignments
 		 WHERE application_id = ?
-		   AND user_id = ?`,
+		   AND user_id = ?
+		   AND access_effect = 'allow'`,
 		applicationID,
 		userID,
 	).Scan(&role)
@@ -592,6 +644,40 @@ func (s *Store) IdentityAssignmentRole(
 	return role, nil
 }
 
+func (s *Store) IdentityAssignment(
+	ctx context.Context,
+	applicationID string,
+	userID string,
+) (identityadmin.Assignment, error) {
+	var value identityadmin.Assignment
+	var createdUnix, updatedUnix int64
+	err := s.db.QueryRowContext(
+		ctx,
+		`SELECT application_id, user_id, role, access_effect,
+		        created_at_unix, updated_at_unix
+		 FROM identity_application_assignments
+		 WHERE application_id = ? AND user_id = ?`,
+		applicationID,
+		userID,
+	).Scan(
+		&value.ApplicationID,
+		&value.UserID,
+		&value.Role,
+		&value.AccessEffect,
+		&createdUnix,
+		&updatedUnix,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return identityadmin.Assignment{}, identityadmin.ErrNotFound
+	}
+	if err != nil {
+		return identityadmin.Assignment{}, fmt.Errorf("load Identity assignment: %w", err)
+	}
+	value.CreatedAt = time.Unix(createdUnix, 0).UTC()
+	value.UpdatedAt = time.Unix(updatedUnix, 0).UTC()
+	return value, nil
+}
+
 func (s *Store) IdentityAssignmentRoleByClientID(
 	ctx context.Context,
 	clientID string,
@@ -605,7 +691,8 @@ func (s *Store) IdentityAssignmentRoleByClientID(
 		 JOIN identity_applications p
 		   ON p.id = a.application_id
 		 WHERE p.client_id = ?
-		   AND a.user_id = ?`,
+		   AND a.user_id = ?
+		   AND a.access_effect = 'allow'`,
 		clientID,
 		userID,
 	).Scan(&role)

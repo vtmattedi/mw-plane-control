@@ -34,6 +34,7 @@ type Application = {
   client_id: string
   application_type: string
   authentication_policy: string
+  access_policy: string
   enabled: boolean
   archived_at?: string
   redirect_uris: string[]
@@ -50,6 +51,7 @@ type Application = {
 type ApplicationForm = {
   name: string
   authentication_policy: string
+  access_policy: string
   redirect_uris: string
   post_logout_redirect_uris: string
   delete_callback_uri: string
@@ -57,6 +59,20 @@ type ApplicationForm = {
   scopes: string
   claims: string
   audiences: string
+}
+
+type IdentityUser = {
+  id: string
+  email: string
+  display_name: string
+  is_superadmin: boolean
+}
+
+type Assignment = {
+  application_id: string
+  user_id: string
+  role: 'user' | 'admin' | 'superadmin'
+  access_effect: 'allow' | 'deny'
 }
 
 const pendingApplicationKey = 'mw-identity-application-pending'
@@ -68,6 +84,10 @@ export function IdentityApplicationDetailPage() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [form, setForm] = useState<ApplicationForm | null>(null)
+  const [exceptionUserID, setExceptionUserID] = useState('')
+  const [exceptionRole, setExceptionRole] = useState<Assignment['role']>('user')
+  const [exceptionEffect, setExceptionEffect] =
+    useState<Assignment['access_effect']>('allow')
   const [revealedCredential, setRevealedCredential] = useState<string | null>(
     null,
   )
@@ -79,12 +99,32 @@ export function IdentityApplicationDetailPage() {
       ),
     enabled: Boolean(applicationID),
   })
+  const usersQuery = useQuery({
+    queryKey: ['identity-users-for-access'],
+    queryFn: async () =>
+      collectionFrom(
+        await controlRequest<unknown>('/identity/users'),
+        'users',
+      ) as IdentityUser[],
+  })
+  const assignmentsQuery = useQuery({
+    queryKey: ['identity-application-assignments', applicationID],
+    queryFn: async () =>
+      collectionFrom(
+        await controlRequest<unknown>(
+          `/identity/applications/${encodeURIComponent(applicationID)}/assignments`,
+        ),
+        'assignments',
+      ) as Assignment[],
+    enabled: Boolean(applicationID),
+  })
 
   useEffect(() => {
     if (!query.data) return
     const {
       name,
       authentication_policy,
+      access_policy,
       redirect_uris,
       post_logout_redirect_uris,
       delete_callback_uri,
@@ -96,6 +136,7 @@ export function IdentityApplicationDetailPage() {
     setForm({
       name,
       authentication_policy,
+      access_policy: access_policy || 'default_deny',
       redirect_uris: (redirect_uris ?? []).join(', '),
       post_logout_redirect_uris: (post_logout_redirect_uris ?? []).join(', '),
       delete_callback_uri: delete_callback_uri ?? '',
@@ -105,6 +146,60 @@ export function IdentityApplicationDetailPage() {
       audiences: (audiences ?? []).join(', '),
     })
   }, [query.data])
+
+  const accessMutation = useMutation({
+    mutationFn: (operation: {
+      userID: string
+      method: 'PUT' | 'DELETE'
+      role?: Assignment['role']
+      accessEffect?: Assignment['access_effect']
+    }) =>
+      controlRequest(
+        `/identity/applications/${encodeURIComponent(applicationID)}/assignments/${encodeURIComponent(operation.userID)}`,
+        {
+          method: operation.method,
+          body:
+            operation.method === 'PUT'
+              ? JSON.stringify({
+                  role: operation.role ?? 'user',
+                  access_effect: operation.accessEffect ?? 'allow',
+                })
+              : undefined,
+        },
+      ),
+    onSuccess: () => {
+      toast.success(tr('Exceção de acesso atualizada.'))
+      setExceptionUserID('')
+      void assignmentsQuery.refetch()
+    },
+    onError: (error) =>
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : tr('Não foi possível atualizar a exceção de acesso.'),
+      ),
+  })
+
+  const users = useMemo(() => usersQuery.data ?? [], [usersQuery.data])
+  const assignments = assignmentsQuery.data ?? []
+  const usersByID = useMemo(
+    () => new Map(users.map((user) => [user.id, user])),
+    [users],
+  )
+  const selectedExceptionUser = usersByID.get(exceptionUserID)
+
+  function saveAccessException() {
+    if (!exceptionUserID) return
+    accessMutation.mutate({
+      userID: exceptionUserID,
+      method: 'PUT',
+      role: exceptionRole,
+      accessEffect:
+        selectedExceptionUser?.is_superadmin || exceptionRole !== 'user'
+          ? 'allow'
+          : exceptionEffect,
+    })
+  }
 
   const mutation = useMutation({
     mutationFn: (operation: {
@@ -300,6 +395,21 @@ export function IdentityApplicationDetailPage() {
                       <option value="strong">Strong</option>
                     </Select>
                   </Field>
+                  <Field label={tr('Política de acesso')}>
+                    <Select
+                      onChange={(event) =>
+                        setForm({ ...form, access_policy: event.target.value })
+                      }
+                      value={form.access_policy}
+                    >
+                      <option value="default_deny">
+                        {tr('Negar por padrão')}
+                      </option>
+                      <option value="default_allow">
+                        {tr('Permitir por padrão')}
+                      </option>
+                    </Select>
+                  </Field>
                   <Field className="sm:col-span-2" label="Redirect URIs">
                     <Input
                       onChange={(redirect_uris) =>
@@ -366,7 +476,7 @@ export function IdentityApplicationDetailPage() {
                 </div>
               </fieldset>
               {!query.data.archived_at && (
-                <div className="flex flex-wrap gap-3">
+                <div className="mt-6 flex flex-wrap gap-3">
                   <Button
                     disabled={
                       mutation.isPending ||
@@ -424,6 +534,152 @@ export function IdentityApplicationDetailPage() {
           )}
         </CardContent>
       </Card>
+      {query.data && (
+        <Card className="border-border/70 mt-6 shadow-sm">
+          <CardHeader>
+            <CardTitle>{tr('Exceções de acesso')}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <p className="text-muted-foreground text-sm leading-6">
+              {tr(
+                'As exceções substituem a política padrão. Superadmins e administradores não podem ser bloqueados.',
+              )}
+            </p>
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem_10rem_auto]">
+              <Select
+                disabled={accessMutation.isPending}
+                onChange={(event) => setExceptionUserID(event.target.value)}
+                value={exceptionUserID}
+              >
+                <option value="">{tr('Selecione um usuário')}</option>
+                {users.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.display_name || user.email} ({user.email})
+                    {user.is_superadmin ? ' — Superadmin' : ''}
+                  </option>
+                ))}
+              </Select>
+              <Select
+                disabled={accessMutation.isPending}
+                onChange={(event) => {
+                  const role = event.target.value as Assignment['role']
+                  setExceptionRole(role)
+                  if (role !== 'user') setExceptionEffect('allow')
+                }}
+                value={exceptionRole}
+              >
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+                <option value="superadmin">Superadmin</option>
+              </Select>
+              <Select
+                disabled={
+                  accessMutation.isPending ||
+                  selectedExceptionUser?.is_superadmin ||
+                  exceptionRole !== 'user'
+                }
+                onChange={(event) =>
+                  setExceptionEffect(
+                    event.target.value as Assignment['access_effect'],
+                  )
+                }
+                value={
+                  selectedExceptionUser?.is_superadmin ||
+                  exceptionRole !== 'user'
+                    ? 'allow'
+                    : exceptionEffect
+                }
+              >
+                <option value="allow">{tr('Permitir')}</option>
+                <option value="deny">{tr('Bloquear')}</option>
+              </Select>
+              <Button
+                disabled={!exceptionUserID || accessMutation.isPending}
+                onClick={saveAccessException}
+              >
+                {tr('Salvar exceção')}
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {assignments.map((assignment) => {
+                const user = usersByID.get(assignment.user_id)
+                const protectedAdmin =
+                  user?.is_superadmin ||
+                  assignment.role === 'admin' ||
+                  assignment.role === 'superadmin'
+                return (
+                  <div
+                    className="border-border flex flex-wrap items-center gap-3 rounded-xl border p-3 text-sm"
+                    key={assignment.user_id}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium break-all">
+                        {user?.display_name ||
+                          user?.email ||
+                          assignment.user_id}
+                      </p>
+                      <p className="text-muted-foreground break-all">
+                        {user?.email ?? assignment.user_id} · {assignment.role}{' '}
+                        ·{' '}
+                        {tr(
+                          assignment.access_effect === 'allow'
+                            ? 'Permitido'
+                            : 'Bloqueado',
+                        )}
+                      </p>
+                    </div>
+                    <Button
+                      disabled={accessMutation.isPending}
+                      onClick={() =>
+                        accessMutation.mutate({
+                          userID: assignment.user_id,
+                          method: 'PUT',
+                          role: assignment.role,
+                          accessEffect: 'allow',
+                        })
+                      }
+                      variant="outline"
+                    >
+                      {tr('Permitir')}
+                    </Button>
+                    <Button
+                      disabled={accessMutation.isPending || protectedAdmin}
+                      onClick={() =>
+                        accessMutation.mutate({
+                          userID: assignment.user_id,
+                          method: 'PUT',
+                          role: 'user',
+                          accessEffect: 'deny',
+                        })
+                      }
+                      variant="outline"
+                    >
+                      {tr('Bloquear')}
+                    </Button>
+                    <Button
+                      disabled={accessMutation.isPending}
+                      onClick={() =>
+                        accessMutation.mutate({
+                          userID: assignment.user_id,
+                          method: 'DELETE',
+                        })
+                      }
+                      variant="outline"
+                    >
+                      {tr('Usar padrão')}
+                    </Button>
+                  </div>
+                )
+              })}
+              {!assignmentsQuery.isPending && assignments.length === 0 && (
+                <p className="text-muted-foreground text-sm">
+                  {tr('Nenhuma exceção configurada.')}
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
       {query.data && (
         <Card className="border-destructive/25 mt-6 shadow-sm">
           <CardHeader>
@@ -608,25 +864,37 @@ export function IdentityUserDetailPage() {
                 value={user.is_superadmin === true ? tr('Sim') : tr('Não')}
               />
               <Value
+                label={tr('Tipo de conta')}
+                value={tr(
+                  user.account_type === 'public'
+                    ? 'Conta pública'
+                    : 'Conta corporativa',
+                )}
+              />
+              <Value
                 label={tr('Criado em')}
                 value={new Date(String(user.created_at)).toLocaleString()}
               />
             </div>
           )}
-          <Button
-            disabled={!user || revoke.isPending}
-            onClick={() => void revokeSessions()}
-            variant="destructive"
-          >
-            <ShieldCheck /> {tr('Revogar sessões')}
-          </Button>
-          <Button
-            disabled={!user || user.is_superadmin === true || remove.isPending}
-            onClick={() => void deleteUser()}
-            variant="destructive"
-          >
-            <Trash2 /> {tr('Excluir conta')}
-          </Button>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              disabled={!user || revoke.isPending}
+              onClick={() => void revokeSessions()}
+              variant="destructive"
+            >
+              <ShieldCheck /> {tr('Revogar sessões')}
+            </Button>
+            <Button
+              disabled={
+                !user || user.is_superadmin === true || remove.isPending
+              }
+              onClick={() => void deleteUser()}
+              variant="destructive"
+            >
+              <Trash2 /> {tr('Excluir conta')}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </DetailShell>

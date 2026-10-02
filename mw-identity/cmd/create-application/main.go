@@ -40,6 +40,11 @@ func main() {
 		"standard",
 		"application authentication policy",
 	)
+	accessPolicy := flag.String(
+		"access-policy",
+		"default_deny",
+		"application access policy: default_allow or default_deny",
+	)
 	deleteCallbackURI := flag.String(
 		"delete-callback-uri",
 		"",
@@ -154,6 +159,7 @@ func main() {
 			ClientID:               *clientID,
 			ApplicationType:        *appType,
 			AuthenticationPolicy:   *policy,
+			AccessPolicy:           *accessPolicy,
 			RedirectURIs:           redirectURIs,
 			PostLogoutRedirectURIs: postLogoutURIs,
 			DeleteCallbackURI:      *deleteCallbackURI,

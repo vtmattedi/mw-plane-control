@@ -27,15 +27,16 @@ type TokenExchangeRequest struct {
 }
 
 type IntrospectionResponse struct {
-	Active     bool     `json:"active"`
-	Subject    string   `json:"sub,omitempty"`
-	Audience   string   `json:"aud,omitempty"`
-	Scope      string   `json:"scope,omitempty"`
-	ClientID   string   `json:"client_id,omitempty"`
-	ExpiresAt  int64    `json:"exp,omitempty"`
-	IssuedAt   int64    `json:"iat,omitempty"`
-	AuthTime   int64    `json:"auth_time,omitempty"`
-	AuthMethod []string `json:"amr,omitempty"`
+	Active      bool     `json:"active"`
+	Subject     string   `json:"sub,omitempty"`
+	Audience    string   `json:"aud,omitempty"`
+	Scope       string   `json:"scope,omitempty"`
+	ClientID    string   `json:"client_id,omitempty"`
+	ExpiresAt   int64    `json:"exp,omitempty"`
+	IssuedAt    int64    `json:"iat,omitempty"`
+	AuthTime    int64    `json:"auth_time,omitempty"`
+	AuthMethod  []string `json:"amr,omitempty"`
+	AccountType string   `json:"mw_account_type,omitempty"`
 }
 
 func (s *Service) ExchangeToken(
@@ -244,13 +245,14 @@ func (s *Service) Introspect(
 	}
 
 	response := IntrospectionResponse{
-		Active:    true,
-		Subject:   token.UserID,
-		Audience:  token.Audience,
-		Scope:     strings.Join(token.Scopes, " "),
-		ClientID:  token.ClientID,
-		ExpiresAt: token.ExpiresAt.Unix(),
-		IssuedAt:  token.CreatedAt.Unix(),
+		Active:      true,
+		Subject:     token.UserID,
+		Audience:    token.Audience,
+		Scope:       strings.Join(token.Scopes, " "),
+		ClientID:    token.ClientID,
+		ExpiresAt:   token.ExpiresAt.Unix(),
+		IssuedAt:    token.CreatedAt.Unix(),
+		AccountType: normalizedAccountType(user.AccountType),
 	}
 	if !token.AuthTime.IsZero() && token.AuthTime.Unix() > 0 {
 		response.AuthTime = token.AuthTime.Unix()

@@ -99,16 +99,37 @@ func (s *Service) AuthorizeIdentityUser(
 		) {
 		return nil
 	}
+	// Global superadmins cannot be blocked by an application's default policy
+	// or a per-user exception. The Identity Admin audience remains protected by
+	// the identity.admin scope check above.
+	if user.IsSuperadmin && !contains(
+		authorization.Application.Audiences,
+		IdentityAdminAudience,
+	) {
+		return nil
+	}
 
-	_, err := s.store.IdentityAssignmentRole(
+	assignment, err := s.store.IdentityAssignment(
 		ctx,
 		authorization.Application.ID,
 		user.ID,
 	)
 	if err == nil {
-		return nil
+		if accessAllowedByApplicationPolicy(
+			authorization.Application,
+			&assignment,
+		) {
+			return nil
+		}
+		return accessDenied()
 	}
 	if errors.Is(err, identityadmin.ErrNotFound) {
+		if accessAllowedByApplicationPolicy(
+			authorization.Application,
+			nil,
+		) {
+			return nil
+		}
 		return accessDenied()
 	}
 
@@ -117,10 +138,20 @@ func (s *Service) AuthorizeIdentityUser(
 	)
 }
 
+func accessAllowedByApplicationPolicy(
+	application applications.Application,
+	assignment *identityadmin.Assignment,
+) bool {
+	if assignment != nil {
+		return assignment.AccessEffect == "allow"
+	}
+	return application.AccessPolicy == "default_allow"
+}
+
 func accessDenied() *ProtocolError {
 	return &ProtocolError{
 		Code:            "access_denied",
-		Description:     "identity is not assigned to this application",
+		Description:     "identity is denied by the application access policy",
 		HTTPStatus:      403,
 		RedirectAllowed: true,
 	}

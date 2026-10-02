@@ -309,10 +309,7 @@ func (s *Service) ExchangeCode(
 		return TokenResponse{}, serverError("token generation failed")
 	}
 
-	accountType := strings.TrimSpace(user.AccountType)
-	if accountType == "" {
-		accountType = "workforce"
-	}
+	accountType := normalizedAccountType(user.AccountType)
 	idClaims := map[string]any{
 		"iss":             s.config.Issuer,
 		"sub":             user.ID,
@@ -416,10 +413,7 @@ func (s *Service) UserInfo(
 		return nil, invalidToken()
 	}
 
-	accountType := strings.TrimSpace(user.AccountType)
-	if accountType == "" {
-		accountType = "workforce"
-	}
+	accountType := normalizedAccountType(user.AccountType)
 	claims := map[string]any{
 		"sub":             user.ID,
 		"mw_account_type": accountType,
@@ -436,6 +430,14 @@ func (s *Service) UserInfo(
 	}
 
 	return claims, nil
+}
+
+func normalizedAccountType(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "workforce"
+	}
+	return value
 }
 
 func normalizedAuthMethod(value string) string {
