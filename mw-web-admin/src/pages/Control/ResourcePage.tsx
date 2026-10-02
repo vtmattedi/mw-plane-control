@@ -89,6 +89,7 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
     clientID: '',
     applicationType: 'confidential',
     authenticationPolicy: 'standard',
+    accessPolicy: 'default_deny',
     redirectURIs: '',
     postLogoutRedirectURIs: '',
     deleteCallbackURI: '',
@@ -299,14 +300,12 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
         client_id: createFields.clientID.trim(),
         application_type: createFields.applicationType,
         authentication_policy: createFields.authenticationPolicy,
+        access_policy: createFields.accessPolicy,
         redirect_uris: splitFormValues(createFields.redirectURIs),
         post_logout_redirect_uris: splitFormValues(
           createFields.postLogoutRedirectURIs,
         ),
-        delete_callback_uri:
-          createFields.applicationType === 'public'
-            ? trimPastedValue(createFields.deleteCallbackURI)
-            : '',
+        delete_callback_uri: trimPastedValue(createFields.deleteCallbackURI),
         allow_public_signup: createFields.allowPublicSignup,
         scopes: splitFormValues(createFields.scopes),
         claims: splitFormValues(createFields.claims),
@@ -615,6 +614,25 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
                     <option value="strong">{tr('Forte')}</option>
                   </Select>
                 </CreateField>
+                <CreateField label={tr('Política de acesso')}>
+                  <Select
+                    disabled={mutation.isPending}
+                    onChange={(event) =>
+                      setCreateFields((value) => ({
+                        ...value,
+                        accessPolicy: event.target.value,
+                      }))
+                    }
+                    value={createFields.accessPolicy}
+                  >
+                    <option value="default_deny">
+                      {tr('Negar por padrão')}
+                    </option>
+                    <option value="default_allow">
+                      {tr('Permitir por padrão')}
+                    </option>
+                  </Select>
+                </CreateField>
                 <CreateField
                   className="sm:col-span-2"
                   label={tr('URIs de redirecionamento')}
@@ -644,24 +662,22 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
                     value={createFields.postLogoutRedirectURIs}
                   />
                 </CreateField>
-                {createFields.allowPublicSignup && (
-                  <CreateField
-                    className="sm:col-span-2"
-                    label={tr('Callback de exclusão de conta')}
-                  >
-                    <Input
-                      disabled={mutation.isPending}
-                      onChange={(deleteCallbackURI) =>
-                        setCreateFields((value) => ({
-                          ...value,
-                          deleteCallbackURI,
-                        }))
-                      }
-                      placeholder="https://app.example.com/internal/identity/account-deleted"
-                      value={createFields.deleteCallbackURI}
-                    />
-                  </CreateField>
-                )}
+                <CreateField
+                  className="sm:col-span-2"
+                  label={tr('Callback de exclusão de conta')}
+                >
+                  <Input
+                    disabled={mutation.isPending}
+                    onChange={(deleteCallbackURI) =>
+                      setCreateFields((value) => ({
+                        ...value,
+                        deleteCallbackURI,
+                      }))
+                    }
+                    placeholder="https://app.example.com/internal/identity/account-deleted"
+                    value={createFields.deleteCallbackURI}
+                  />
+                </CreateField>
                 <CreateField label={tr('Cadastro público')}>
                   <Select
                     disabled={mutation.isPending}

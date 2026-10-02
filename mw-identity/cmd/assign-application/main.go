@@ -19,6 +19,7 @@ func main() {
 	email := flag.String("email", "", "Identity user email")
 	clientID := flag.String("client-id", "", "Identity application client_id")
 	role := flag.String("role", "user", "assignment role: user, admin, or superadmin")
+	accessEffect := flag.String("access", "allow", "access exception: allow or deny")
 	flag.Parse()
 
 	normalizedEmail, err := auth.NormalizeEmail(strings.TrimSpace(*email))
@@ -71,16 +72,18 @@ func main() {
 		app.ID,
 		user.ID,
 		strings.TrimSpace(*role),
+		strings.TrimSpace(*accessEffect),
 	)
 	if err != nil {
 		fatal(err.Error())
 	}
 
 	fmt.Printf(
-		"assigned %s to %s as %s\n",
+		"set %s access to %s as %s (%s)\n",
 		user.ID,
 		app.ClientID,
 		assignment.Role,
+		assignment.AccessEffect,
 	)
 }
 

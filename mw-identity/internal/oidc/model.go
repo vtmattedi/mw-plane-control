@@ -6,6 +6,7 @@ import (
 
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/applications"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/auth"
+	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identityadmin"
 )
 
 type AuthorizationRequest struct {
@@ -91,6 +92,11 @@ type Store interface {
 		string,
 		string,
 	) (string, error)
+	IdentityAssignment(
+		context.Context,
+		string,
+		string,
+	) (identityadmin.Assignment, error)
 
 	IdentityUserByID(
 		context.Context,

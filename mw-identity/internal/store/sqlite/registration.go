@@ -53,8 +53,8 @@ func (s *Store) CreatePublicIdentityUser(ctx context.Context, input auth.NewUser
 		return fmt.Errorf("create public identity user: %w", err)
 	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO identity_application_assignments (
-		application_id,user_id,role,created_at_unix,updated_at_unix
-	) VALUES (?, ?, 'user', ?, ?)`, applicationID, input.ID, input.CreatedAt.Unix(), input.CreatedAt.Unix())
+		application_id,user_id,role,access_effect,created_at_unix,updated_at_unix
+	) VALUES (?, ?, 'user', 'allow', ?, ?)`, applicationID, input.ID, input.CreatedAt.Unix(), input.CreatedAt.Unix())
 	if err != nil {
 		return fmt.Errorf("assign public identity application: %w", err)
 	}

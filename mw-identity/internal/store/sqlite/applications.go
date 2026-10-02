@@ -15,6 +15,9 @@ func (s *Store) CreateApplication(
 	ctx context.Context,
 	input applications.CreateInput,
 ) error {
+	if input.AccessPolicy == "" {
+		input.AccessPolicy = "default_deny"
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf(
@@ -40,19 +43,21 @@ func (s *Store) CreateApplication(
 			client_secret_hash,
 			application_type,
 			authentication_policy,
+			access_policy,
 			enabled,
 			archived_at_unix,
 			created_at_unix,
 			updated_at_unix,
 			delete_callback_uri,
 			allow_public_signup
-		) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)`,
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)`,
 		input.ID,
 		input.Name,
 		input.ClientID,
 		secret,
 		input.ApplicationType,
 		input.AuthenticationPolicy,
+		input.AccessPolicy,
 		boolInt(input.Enabled),
 		input.CreatedAt.Unix(),
 		input.CreatedAt.Unix(),
@@ -166,6 +171,7 @@ func (s *Store) ApplicationByClientID(
 			client_secret_hash,
 			application_type,
 			authentication_policy,
+			access_policy,
 			enabled,
 			archived_at_unix,
 			created_at_unix,
@@ -182,6 +188,7 @@ func (s *Store) ApplicationByClientID(
 		&secret,
 		&app.ApplicationType,
 		&app.AuthenticationPolicy,
+		&app.AccessPolicy,
 		&enabled,
 		&archived,
 		&created,

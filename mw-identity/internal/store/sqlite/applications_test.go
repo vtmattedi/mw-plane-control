@@ -9,6 +9,7 @@ import (
 
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/applications"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identityadmin"
+	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/oidc"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/migrations"
 )
 
@@ -87,6 +88,69 @@ func TestApplicationRegistryRoundTrip(t *testing.T) {
 	}
 	if app.DeleteCallbackURI != "https://app.example.com/account-deleted" || !app.AllowPublicSignup {
 		t.Fatalf("lifecycle settings = callback %q, signup %v", app.DeleteCallbackURI, app.AllowPublicSignup)
+	}
+}
+
+func TestDenyAssignmentRevokesExistingAccessToken(t *testing.T) {
+	db, err := Open(filepath.Join(t.TempDir(), "identity.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	ctx := context.Background()
+	if err := ApplyMigrations(ctx, db, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := NewStore(db)
+	now := time.Now().UTC()
+	if err := store.CreateApplication(ctx, applications.CreateInput{
+		ID: "app_access", Name: "Access", ClientID: "access-client",
+		ApplicationType: "public", AuthenticationPolicy: "standard",
+		AccessPolicy: "default_allow", Enabled: true,
+		RedirectURIs: []string{"https://example.com/callback"},
+		Scopes:       []string{"openid"}, CreatedAt: now,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO identity_users
+		(id,email,email_normalized,display_name,password_hash,enabled,is_superadmin,created_at_unix,updated_at_unix)
+		VALUES ('usr_access','access@example.com','access@example.com','Access','hash',1,0,?,?)`, now.Unix(), now.Unix()); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.CreateAccessToken(ctx, oidc.AccessToken{
+		ID: "token_access", TokenHash: "token-hash", ClientID: "access-client",
+		UserID: "usr_access", Scopes: []string{"openid"}, AuthTime: now,
+		AuthMethod: "password", ExpiresAt: now.Add(time.Hour), CreatedAt: now,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.UpsertIdentityAssignment(ctx, identityadmin.Assignment{
+		ApplicationID: "app_access", UserID: "usr_access", Role: "user",
+		AccessEffect: "deny", CreatedAt: now, UpdatedAt: now,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.AccessTokenByHash(ctx, "token-hash", now); err == nil {
+		t.Fatal("denied user's existing access token is still valid")
+	}
+	if err := store.DeleteIdentityAssignment(ctx, "app_access", "usr_access"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.CreateAccessToken(ctx, oidc.AccessToken{
+		ID: "token_policy", TokenHash: "policy-token-hash", ClientID: "access-client",
+		UserID: "usr_access", Scopes: []string{"openid"}, AuthTime: now,
+		AuthMethod: "password", ExpiresAt: now.Add(time.Hour), CreatedAt: now,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.UpdateIdentityApplication(ctx, "app_access", identityadmin.UpdateApplication{
+		Name: "Access", AuthenticationPolicy: "standard", AccessPolicy: "default_deny",
+		RedirectURIs: []string{"https://example.com/callback"}, Scopes: []string{"openid"},
+	}, now.Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.AccessTokenByHash(ctx, "policy-token-hash", now); err == nil {
+		t.Fatal("default-deny policy left an unassigned user's access token valid")
 	}
 }
 

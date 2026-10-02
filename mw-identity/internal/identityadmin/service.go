@@ -27,6 +27,7 @@ type CreateApplicationRequest struct {
 	ClientID               string
 	ApplicationType        string
 	AuthenticationPolicy   string
+	AccessPolicy           string
 	RedirectURIs           []string
 	PostLogoutRedirectURIs []string
 	DeleteCallbackURI      string
@@ -162,6 +163,7 @@ func (s *Service) CreateApplication(
 			ClientID:               request.ClientID,
 			ApplicationType:        request.ApplicationType,
 			AuthenticationPolicy:   request.AuthenticationPolicy,
+			AccessPolicy:           request.AccessPolicy,
 			RedirectURIs:           request.RedirectURIs,
 			PostLogoutRedirectURIs: request.PostLogoutRedirectURIs,
 			DeleteCallbackURI:      request.DeleteCallbackURI,
@@ -488,11 +490,19 @@ func (s *Service) UpsertAssignment(
 	applicationID string,
 	userID string,
 	role string,
+	accessEffect string,
 ) (Assignment, error) {
 	role = strings.TrimSpace(role)
+	accessEffect = strings.TrimSpace(accessEffect)
 	if role != "user" &&
 		role != "admin" &&
 		role != "superadmin" {
+		return Assignment{}, ErrInvalid
+	}
+	if accessEffect == "" {
+		accessEffect = "allow"
+	}
+	if accessEffect != "allow" && accessEffect != "deny" {
 		return Assignment{}, ErrInvalid
 	}
 
@@ -502,14 +512,27 @@ func (s *Service) UpsertAssignment(
 	); err != nil {
 		return Assignment{}, err
 	}
-	if _, err := s.store.IdentityUserByID(
+	user, err := s.store.IdentityUserByID(
 		ctx,
 		userID,
-	); err != nil {
+	)
+	if err != nil {
 		if errors.Is(err, auth.ErrNotFound) {
 			return Assignment{}, ErrNotFound
 		}
 		return Assignment{}, err
+	}
+	if accessEffect == "deny" {
+		if user.IsSuperadmin || role == "admin" || role == "superadmin" {
+			return Assignment{}, ErrRoleForbidden
+		}
+		existing, existingErr := s.store.IdentityAssignment(ctx, applicationID, userID)
+		if existingErr == nil && (existing.Role == "admin" || existing.Role == "superadmin") {
+			return Assignment{}, ErrRoleForbidden
+		}
+		if existingErr != nil && !errors.Is(existingErr, ErrNotFound) {
+			return Assignment{}, existingErr
+		}
 	}
 
 	now := s.now().UTC()
@@ -517,6 +540,7 @@ func (s *Service) UpsertAssignment(
 		ApplicationID: applicationID,
 		UserID:        userID,
 		Role:          role,
+		AccessEffect:  accessEffect,
 		CreatedAt:     now,
 		UpdatedAt:     now,
 	}
@@ -537,6 +561,7 @@ func (s *Service) UpsertAssignment(
 			"application_id": applicationID,
 			"user_id":        userID,
 			"role":           role,
+			"access_effect":  accessEffect,
 		},
 	)
 
@@ -625,6 +650,7 @@ func normalizeUpdate(
 		strings.TrimSpace(
 			request.AuthenticationPolicy,
 		)
+	request.AccessPolicy = strings.TrimSpace(request.AccessPolicy)
 
 	if request.Name == "" {
 		return UpdateApplication{}, ErrInvalid
@@ -633,6 +659,12 @@ func normalizeUpdate(
 		request.AuthenticationPolicy = "standard"
 	}
 	if request.AuthenticationPolicy != "standard" && request.AuthenticationPolicy != "strong" {
+		return UpdateApplication{}, ErrInvalid
+	}
+	if request.AccessPolicy == "" {
+		request.AccessPolicy = "default_deny"
+	}
+	if request.AccessPolicy != "default_allow" && request.AccessPolicy != "default_deny" {
 		return UpdateApplication{}, ErrInvalid
 	}
 

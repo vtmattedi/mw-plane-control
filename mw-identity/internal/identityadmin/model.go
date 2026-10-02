@@ -34,6 +34,7 @@ const (
 type UpdateApplication struct {
 	Name                   string   `json:"name"`
 	AuthenticationPolicy   string   `json:"authentication_policy"`
+	AccessPolicy           string   `json:"access_policy"`
 	RedirectURIs           []string `json:"redirect_uris"`
 	PostLogoutRedirectURIs []string `json:"post_logout_redirect_uris"`
 	DeleteCallbackURI      string   `json:"delete_callback_uri"`
@@ -66,6 +67,7 @@ type Assignment struct {
 	ApplicationID string    `json:"application_id"`
 	UserID        string    `json:"user_id"`
 	Role          string    `json:"role"`
+	AccessEffect  string    `json:"access_effect"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 }
@@ -159,6 +161,12 @@ type Store interface {
 		string,
 		string,
 	) (string, error)
+
+	IdentityAssignment(
+		context.Context,
+		string,
+		string,
+	) (Assignment, error)
 
 	IdentityAssignmentRoleByClientID(
 		context.Context,

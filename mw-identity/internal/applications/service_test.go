@@ -20,6 +20,7 @@ func (s *memoryApplicationStore) CreateApplication(
 		ClientSecretHash:       input.ClientSecretHash,
 		ApplicationType:        input.ApplicationType,
 		AuthenticationPolicy:   input.AuthenticationPolicy,
+		AccessPolicy:           input.AccessPolicy,
 		Enabled:                input.Enabled,
 		RedirectURIs:           input.RedirectURIs,
 		PostLogoutRedirectURIs: input.PostLogoutRedirectURIs,
@@ -73,6 +74,9 @@ func TestCreateConfidentialApplication(
 
 	if result.ClientSecret == "" {
 		t.Fatal("confidential client secret missing")
+	}
+	if result.Application.AccessPolicy != "default_deny" {
+		t.Fatalf("access policy = %q; want default_deny", result.Application.AccessPolicy)
 	}
 	if result.Application.ClientSecretHash ==
 		result.ClientSecret {

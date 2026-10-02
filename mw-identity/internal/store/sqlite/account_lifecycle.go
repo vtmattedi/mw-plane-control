@@ -13,13 +13,27 @@ func (s *Store) ListIdentityUserApplications(ctx context.Context, userID string)
 		p.id,
 		p.name,
 		p.client_id,
-		a.role,
+		COALESCE((
+			SELECT a.role FROM identity_application_assignments a
+			WHERE a.application_id = p.id AND a.user_id = ?
+		), 'user'),
 		COALESCE(p.delete_callback_uri, ''),
-		a.created_at_unix
-	FROM identity_application_assignments a
-	JOIN identity_applications p ON p.id = a.application_id
-	WHERE a.user_id = ?
-	ORDER BY p.name ASC, p.id ASC`, userID)
+		COALESCE((
+			SELECT a.created_at_unix FROM identity_application_assignments a
+			WHERE a.application_id = p.id AND a.user_id = ?
+		), (
+			SELECT MIN(t.created_at_unix) FROM identity_access_tokens t
+			WHERE t.client_id = p.client_id AND t.user_id = ?
+		))
+	FROM identity_applications p
+	WHERE EXISTS (
+		SELECT 1 FROM identity_application_assignments a
+		WHERE a.application_id = p.id AND a.user_id = ?
+	) OR EXISTS (
+		SELECT 1 FROM identity_access_tokens t
+		WHERE t.client_id = p.client_id AND t.user_id = ?
+	)
+	ORDER BY p.name ASC, p.id ASC`, userID, userID, userID, userID, userID)
 	if err != nil {
 		return nil, fmt.Errorf("list connected applications: %w", err)
 	}

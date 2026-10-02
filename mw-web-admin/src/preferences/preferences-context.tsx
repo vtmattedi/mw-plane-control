@@ -243,6 +243,11 @@ const english: Record<string, string> = {
   'URIs de redirecionamento': 'Redirect URIs',
   'URIs de redirecionamento após logout (opcional)':
     'Post-logout redirect URIs (optional)',
+  'Cadastro público': 'Public registration',
+  'Callback de exclusão de conta': 'Account deletion callback',
+  'Tipo de conta': 'Account type',
+  'Conta pública': 'Public account',
+  'Conta corporativa': 'Workforce account',
   Escopos: 'Scopes',
   Audiências: 'Audiences',
   'Claims (opcional)': 'Claims (optional)',
@@ -280,6 +285,10 @@ const english: Record<string, string> = {
     'Review the identity and end active access when needed.',
   'Não foi possível carregar este usuário.': 'This user could not be loaded.',
   'Revogar sessões': 'Revoke sessions',
+  'Excluir conta': 'Delete account',
+  'Excluir conta?': 'Delete account?',
+  'O acesso será revogado imediatamente e a exclusão será enviada aos aplicativos conectados.':
+    'Access will be revoked immediately and the deletion will be sent to connected applications.',
   'Sessões revogadas.': 'Sessions revoked.',
   'Revogar todas as sessões?': 'Revoke all sessions?',
   'O usuário precisará entrar novamente em todos os aplicativos.':
@@ -372,6 +381,23 @@ const english: Record<string, string> = {
   'Selecione uma aplicação': 'Select an application',
   'As atribuições são carregadas no contexto de cada aplicação.':
     'Assignments are loaded in each application context.',
+  'Política de acesso': 'Access policy',
+  'Negar por padrão': 'Deny by default',
+  'Permitir por padrão': 'Allow by default',
+  'Exceções de acesso': 'Access exceptions',
+  'As exceções substituem a política padrão. Superadmins e administradores não podem ser bloqueados.':
+    'Exceptions override the default policy. Superadmins and administrators cannot be blocked.',
+  'Selecione um usuário': 'Select a user',
+  Permitir: 'Allow',
+  Bloquear: 'Block',
+  Permitido: 'Allowed',
+  Bloqueado: 'Blocked',
+  'Salvar exceção': 'Save exception',
+  'Usar padrão': 'Use default',
+  'Nenhuma exceção configurada.': 'No access exceptions configured.',
+  'Exceção de acesso atualizada.': 'Access exception updated.',
+  'Não foi possível atualizar a exceção de acesso.':
+    'Could not update the access exception.',
   'Nenhuma sessão para exibir': 'No sessions to display',
   'Use a página de usuários para revogar todas as sessões de uma identidade.':
     'Use the users page to revoke every session for an identity.',

@@ -229,6 +229,7 @@ func (h *identityAdminHandlers) createApplication(
 		ClientID               string   `json:"client_id"`
 		ApplicationType        string   `json:"application_type"`
 		AuthenticationPolicy   string   `json:"authentication_policy"`
+		AccessPolicy           string   `json:"access_policy"`
 		RedirectURIs           []string `json:"redirect_uris"`
 		PostLogoutRedirectURIs []string `json:"post_logout_redirect_uris"`
 		DeleteCallbackURI      string   `json:"delete_callback_uri"`
@@ -251,6 +252,7 @@ func (h *identityAdminHandlers) createApplication(
 			ClientID:               request.ClientID,
 			ApplicationType:        request.ApplicationType,
 			AuthenticationPolicy:   request.AuthenticationPolicy,
+			AccessPolicy:           request.AccessPolicy,
 			RedirectURIs:           request.RedirectURIs,
 			PostLogoutRedirectURIs: request.PostLogoutRedirectURIs,
 			DeleteCallbackURI:      request.DeleteCallbackURI,
@@ -495,7 +497,8 @@ func (h *identityAdminHandlers) upsertAssignment(
 	}
 
 	var request struct {
-		Role string `json:"role"`
+		Role         string `json:"role"`
+		AccessEffect string `json:"access_effect"`
 	}
 	if !decodeJSONBody(w, r, &request) {
 		return
@@ -508,6 +511,7 @@ func (h *identityAdminHandlers) upsertAssignment(
 		r.PathValue("id"),
 		r.PathValue("user_id"),
 		request.Role,
+		request.AccessEffect,
 	)
 	if err != nil {
 		h.writeAdminError(w, err)
@@ -682,6 +686,9 @@ func (h *identityAdminHandlers) writeAdminError(
 
 	case errors.Is(err, auth.ErrEmailExists):
 		writeJSONError(w, http.StatusConflict, "email_exists")
+
+	case errors.Is(err, identityadmin.ErrRoleForbidden):
+		writeJSONError(w, http.StatusForbidden, "admin_access_cannot_be_denied")
 
 	default:
 		writeJSONError(

@@ -25,6 +25,7 @@ type CreateRequest struct {
 	ClientID               string
 	ApplicationType        string
 	AuthenticationPolicy   string
+	AccessPolicy           string
 	RedirectURIs           []string
 	PostLogoutRedirectURIs []string
 	DeleteCallbackURI      string
@@ -62,6 +63,7 @@ func (s *Service) Create(
 	policy := strings.TrimSpace(
 		request.AuthenticationPolicy,
 	)
+	accessPolicy := strings.TrimSpace(request.AccessPolicy)
 
 	if name == "" || clientID == "" {
 		return CreateResult{}, ErrInvalidApplication
@@ -79,6 +81,12 @@ func (s *Service) Create(
 		policy = "standard"
 	}
 	if policy != "standard" && policy != "strong" {
+		return CreateResult{}, ErrInvalidApplication
+	}
+	if accessPolicy == "" {
+		accessPolicy = "default_deny"
+	}
+	if accessPolicy != "default_allow" && accessPolicy != "default_deny" {
 		return CreateResult{}, ErrInvalidApplication
 	}
 
@@ -142,6 +150,7 @@ func (s *Service) Create(
 		ClientSecretHash:       secretHash,
 		ApplicationType:        appType,
 		AuthenticationPolicy:   policy,
+		AccessPolicy:           accessPolicy,
 		Enabled:                true,
 		RedirectURIs:           redirectURIs,
 		PostLogoutRedirectURIs: postLogout,
@@ -167,6 +176,7 @@ func (s *Service) Create(
 		ClientSecretHash:       input.ClientSecretHash,
 		ApplicationType:        input.ApplicationType,
 		AuthenticationPolicy:   input.AuthenticationPolicy,
+		AccessPolicy:           input.AccessPolicy,
 		Enabled:                input.Enabled,
 		RedirectURIs:           append([]string(nil), input.RedirectURIs...),
 		PostLogoutRedirectURIs: append([]string(nil), input.PostLogoutRedirectURIs...),

@@ -59,6 +59,7 @@ const configs: Record<string, ResourcePageConfig> = {
       { key: 'client_id', label: 'Client ID' },
       { key: 'application_type', label: 'Tipo' },
       { key: 'authentication_policy', label: 'Política' },
+      { key: 'access_policy', label: 'Acesso' },
       { key: 'enabled', label: 'Status' },
     ],
     action: 'Nova aplicação',

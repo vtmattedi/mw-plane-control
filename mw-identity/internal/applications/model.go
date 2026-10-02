@@ -19,6 +19,7 @@ type Application struct {
 	ClientSecretHash       string     `json:"-"`
 	ApplicationType        string     `json:"application_type"`
 	AuthenticationPolicy   string     `json:"authentication_policy"`
+	AccessPolicy           string     `json:"access_policy"`
 	Enabled                bool       `json:"enabled"`
 	ArchivedAt             *time.Time `json:"archived_at,omitempty"`
 	RedirectURIs           []string   `json:"redirect_uris"`
@@ -39,6 +40,7 @@ type CreateInput struct {
 	ClientSecretHash       string
 	ApplicationType        string
 	AuthenticationPolicy   string
+	AccessPolicy           string
 	Enabled                bool
 	RedirectURIs           []string
 	PostLogoutRedirectURIs []string
