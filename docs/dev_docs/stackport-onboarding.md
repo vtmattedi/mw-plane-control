@@ -195,6 +195,8 @@ nothing for OAuth or Mail.
 
    Save the issued secret as `MW_IDENTITY_INTROSPECTION_CLIENT_SECRET` in the MQTT
    project's `secrets/admin-api.env`, not here.
+   That file must also set `ADMIN_AUTH_MODE=federated`: the service defaults to its
+   standalone `token` mode and refuses to start without tokens.
 2. Edit the BFF's own Identity application: add audience `mw-mqtt` and the six
    `mqtt.*` scopes to its allowed audiences and scopes.
 3. In this project's `.env` append the six `mqtt.*` scopes to
