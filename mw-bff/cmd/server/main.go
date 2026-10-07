@@ -15,6 +15,7 @@ import (
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/httpapi"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/identityclient"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/mwmail"
+	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/mwmqtt"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/mwoauth"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/secure"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/session"
@@ -175,6 +176,20 @@ func main() {
 		}
 	}
 
+	// The MQTT admin facade is optional: without BFF_MQTT_BASE_URL no /mqtt routes exist.
+	var mqttClient *mwmqtt.Client
+	if cfg.MQTTBaseURL != "" {
+		mqttClient, err = mwmqtt.New(mwmqtt.Config{
+			BaseURL:     cfg.MQTTBaseURL,
+			Host:        cfg.MQTTHost,
+			HTTPTimeout: cfg.MQTTHTTPTimeout,
+		})
+		if err != nil {
+			slog.Error("MW MQTT client initialization failed", "error", err)
+			os.Exit(1)
+		}
+	}
+
 	server := &http.Server{
 		Addr: fmt.Sprintf(
 			":%d",
@@ -196,6 +211,8 @@ func main() {
 			cfg.OAuthAudience,
 			mailClient,
 			cfg.MailAudience,
+			mqttClient,
+			cfg.MQTTAudience,
 			httpapi.AuthConfig{
 				AppEnv:                  cfg.AppEnv,
 				PublicBaseURL:           cfg.PublicBaseURL,

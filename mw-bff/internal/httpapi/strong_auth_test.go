@@ -52,3 +52,31 @@ func TestSensitiveFederatedRoutes(t *testing.T) {
 		t.Fatal("Mail read was incorrectly marked sensitive")
 	}
 }
+
+func TestSensitiveMQTTRoutes(t *testing.T) {
+	sensitive := []struct{ method, path string }{
+		{http.MethodPost, "/admin/api/clients"},
+		{http.MethodPost, "/admin/api/clients/gw1/password"},
+		{http.MethodPost, "/admin/api/clients/gw1/enable"},
+		{http.MethodDelete, "/admin/api/clients/gw1"},
+	}
+	for _, r := range sensitive {
+		if !sensitiveMQTTRoute(r.method, r.path) {
+			t.Fatalf("%s %s was not marked sensitive", r.method, r.path)
+		}
+	}
+	notSensitive := []struct{ method, path string }{
+		{http.MethodGet, "/admin/api/clients"},
+		{http.MethodGet, "/admin/api/clients/gw1"},
+		{http.MethodGet, "/admin/api/stats"},
+		{http.MethodGet, "/admin/api/server"},
+		{http.MethodGet, "/admin/api/roles"},
+		// Disabling only removes access; it must stay a fast kill switch.
+		{http.MethodPost, "/admin/api/clients/gw1/disable"},
+	}
+	for _, r := range notSensitive {
+		if sensitiveMQTTRoute(r.method, r.path) {
+			t.Fatalf("%s %s was incorrectly marked sensitive", r.method, r.path)
+		}
+	}
+}

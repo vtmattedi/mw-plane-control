@@ -36,6 +36,10 @@ type Config struct {
 	MailHost                    string
 	MailAudience                string
 	MailHTTPTimeout             time.Duration
+	MQTTBaseURL                 string
+	MQTTHost                    string
+	MQTTAudience                string
+	MQTTHTTPTimeout             time.Duration
 	IdentityHTTPTimeout         time.Duration
 	StrongAuthMaxAge            time.Duration
 }
@@ -99,6 +103,13 @@ func Load() (Config, error) {
 
 	mailHTTPTimeoutSeconds, err := positiveInt(
 		"BFF_MAIL_HTTP_TIMEOUT_SECONDS",
+		5,
+	)
+	if err != nil {
+		return Config{}, err
+	}
+	mqttHTTPTimeoutSeconds, err := positiveInt(
+		"BFF_MQTT_HTTP_TIMEOUT_SECONDS",
 		5,
 	)
 	if err != nil {
@@ -173,6 +184,10 @@ func Load() (Config, error) {
 		MailHost:                    strings.TrimSpace(os.Getenv("BFF_MAIL_HOST")),
 		MailAudience:                strings.TrimSpace(getenv("BFF_MAIL_AUDIENCE", "mw-mail")),
 		MailHTTPTimeout:             time.Duration(mailHTTPTimeoutSeconds) * time.Second,
+		MQTTBaseURL:                 strings.TrimRight(strings.TrimSpace(os.Getenv("BFF_MQTT_BASE_URL")), "/"),
+		MQTTHost:                    strings.TrimSpace(os.Getenv("BFF_MQTT_HOST")),
+		MQTTAudience:                strings.TrimSpace(getenv("BFF_MQTT_AUDIENCE", "mw-mqtt")),
+		MQTTHTTPTimeout:             time.Duration(mqttHTTPTimeoutSeconds) * time.Second,
 		IdentityHTTPTimeout:         time.Duration(httpTimeoutSeconds) * time.Second,
 		StrongAuthMaxAge:            time.Duration(strongAuthMinutes) * time.Minute,
 	}
