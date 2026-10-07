@@ -127,7 +127,7 @@ export default function MqttClientsPage() {
       }
       toast.error(
         error instanceof Error
-          ? error.message
+          ? tr(error.message)
           : tr('Não foi possível concluir a operação.'),
       )
     },
@@ -276,7 +276,7 @@ export default function MqttClientsPage() {
                 {brokerDown
                   ? tr('O broker MQTT não está acessível no momento.')
                   : clientsQuery.error instanceof Error
-                    ? clientsQuery.error.message
+                    ? tr(clientsQuery.error.message)
                     : tr('Não foi possível carregar os clientes.')}
               </span>
             </div>

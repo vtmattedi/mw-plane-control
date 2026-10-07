@@ -25,6 +25,7 @@ import {
   MailDocsPage,
   MailProjectsPage,
   MailUsagePage,
+  MqttDocsPage,
   OAuthAuditPage,
   OAuthDocsPage,
   OAuthMetricsPage,
@@ -190,6 +191,15 @@ function AppRoutes() {
             element={
               <DeferredPage>
                 <MqttClientsPage />
+              </DeferredPage>
+            }
+          />
+          <Route path="mqtt/docs" element={<MqttDocsPage />} />
+          <Route
+            path="mqtt/docs/:version"
+            element={
+              <DeferredPage>
+                <OAuthDocPage module="MQTT" basePath="/mqtt/docs" />
               </DeferredPage>
             }
           />

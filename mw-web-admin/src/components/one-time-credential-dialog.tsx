@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from './ui/dialog'
 import { Input } from './ui/input'
+import { useOptionalPreferences } from '@/preferences/preferences-context'
 
 type OneTimeCredentialDialogProps = {
   credential?: string | null
@@ -27,13 +28,14 @@ export function OneTimeCredentialDialog({
   credential,
   credentials,
   onClose,
-  title = 'Nova credencial',
+  title,
 }: OneTimeCredentialDialogProps) {
+  const tr = useOptionalPreferences()?.tr ?? ((text: string) => text)
   const [copied, setCopied] = useState<string | null>(null)
   const entries =
     credentials ??
     (typeof credential === 'string'
-      ? [{ label: 'Credencial', value: credential }]
+      ? [{ label: tr('Credencial'), value: credential }]
       : [])
   const open =
     credentials !== undefined ? credentials !== null : credential !== null
@@ -58,12 +60,14 @@ export function OneTimeCredentialDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <KeyRound className="text-brand-orange size-5" aria-hidden="true" />
-            {title}
+            {title ?? tr('Nova credencial')}
           </DialogTitle>
           <DialogDescription>
-            A operação foi concluída. Copie e armazene{' '}
-            {entries.length === 1 ? 'a credencial' : 'as credenciais'} em um
-            local seguro.
+            {tr(
+              entries.length === 1
+                ? 'A operação foi concluída. Copie e armazene a credencial em um local seguro.'
+                : 'A operação foi concluída. Copie e armazene as credenciais em um local seguro.',
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -74,19 +78,19 @@ export function OneTimeCredentialDialog({
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Input
                   aria-label={
-                    entries.length === 1 ? 'Credencial gerada' : entry.label
+                    entries.length === 1 ? tr('Credencial gerada') : entry.label
                   }
                   onChange={() => undefined}
                   readOnly
                   value={entry.value}
                 />
                 <Button
-                  aria-label={`Copiar ${entry.label}`}
+                  aria-label={`${tr('Copiar')} ${entry.label}`}
                   onClick={() => void copyCredential(entry)}
                   variant="outline"
                 >
                   {copied === entry.label ? <Check /> : <Copy />}
-                  {copied === entry.label ? 'Copiado' : 'Copiar'}
+                  {copied === entry.label ? tr('Copiado') : tr('Copiar')}
                 </Button>
               </div>
             </div>
@@ -97,9 +101,11 @@ export function OneTimeCredentialDialog({
               aria-hidden="true"
             />
             <p>
-              {entries.length === 1 ? 'Esta credencial' : 'Estas credenciais'}{' '}
-              não {entries.length === 1 ? 'será exibida' : 'serão exibidas'}{' '}
-              novamente depois que esta janela for fechada.
+              {tr(
+                entries.length === 1
+                  ? 'Esta credencial não será exibida novamente depois que esta janela for fechada.'
+                  : 'Estas credenciais não serão exibidas novamente depois que esta janela for fechada.',
+              )}
             </p>
           </div>
         </div>
@@ -108,10 +114,10 @@ export function OneTimeCredentialDialog({
           {entries.length > 1 && (
             <Button onClick={() => void copyAll()} variant="outline">
               {copied === 'all' ? <Check /> : <Copy />}
-              {copied === 'all' ? 'Tudo copiado' : 'Copiar todas'}
+              {copied === 'all' ? tr('Tudo copiado') : tr('Copiar todas')}
             </Button>
           )}
-          <Button onClick={onClose}>Concluir</Button>
+          <Button onClick={onClose}>{tr('Concluir')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

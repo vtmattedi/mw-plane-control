@@ -227,7 +227,7 @@ export default function MqttServerPage() {
             <span>
               {statsQuery.isError
                 ? statsQuery.error instanceof Error
-                  ? statsQuery.error.message
+                  ? tr(statsQuery.error.message)
                   : tr('Não foi possível carregar as estatísticas.')
                 : tr(
                     'O broker ainda não publicou estatísticas. Elas aparecem em até 10 segundos após a conexão.',

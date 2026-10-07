@@ -69,6 +69,7 @@ const groups: Group[] = [
     items: [
       { label: 'Clientes', to: '/mqtt/clients', icon: Radio },
       { label: 'Broker', to: '/mqtt/server', icon: ServerCog },
+      { label: 'Documentação', to: '/mqtt/docs', icon: BookOpen },
     ],
   },
   {

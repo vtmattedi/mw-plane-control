@@ -40,6 +40,65 @@ const defaults: Preferences = {
 }
 
 const english: Record<string, string> = {
+  'Clientes, credenciais e estado do broker.':
+    'Clients, credentials and broker status.',
+  'Nova credencial': 'New credential',
+  Credencial: 'Credential',
+  'Credencial gerada': 'Generated credential',
+  Copiar: 'Copy',
+  Copiado: 'Copied',
+  'Copiar todas': 'Copy all',
+  'Tudo copiado': 'All copied',
+  Concluir: 'Done',
+  Fechar: 'Close',
+  'A operação foi concluída. Copie e armazene a credencial em um local seguro.':
+    'The operation completed. Copy and store the credential in a safe place.',
+  'A operação foi concluída. Copie e armazene as credenciais em um local seguro.':
+    'The operation completed. Copy and store the credentials in a safe place.',
+  'Esta credencial não será exibida novamente depois que esta janela for fechada.':
+    'This credential will not be shown again after this window is closed.',
+  'Estas credenciais não serão exibidas novamente depois que esta janela for fechada.':
+    'These credentials will not be shown again after this window is closed.',
+  'Sua sessão expirou. Entre novamente.':
+    'Your session expired. Sign in again.',
+  'Sua conta não tem permissão para esta operação.':
+    'Your account does not have permission for this operation.',
+  'Confirme sua identidade para continuar.':
+    'Confirm your identity to continue.',
+  'O serviço não está disponível no momento.':
+    'The service is unavailable right now.',
+  'Já existe uma identidade com este e-mail.':
+    'An identity with this email already exists.',
+  'Já existe uma aplicação com este Client ID.':
+    'An application with this Client ID already exists.',
+  'Revise os campos informados e tente novamente.':
+    'Review the fields and try again.',
+  'Arquive a aplicação antes de excluí-la permanentemente.':
+    'Archive the application before deleting it permanently.',
+  'Esta aplicação ainda possui usuários associados, códigos de autorização ou tokens emitidos.':
+    'This application still has associated users, authorization codes or issued tokens.',
+  'Não foi possível concluir a solicitação.':
+    'The request could not be completed.',
+  'Já existe um cliente MQTT com este nome.':
+    'An MQTT client with this name already exists.',
+  'O cliente MQTT não foi encontrado.': 'The MQTT client was not found.',
+  'Este cliente é protegido e não pode ser alterado aqui.':
+    'This client is protected and cannot be changed here.',
+  'Esta função não pode ser atribuída por aqui.':
+    'This role cannot be assigned here.',
+  'Muitas tentativas recusadas. Aguarde um minuto e tente novamente.':
+    'Too many refused attempts. Wait a minute and try again.',
+  'O serviço MQTT recusou as credenciais do control plane.':
+    'The MQTT service rejected the control plane credentials.',
+  'Não foi possível obter autorização para o serviço MQTT. Saia e entre novamente.':
+    'Could not get authorization for the MQTT service. Sign out and sign in again.',
+  'O serviço MQTT não está disponível.': 'The MQTT service is unavailable.',
+  'O serviço MQTT falhou ao processar a solicitação.':
+    'The MQTT service failed to process the request.',
+  'Guia de conexão e contrato de integração do serviço MQTT.':
+    'Connection guide and integration contract for the MQTT service.',
+  'Contrato público de integração do MW Mail.':
+    'Public integration contract for MW Mail.',
   Clientes: 'Clients',
   Broker: 'Broker',
   'Novo cliente': 'New client',
@@ -580,6 +639,11 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
       {children}
     </PreferencesContext.Provider>
   )
+}
+
+/** Like usePreferences, but returns null outside a provider (shared components, tests). */
+export function useOptionalPreferences() {
+  return useContext(PreferencesContext)
 }
 
 export function usePreferences() {

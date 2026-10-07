@@ -21,6 +21,9 @@ const (
 
 var ErrRouteNotFound = errors.New("MW MQTT admin route not found")
 
+// docVersion mirrors the admin API's published version names (v1, v2, ...).
+var docVersion = regexp.MustCompile(`^v[0-9]{1,3}$`)
+
 // username mirrors the broker admin API's own username rule.
 var username = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
 
@@ -43,6 +46,8 @@ func Resolve(method string, facadePath string) (Route, error) {
 		return route(path, ScopeServerRead), nil
 	case method == http.MethodGet && path == "/stats":
 		return route(path, ScopeServerRead), nil
+	case method == http.MethodGet && path == "/docs":
+		return route(path, ScopeServerRead), nil
 	case method == http.MethodGet && path == "/roles":
 		return route(path, ScopeRolesRead), nil
 	case method == http.MethodGet && path == "/clients":
@@ -52,6 +57,9 @@ func Resolve(method string, facadePath string) (Route, error) {
 	}
 
 	parts := strings.Split(strings.Trim(path, "/"), "/")
+	if len(parts) == 2 && parts[0] == "docs" && method == http.MethodGet && docVersion.MatchString(parts[1]) {
+		return route(path, ScopeServerRead), nil
+	}
 	if len(parts) < 2 || parts[0] != "clients" || !username.MatchString(parts[1]) {
 		return Route{}, ErrRouteNotFound
 	}

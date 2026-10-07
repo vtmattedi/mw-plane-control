@@ -125,7 +125,7 @@ function readableError(code: string) {
     mqtt_federation_rejected:
       'O serviço MQTT recusou as credenciais do control plane.',
     mqtt_delegation_failed:
-      'Não foi possível obter autorização para o serviço MQTT.',
+      'Não foi possível obter autorização para o serviço MQTT. Saia e entre novamente.',
     mqtt_upstream_unavailable: 'O serviço MQTT não está disponível.',
     mqtt_upstream_failed: 'O serviço MQTT falhou ao processar a solicitação.',
   }

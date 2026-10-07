@@ -214,6 +214,7 @@ Facade routes (browser path `/api/mqtt/...`, forwarded to `/admin/api/...`):
 | --- | --- | --- |
 | GET /server, GET /stats | mqtt.server.read | no |
 | GET /roles | mqtt.roles.read | no |
+| GET /docs, GET /docs/{version} | mqtt.server.read | no |
 | GET /clients, GET /clients/{username} | mqtt.clients.read | no |
 | POST /clients | mqtt.clients.write | yes (returns a generated password once) |
 | POST /clients/{username}/disable | mqtt.clients.write | no (fast kill switch) |
@@ -233,6 +234,9 @@ work only when the facade above is enabled):
   `mqtt-admin`) are shown as protected and have no actions. An operation that needs
   fresh WebAuthn is saved in `sessionStorage` (no secrets), the browser goes through the
   Identity step-up, and the operation runs once when it returns.
+- `/mqtt/docs` and `/mqtt/docs/{version}`: the service documentation (connection guide, access
+  model, API reference, troubleshooting), served in the language of the interface with the
+  same layout as the OAuth and Mail documentation tabs.
 - `/mqtt/server`: broker health, version, uptime, connections, traffic, load averages,
   memory, and the read-only roles with their ACLs. It refreshes every 10 seconds and
   flags data that has not been updated for a minute.
