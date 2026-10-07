@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlertTriangle,
   Plug,
@@ -8,8 +8,8 @@ import {
   ShieldCheck,
   Users,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
-import { toast } from 'sonner'
+import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useConfirm } from '@/components/confirm-context'
 import { MetricCard } from '@/components/control/metric-card'
 import { PageHeader } from '@/components/control/page-header'
@@ -31,45 +31,19 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
-import { beginStepUp, ControlApiError } from '@/lib/control-api'
+import { ControlApiError } from '@/lib/control-api'
 import {
   fetchMqttClients,
   fetchMqttRoles,
   fetchMqttStats,
   isManageable,
   mqttUsernamePattern,
-  runMqttOperation,
   type MqttCredential,
-  type MqttOperation,
 } from '@/lib/mqtt-api'
 import { formatCount } from '@/lib/mqtt-format'
+import { useMqttOperations } from '@/lib/use-mqtt-operations'
 import { usePreferences } from '@/preferences/preferences-context'
 import styles from './resource-page.module.scss'
-
-type PendingOperation = { operation: MqttOperation; returnTo: string }
-
-const pendingKey = 'mw-mqtt-pending-operation'
-const operationKinds = ['create', 'rotate', 'enable', 'disable', 'delete']
-
-/** Accepts only a well-formed operation when resuming after the step-up redirect. */
-function parsePending(raw: string): PendingOperation | null {
-  try {
-    const value = JSON.parse(raw) as Partial<PendingOperation>
-    const operation = value.operation
-    if (
-      !operation ||
-      !operationKinds.includes(operation.kind) ||
-      typeof operation.username !== 'string' ||
-      !mqttUsernamePattern.test(operation.username) ||
-      typeof value.returnTo !== 'string'
-    ) {
-      return null
-    }
-    return value as PendingOperation
-  } catch {
-    return null
-  }
-}
 
 export default function MqttClientsPage() {
   const { language, tr } = usePreferences()
@@ -81,6 +55,7 @@ export default function MqttClientsPage() {
   const [newUsername, setNewUsername] = useState('')
   const [newRole, setNewRole] = useState('')
   const [revealed, setRevealed] = useState<MqttCredential | null>(null)
+  const [rolesFor, setRolesFor] = useState<string | null>(null)
 
   const clientsQuery = useQuery({
     queryKey: ['mqtt', 'clients'],
@@ -104,52 +79,19 @@ export default function MqttClientsPage() {
     [rolesQuery.data],
   )
   const clients = useMemo(() => clientsQuery.data ?? [], [clientsQuery.data])
+  const assignableRoles = useMemo(
+    () => (rolesQuery.data?.roles ?? []).filter((role) => role.assignable),
+    [rolesQuery.data],
+  )
+  const editing = clients.find((client) => client.username === rolesFor)
 
-  const mutation = useMutation({
-    mutationFn: (pending: PendingOperation) =>
-      runMqttOperation(pending.operation),
-    onSuccess: (credential) => {
-      sessionStorage.removeItem(pendingKey)
-      if (credential) setRevealed(credential)
-      toast.success(tr('Operação concluída com sucesso.'))
+  const { run, pending } = useMqttOperations({
+    onCredential: setRevealed,
+    onDone: () => {
       setCreateOpen(false)
       setNewUsername('')
-      void queryClient.invalidateQueries({ queryKey: ['mqtt'] })
-    },
-    onError: (error, pending) => {
-      if (
-        error instanceof ControlApiError &&
-        error.code === 'step_up_required'
-      ) {
-        sessionStorage.setItem(pendingKey, JSON.stringify(pending))
-        beginStepUp(pending.returnTo)
-        return
-      }
-      toast.error(
-        error instanceof Error
-          ? tr(error.message)
-          : tr('Não foi possível concluir a operação.'),
-      )
     },
   })
-
-  // Resume the operation that triggered a step-up, once.
-  useEffect(() => {
-    const raw = sessionStorage.getItem(pendingKey)
-    if (!raw) return
-    const pending = parsePending(raw)
-    // Claim before executing so StrictMode cannot replay a credential rotation.
-    sessionStorage.removeItem(pendingKey)
-    if (pending && pending.returnTo === window.location.pathname) {
-      mutation.mutate(pending)
-    }
-    // Resume only once after an Identity step-up callback.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  function run(operation: MqttOperation) {
-    mutation.mutate({ operation, returnTo: window.location.pathname })
-  }
 
   const rows = useMemo(() => {
     const needle = search.trim().toLocaleLowerCase('pt-BR')
@@ -310,7 +252,15 @@ export default function MqttClientsPage() {
               return (
                 <div className="flex flex-wrap justify-end gap-2">
                   <Button
-                    disabled={mutation.isPending}
+                    disabled={pending}
+                    onClick={() => setRolesFor(username)}
+                    size="sm"
+                    variant="outline"
+                  >
+                    {tr('Funções')}
+                  </Button>
+                  <Button
+                    disabled={pending}
                     onClick={async () => {
                       const enable = client.disabled
                       const accepted = await confirm({
@@ -333,7 +283,7 @@ export default function MqttClientsPage() {
                     {tr(client.disabled ? 'Ativar' : 'Desativar')}
                   </Button>
                   <Button
-                    disabled={mutation.isPending}
+                    disabled={pending}
                     onClick={async () => {
                       const accepted = await confirm({
                         title: tr('Gerar nova senha?'),
@@ -350,7 +300,7 @@ export default function MqttClientsPage() {
                     {tr('Nova senha')}
                   </Button>
                   <Button
-                    disabled={mutation.isPending}
+                    disabled={pending}
                     onClick={async () => {
                       const accepted = await confirm({
                         title: tr('Excluir cliente?'),
@@ -376,12 +326,12 @@ export default function MqttClientsPage() {
         <aside className="text-muted-foreground mt-5 flex items-start gap-2 text-xs leading-5">
           <ShieldCheck className="text-primary mt-0.5 size-4 shrink-0" />
           {tr(
-            'Criar, reativar, trocar senha e excluir exigem autenticação forte recente. Desativar é imediato. Clientes protegidos do broker não podem ser alterados aqui.',
+            'Criar, reativar, trocar senha, excluir e alterar funções exigem autenticação forte recente. Desativar é imediato. Clientes protegidos do broker não podem ser alterados aqui.',
           )}
         </aside>
 
         <Dialog onOpenChange={setCreateOpen} open={createOpen}>
-          <DialogContent closeDisabled={mutation.isPending}>
+          <DialogContent closeDisabled={pending}>
             <DialogHeader>
               <DialogTitle>{tr('Novo cliente')}</DialogTitle>
               <DialogDescription>
@@ -395,7 +345,7 @@ export default function MqttClientsPage() {
                 {tr('Nome do cliente')}
                 <Input
                   autoFocus
-                  disabled={mutation.isPending}
+                  disabled={pending}
                   maxLength={128}
                   onChange={setNewUsername}
                   placeholder="nmnw-gateway-aabbccddeeff"
@@ -432,18 +382,14 @@ export default function MqttClientsPage() {
             </div>
             <DialogFooter>
               <Button
-                disabled={mutation.isPending}
+                disabled={pending}
                 onClick={() => setCreateOpen(false)}
                 variant="outline"
               >
                 {tr('Cancelar')}
               </Button>
               <Button
-                disabled={
-                  mutation.isPending ||
-                  !usernameValid ||
-                  assignable.length === 0
-                }
+                disabled={pending || !usernameValid || assignable.length === 0}
                 onClick={() =>
                   run({
                     kind: 'create',
@@ -453,6 +399,92 @@ export default function MqttClientsPage() {
                 }
               >
                 {tr('Criar cliente')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          onOpenChange={(open) => {
+            if (!open) setRolesFor(null)
+          }}
+          open={editing !== undefined}
+        >
+          <DialogContent className="sm:max-w-xl" closeDisabled={pending}>
+            <DialogHeader>
+              <DialogTitle>
+                {tr('Funções do cliente')}
+                {editing ? ` · ${editing.username}` : ''}
+              </DialogTitle>
+              <DialogDescription>
+                {tr(
+                  'As funções definem o que o cliente pode publicar e assinar. Alterar exige autenticação forte recente.',
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            {assignableRoles.length === 0 ? (
+              <p className="text-muted-foreground text-sm">
+                {tr('Ainda não há funções que possam ser atribuídas.')}{' '}
+                <Link className="text-primary underline" to="/mqtt/roles">
+                  {tr('Criar uma função')}
+                </Link>
+              </p>
+            ) : (
+              <ul className="border-border/70 divide-border/70 divide-y rounded-xl border">
+                {assignableRoles.map((role) => {
+                  const held = editing?.roles.includes(role.name) ?? false
+                  return (
+                    <li
+                      className="flex items-center justify-between gap-3 p-3"
+                      key={role.name}
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">{role.name}</p>
+                        <p className="text-muted-foreground truncate text-xs">
+                          {role.description ||
+                            `${role.acls.length} ${tr('regras')}`}
+                        </p>
+                      </div>
+                      <Button
+                        disabled={pending}
+                        onClick={async () => {
+                          if (!editing) return
+                          if (!held) {
+                            run({
+                              kind: 'assignRole',
+                              username: editing.username,
+                              role: role.name,
+                            })
+                            return
+                          }
+                          const accepted = await confirm({
+                            title: tr('Remover função?'),
+                            description: tr(
+                              'O cliente perde imediatamente o acesso que esta função concede.',
+                            ),
+                            confirmLabel: tr('Remover'),
+                          })
+                          if (accepted) {
+                            run({
+                              kind: 'unassignRole',
+                              username: editing.username,
+                              role: role.name,
+                            })
+                          }
+                        }}
+                        size="sm"
+                        variant={held ? 'outline' : 'default'}
+                      >
+                        {tr(held ? 'Remover' : 'Adicionar')}
+                      </Button>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+            <DialogFooter>
+              <Button onClick={() => setRolesFor(null)}>
+                {tr('Concluir')}
               </Button>
             </DialogFooter>
           </DialogContent>

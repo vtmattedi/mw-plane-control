@@ -1,4 +1,12 @@
 import { collectionFrom, controlRequest } from '@/lib/control-api'
+import {
+  isAclType,
+  maxPriority,
+  mqttRolePattern,
+  validTopicFilter,
+  type AclInput,
+  type AclType,
+} from '@/lib/mqtt-acl'
 
 export type MqttClient = {
   username: string
@@ -13,7 +21,18 @@ export type MqttRoleAcl = {
   priority: number
 }
 
-export type MqttRole = { name: string; acls: MqttRoleAcl[] }
+export type MqttRole = {
+  name: string
+  description: string
+  acls: MqttRoleAcl[]
+  /** Reserved roles belong to the broker's own administration: never editable or assignable. */
+  reserved: boolean
+  /** Assignable roles may be given to clients through the console. */
+  assignable: boolean
+  clientCount: number
+  /** Usernames holding the role; only present on a single role's detail. */
+  clients: string[]
+}
 
 export type MqttRoles = { roles: MqttRole[]; assignable: string[] }
 
@@ -53,6 +72,12 @@ export type MqttOperation =
   | { kind: 'enable'; username: string }
   | { kind: 'disable'; username: string }
   | { kind: 'delete'; username: string }
+  | { kind: 'assignRole'; username: string; role: string }
+  | { kind: 'unassignRole'; username: string; role: string }
+  | { kind: 'createRole'; name: string; description?: string; acls: AclInput[] }
+  | { kind: 'deleteRole'; name: string; force: boolean }
+  | { kind: 'addAcl'; role: string; acl: AclInput }
+  | { kind: 'removeAcl'; role: string; type: AclType; topic: string }
 
 export const mqttUsernamePattern = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/
 
@@ -81,27 +106,47 @@ export async function fetchMqttClients(): Promise<MqttClient[]> {
     .filter((client) => client.username !== '')
 }
 
+function parseRole(row: Record<string, unknown>): MqttRole {
+  return {
+    name: text(row.name),
+    description: text(row.description),
+    acls: collectionFrom(row, 'acls').map((acl) => ({
+      type: text(acl.type),
+      topic: text(acl.topic),
+      allow: acl.allow === true,
+      priority: typeof acl.priority === 'number' ? acl.priority : 0,
+    })),
+    reserved: row.reserved === true,
+    assignable: row.assignable === true,
+    clientCount: typeof row.clientCount === 'number' ? row.clientCount : 0,
+    clients: Array.isArray(row.clients)
+      ? row.clients.filter((c): c is string => typeof c === 'string')
+      : [],
+  }
+}
+
 export async function fetchMqttRoles(): Promise<MqttRoles> {
   const body = (await controlRequest<unknown>('/mqtt/roles')) as Record<
     string,
     unknown
   > | null
   return {
-    roles: collectionFrom(body, 'roles').map((row) => ({
-      name: text(row.name),
-      acls: collectionFrom(row, 'acls').map((acl) => ({
-        type: text(acl.type),
-        topic: text(acl.topic),
-        allow: acl.allow === true,
-        priority: typeof acl.priority === 'number' ? acl.priority : 0,
-      })),
-    })),
+    roles: collectionFrom(body, 'roles')
+      .map(parseRole)
+      .filter((role) => role.name !== ''),
     assignable: Array.isArray(body?.assignable)
       ? body.assignable.filter(
           (role): role is string => typeof role === 'string',
         )
       : [],
   }
+}
+
+export async function fetchMqttRole(name: string): Promise<MqttRole> {
+  const body = (await controlRequest<unknown>(
+    `/mqtt/roles/${encodeURIComponent(name)}`,
+  )) as Record<string, unknown> | null
+  return parseRole(body ?? {})
 }
 
 export async function fetchMqttStats(): Promise<MqttStats> {
@@ -146,11 +191,20 @@ function credentialFrom(
     : null
 }
 
+function aclBody(acl: AclInput) {
+  return {
+    type: acl.type,
+    topic: acl.topic,
+    ...(acl.allow === undefined ? {} : { allow: acl.allow }),
+    ...(acl.priority === undefined ? {} : { priority: acl.priority }),
+  }
+}
+
 /** Runs one operation and returns the generated credential, when there is one. */
 export async function runMqttOperation(
   operation: MqttOperation,
 ): Promise<MqttCredential | null> {
-  const user = encodeURIComponent(operation.username)
+  const enc = encodeURIComponent
   switch (operation.kind) {
     case 'create': {
       const body = await controlRequest<unknown>('/mqtt/clients', {
@@ -164,21 +218,176 @@ export async function runMqttOperation(
     }
     case 'rotate': {
       const body = await controlRequest<unknown>(
-        `/mqtt/clients/${user}/password`,
+        `/mqtt/clients/${enc(operation.username)}/password`,
         { method: 'POST' },
       )
       return credentialFrom(body, operation.username)
     }
     case 'enable':
     case 'disable':
-      await controlRequest<unknown>(`/mqtt/clients/${user}/${operation.kind}`, {
-        method: 'POST',
-      })
+      await controlRequest<unknown>(
+        `/mqtt/clients/${enc(operation.username)}/${operation.kind}`,
+        { method: 'POST' },
+      )
       return null
     case 'delete':
-      await controlRequest<unknown>(`/mqtt/clients/${user}`, {
-        method: 'DELETE',
+      await controlRequest<unknown>(
+        `/mqtt/clients/${enc(operation.username)}`,
+        { method: 'DELETE' },
+      )
+      return null
+    case 'assignRole':
+      await controlRequest<unknown>(
+        `/mqtt/clients/${enc(operation.username)}/roles/${enc(operation.role)}`,
+        { method: 'PUT' },
+      )
+      return null
+    case 'unassignRole':
+      await controlRequest<unknown>(
+        `/mqtt/clients/${enc(operation.username)}/roles/${enc(operation.role)}`,
+        { method: 'DELETE' },
+      )
+      return null
+    case 'createRole':
+      await controlRequest<unknown>('/mqtt/roles', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: operation.name,
+          ...(operation.description
+            ? { description: operation.description }
+            : {}),
+          acls: operation.acls.map(aclBody),
+        }),
       })
+      return null
+    case 'deleteRole':
+      await controlRequest<unknown>(
+        `/mqtt/roles/${enc(operation.name)}${operation.force ? '?force=true' : ''}`,
+        { method: 'DELETE' },
+      )
+      return null
+    case 'addAcl':
+      await controlRequest<unknown>(`/mqtt/roles/${enc(operation.role)}/acls`, {
+        method: 'POST',
+        body: JSON.stringify(aclBody(operation.acl)),
+      })
+      return null
+    case 'removeAcl':
+      await controlRequest<unknown>(
+        `/mqtt/roles/${enc(operation.role)}/acls/remove`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            type: operation.type,
+            topic: operation.topic,
+          }),
+        },
+      )
+      return null
+  }
+}
+
+const isUsername = (v: unknown): v is string =>
+  typeof v === 'string' && mqttUsernamePattern.test(v)
+const isRoleName = (v: unknown): v is string =>
+  typeof v === 'string' && mqttRolePattern.test(v)
+
+function validAcl(value: unknown): AclInput | null {
+  if (!value || typeof value !== 'object') return null
+  const a = value as Record<string, unknown>
+  if (!isAclType(a.type) || typeof a.topic !== 'string') return null
+  if (!validTopicFilter(a.topic)) return null
+  if (a.allow !== undefined && typeof a.allow !== 'boolean') return null
+  if (
+    a.priority !== undefined &&
+    (typeof a.priority !== 'number' ||
+      !Number.isInteger(a.priority) ||
+      Math.abs(a.priority) > maxPriority)
+  ) {
+    return null
+  }
+  return {
+    type: a.type,
+    topic: a.topic,
+    ...(a.allow === undefined ? {} : { allow: a.allow }),
+    ...(a.priority === undefined ? {} : { priority: a.priority }),
+  }
+}
+
+/**
+ * Accepts only a well-formed operation. It is used when resuming after the step-up redirect:
+ * what comes back from session storage is rebuilt from validated fields, so a tampered
+ * entry can never inject a different request.
+ */
+export function validateOperation(value: unknown): MqttOperation | null {
+  if (!value || typeof value !== 'object') return null
+  const op = value as Record<string, unknown>
+  switch (op.kind) {
+    case 'create':
+      if (!isUsername(op.username)) return null
+      if (op.role !== undefined && !isRoleName(op.role)) return null
+      return {
+        kind: 'create',
+        username: op.username,
+        ...(op.role === undefined ? {} : { role: op.role as string }),
+      }
+    case 'rotate':
+    case 'enable':
+    case 'disable':
+    case 'delete':
+      return isUsername(op.username)
+        ? { kind: op.kind, username: op.username }
+        : null
+    case 'assignRole':
+    case 'unassignRole':
+      return isUsername(op.username) && isRoleName(op.role)
+        ? { kind: op.kind, username: op.username, role: op.role }
+        : null
+    case 'createRole': {
+      if (
+        !isRoleName(op.name) ||
+        !Array.isArray(op.acls) ||
+        op.acls.length > 50
+      ) {
+        return null
+      }
+      if (
+        op.description !== undefined &&
+        (typeof op.description !== 'string' || op.description.length > 200)
+      ) {
+        return null
+      }
+      const acls: AclInput[] = []
+      for (const raw of op.acls) {
+        const acl = validAcl(raw)
+        if (!acl) return null
+        acls.push(acl)
+      }
+      return {
+        kind: 'createRole',
+        name: op.name,
+        ...(op.description ? { description: op.description as string } : {}),
+        acls,
+      }
+    }
+    case 'deleteRole':
+      return isRoleName(op.name) && typeof op.force === 'boolean'
+        ? { kind: 'deleteRole', name: op.name, force: op.force }
+        : null
+    case 'addAcl': {
+      const acl = validAcl(op.acl)
+      return isRoleName(op.role) && acl
+        ? { kind: 'addAcl', role: op.role, acl }
+        : null
+    }
+    case 'removeAcl':
+      return isRoleName(op.role) &&
+        isAclType(op.type) &&
+        typeof op.topic === 'string' &&
+        validTopicFilter(op.topic)
+        ? { kind: 'removeAcl', role: op.role, type: op.type, topic: op.topic }
+        : null
+    default:
       return null
   }
 }

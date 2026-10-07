@@ -40,6 +40,125 @@ const defaults: Preferences = {
 }
 
 const english: Record<string, string> = {
+  'Funções de acesso': 'Access roles',
+  'Nova função': 'New role',
+  'Gerenciar funções': 'Manage roles',
+  'Funções definem o que cada cliente pode publicar e assinar. Crie, edite e atribua funções aqui; as funções do próprio broker são reservadas.':
+    "Roles define what each client may publish and subscribe to. Create, edit and assign roles here; the broker's own roles are reserved.",
+  'Cadastradas no broker': 'Registered in the broker',
+  Atribuíveis: 'Assignable',
+  'Podem ser dadas a clientes': 'Can be given to clients',
+  Reservadas: 'Reserved',
+  'Administração do broker': 'Broker administration',
+  Restrita: 'Restricted',
+  Descrição: 'Description',
+  Regras: 'Rules',
+  Detalhes: 'Details',
+  'Crie uma função para definir o que um cliente pode fazer.':
+    'Create a role to define what a client may do.',
+  'Nenhuma função': 'No roles',
+  'Criar, editar e excluir funções, e dá-las a clientes, exigem autenticação forte recente. Nenhuma regra pode conceder o canal de controle do broker ($CONTROL).':
+    "Creating, editing and deleting roles, and giving them to clients, require recent strong authentication. No rule can grant the broker's control channel ($CONTROL).",
+  'Excluir função?': 'Delete role?',
+  'Esta função está em uso por {n} cliente. Ele perderá imediatamente o acesso que ela concede.':
+    'This role is used by {n} client. It will immediately lose the access the role grants.',
+  'Esta função está em uso por {n} clientes. Eles perderão imediatamente o acesso que ela concede.':
+    'This role is used by {n} clients. They will immediately lose the access the role grants.',
+  'Nenhum cliente usa esta função. Esta ação não pode ser desfeita.':
+    'No client uses this role. This cannot be undone.',
+  'Escolha um ponto de partida. As regras podem ser editadas depois.':
+    'Pick a starting point. The rules can be edited afterwards.',
+  'Nome da função': 'Role name',
+  'Descrição (opcional)': 'Description (optional)',
+  'Use letras, números, ponto, hífen ou sublinhado (até 64 caracteres).':
+    'Use letters, numbers, dot, hyphen or underscore (up to 64 characters).',
+  'Já existe uma função com este nome.':
+    'A role with this name already exists.',
+  'Ponto de partida': 'Starting point',
+  'Regras iniciais': 'Initial rules',
+  'Sem regras: o cliente não poderá fazer nada até você adicionar.':
+    'No rules: a client can do nothing until you add some.',
+  'Criar função': 'Create role',
+  'Em branco': 'Blank',
+  'Sem regras. Adicione as regras depois.': 'No rules. Add them afterwards.',
+  'Acesso total (confiável)': 'Full access (trusted)',
+  'Publicar, assinar e receber em todos os tópicos. Use só para gateways e serviços confiáveis.':
+    'Publish, subscribe and receive on every topic. Use only for trusted gateways and services.',
+  'Somente leitura': 'Read only',
+  'Assinar e receber em todos os tópicos, sem publicar.':
+    'Subscribe and receive on every topic, without publishing.',
+  'Isolado por cliente': 'Isolated per client',
+  'Cada cliente só acessa devices/<seu usuário>/#. Um cliente não alcança os tópicos de outro.':
+    "Each client only reaches devices/<its username>/#. One client cannot reach another's topics.",
+  'Monitoramento do broker': 'Broker monitoring',
+  'Ler as estatísticas do broker ($SYS), sem acesso a mensagens.':
+    'Read the broker statistics ($SYS), with no access to messages.',
+  'Regras que esta função concede.': 'Rules this role grants.',
+  'Função do broker: não pode ser alterada aqui.':
+    'Broker role: it cannot be changed here.',
+  'Nenhum cliente usa esta função.': 'No client uses this role.',
+  'Sem regras: nenhum acesso é concedido.': 'No rules: no access is granted.',
+  Tópico: 'Topic',
+  Efeito: 'Effect',
+  Prioridade: 'Priority',
+  Negar: 'Deny',
+  'Remover regra': 'Remove rule',
+  'Remover regra?': 'Remove rule?',
+  'Adicionar regra': 'Add rule',
+  'Filtro de tópico': 'Topic filter',
+  '+ e # são curingas; %u e %c valem o usuário e o client ID do próprio cliente.':
+    "+ and # are wildcards; %u and %c stand for the client's own username and client ID.",
+  '{n} cliente usa esta função e perde esse acesso imediatamente.':
+    '{n} client uses this role and loses that access immediately.',
+  '{n} clientes usam esta função e perdem esse acesso imediatamente.':
+    '{n} clients use this role and lose that access immediately.',
+  Remover: 'Remove',
+  Adicionar: 'Add',
+  'Remover função?': 'Remove role?',
+  'O cliente perde imediatamente o acesso que esta função concede.':
+    'The client immediately loses the access this role grants.',
+  'Funções do cliente': 'Client roles',
+  'As funções definem o que o cliente pode publicar e assinar. Alterar exige autenticação forte recente.':
+    'Roles define what the client may publish and subscribe to. Changing them requires recent strong authentication.',
+  'Ainda não há funções que possam ser atribuídas.':
+    'There are no roles that can be assigned yet.',
+  'Criar uma função': 'Create a role',
+  regras: 'rules',
+  funções: 'roles',
+  atribuíveis: 'assignable',
+  'Criar, reativar, trocar senha, excluir e alterar funções exigem autenticação forte recente. Desativar é imediato. Clientes protegidos do broker não podem ser alterados aqui.':
+    'Creating, re-enabling, changing the password, deleting and changing roles require recent strong authentication. Disabling is immediate. Protected broker clients cannot be changed here.',
+  'As funções definem o que cada cliente pode publicar e assinar. Gerencie-as na página de funções.':
+    'Roles define what each client may publish and subscribe to. Manage them on the roles page.',
+  'O cliente publica': 'The client publishes',
+  'O broker entrega ao cliente': 'The broker delivers to the client',
+  'O cliente assina (filtro exato)': 'The client subscribes (exact filter)',
+  'O cliente assina (filtros que combinam)':
+    'The client subscribes (matching filters)',
+  'O cliente remove assinatura (filtro exato)':
+    'The client unsubscribes (exact filter)',
+  'O cliente remove assinatura (filtros que combinam)':
+    'The client unsubscribes (matching filters)',
+  'Escolha um tipo de regra.': 'Choose a rule type.',
+  'Filtro de tópico inválido: use + e # só como nível inteiro, e # apenas no fim.':
+    'Invalid topic filter: use + and # only as a whole level, and # only at the end.',
+  'A prioridade deve ser um número inteiro entre -1000 e 1000.':
+    'The priority must be a whole number between -1000 and 1000.',
+  'O canal de controle do broker ($CONTROL) não pode ser concedido a uma função.':
+    "The broker's control channel ($CONTROL) cannot be granted to a role.",
+  'Ninguém pode publicar em tópicos que começam com $. Para ler estatísticas, use assinar e receber.':
+    'Nobody can publish to topics that start with $. To read statistics, use subscribe and receive.',
+  'Esta função é reservada ao broker e não pode ser alterada aqui.':
+    'This role is reserved to the broker and cannot be changed here.',
+  'Esta função ainda está em uso por clientes.':
+    'This role is still used by clients.',
+  'A regra é inválida. Revise o tipo, o filtro de tópico e a prioridade.':
+    'The rule is invalid. Review the type, topic filter and priority.',
+  'Nenhuma função pode conceder o canal de controle do broker nem publicar em tópicos $.':
+    "No role can grant the broker's control channel or publish to $ topics.",
+  'Escolha a função do cliente.': "Choose the client's role.",
+  'A descrição é longa demais ou tem caracteres inválidos.':
+    'The description is too long or has invalid characters.',
   'Clientes, credenciais e estado do broker.':
     'Clients, credentials and broker status.',
   'Nova credencial': 'New credential',

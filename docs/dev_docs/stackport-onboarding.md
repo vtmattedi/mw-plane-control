@@ -242,6 +242,15 @@ work only when the facade above is enabled):
   `mqtt-admin`) are shown as protected and have no actions. An operation that needs
   fresh WebAuthn is saved in `sessionStorage` (no secrets), the browser goes through the
   Identity step-up, and the operation runs once when it returns.
+- `/mqtt/roles`: access roles. List them with their client counts and whether they are
+  reserved or assignable; create a role from a template (blank, trusted, read-only, per-client
+  isolation with `%u`, broker monitoring) or from scratch; open a role to see its rules and
+  the clients holding it, add and remove rules, and delete it. Deleting or editing a role that
+  clients hold says how many clients are affected first. The console refuses what the service
+  would refuse (the `$CONTROL` channel, publishing into `$` topics, malformed topic filters)
+  before sending anything. Every change needs fresh WebAuthn and resumes after the step-up
+  like the other operations. The clients page has a per-client **Roles** dialog to give or
+  take roles.
 - `/mqtt/docs` and `/mqtt/docs/{version}`: the service documentation (connection guide, access
   model, API reference, troubleshooting), served in the language of the interface with the
   same layout as the OAuth and Mail documentation tabs.

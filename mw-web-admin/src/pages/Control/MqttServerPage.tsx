@@ -9,6 +9,7 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { MetricCard } from '@/components/control/metric-card'
 import { PageHeader } from '@/components/control/page-header'
 import { StatusBadge } from '@/components/control/status-badge'
@@ -326,56 +327,24 @@ export default function MqttServerPage() {
         )}
 
         <div className="mt-6">
-          <Section title={tr('Funções de acesso (somente leitura)')}>
-            {rolesQuery.isError ? (
-              <div className={styles.error} role="status">
-                <AlertTriangle className="text-warning mt-0.5 size-4 shrink-0" />
-                <span>{tr('Não foi possível carregar as funções.')}</span>
-              </div>
-            ) : (
-              <div className="grid gap-4 p-4 lg:grid-cols-2">
-                {(rolesQuery.data?.roles ?? []).map((role) => (
-                  <div
-                    className="border-border/70 rounded-xl border p-4"
-                    key={role.name}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-sm font-semibold">{role.name}</h3>
-                      {rolesQuery.data?.assignable.includes(role.name) ? (
-                        <StatusBadge tone="positive">
-                          {tr('Atribuível')}
-                        </StatusBadge>
-                      ) : (
-                        <StatusBadge tone="neutral">
-                          {tr('Reservada')}
-                        </StatusBadge>
-                      )}
-                    </div>
-                    <ul className="text-muted-foreground mt-3 space-y-1 text-xs">
-                      {role.acls.map((acl) => (
-                        <li
-                          className="flex justify-between gap-3"
-                          key={`${acl.type}:${acl.topic}`}
-                        >
-                          <span>{acl.type}</span>
-                          <code className="text-foreground break-all">
-                            {acl.allow ? '' : '✕ '}
-                            {acl.topic}
-                          </code>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            )}
+          <Section title={tr('Funções de acesso')}>
+            <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-muted-foreground text-sm">
+                {rolesQuery.isError
+                  ? tr('Não foi possível carregar as funções.')
+                  : `${rolesQuery.data?.roles.length ?? '…'} ${tr('funções')} · ${rolesQuery.data?.assignable.length ?? '…'} ${tr('atribuíveis')}`}
+              </p>
+              <Button asChild variant="outline">
+                <Link to="/mqtt/roles">{tr('Gerenciar funções')}</Link>
+              </Button>
+            </div>
           </Section>
         </div>
 
         <aside className="text-muted-foreground mt-5 flex items-start gap-2 text-xs leading-5">
           <ShieldCheck className="text-primary mt-0.5 size-4 shrink-0" />
           {tr(
-            'As funções definem o que cada cliente pode publicar e assinar. Elas são mantidas no broker e não podem ser alteradas por esta página.',
+            'As funções definem o que cada cliente pode publicar e assinar. Gerencie-as na página de funções.',
           )}
         </aside>
       </div>

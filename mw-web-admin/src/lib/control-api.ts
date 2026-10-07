@@ -126,6 +126,18 @@ function readableError(code: string) {
       'O serviço MQTT recusou as credenciais do control plane.',
     mqtt_delegation_failed:
       'Não foi possível obter autorização para o serviço MQTT. Saia e entre novamente.',
+    reserved_role:
+      'Esta função é reservada ao broker e não pode ser alterada aqui.',
+    role_in_use: 'Esta função ainda está em uso por clientes.',
+    invalid_role:
+      'Use letras, números, ponto, hífen ou sublinhado (até 64 caracteres).',
+    invalid_acl:
+      'A regra é inválida. Revise o tipo, o filtro de tópico e a prioridade.',
+    forbidden_topic:
+      'Nenhuma função pode conceder o canal de controle do broker nem publicar em tópicos $.',
+    role_required: 'Escolha a função do cliente.',
+    invalid_description:
+      'A descrição é longa demais ou tem caracteres inválidos.',
     mqtt_upstream_unavailable: 'O serviço MQTT não está disponível.',
     mqtt_upstream_failed: 'O serviço MQTT falhou ao processar a solicitação.',
   }
