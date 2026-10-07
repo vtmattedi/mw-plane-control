@@ -40,6 +40,90 @@ const defaults: Preferences = {
 }
 
 const english: Record<string, string> = {
+  Clientes: 'Clients',
+  Broker: 'Broker',
+  'Novo cliente': 'New client',
+  'Clientes MQTT': 'MQTT clients',
+  'Usuários do broker MQTT: gateways, dispositivos e serviços. A senha é gerada automaticamente e exibida uma única vez.':
+    'MQTT broker users: gateways, devices and services. The password is generated automatically and shown only once.',
+  'Cadastrados no broker': 'Registered in the broker',
+  Conectados: 'Connected',
+  'Sessões abertas agora': 'Sessions open right now',
+  Assinaturas: 'Subscriptions',
+  'Ativas no broker': 'Active on the broker',
+  'Mensagens retidas': 'Retained messages',
+  'Estado guardado pelo broker': 'State kept by the broker',
+  Cliente: 'Client',
+  Funções: 'Roles',
+  'Crie um cliente para um gateway, dispositivo ou serviço.':
+    'Create a client for a gateway, device or service.',
+  'Nenhum cliente MQTT': 'No MQTT clients',
+  Protegido: 'Protected',
+  'Ativar cliente?': 'Enable client?',
+  'Desativar cliente?': 'Disable client?',
+  'O cliente poderá se conectar novamente com a senha atual.':
+    'The client will be able to connect again with its current password.',
+  'O cliente será desconectado e não poderá se conectar até ser reativado.':
+    'The client will be disconnected and cannot connect until re-enabled.',
+  'Gerar nova senha?': 'Generate a new password?',
+  'Gerar nova senha': 'Generate new password',
+  'Nova senha': 'New password',
+  'A senha atual deixará de funcionar e a nova será exibida apenas uma vez.':
+    'The current password will stop working and the new one is shown only once.',
+  'Excluir cliente?': 'Delete client?',
+  Excluir: 'Delete',
+  'Criar cliente': 'Create client',
+  'O cliente será desconectado e removido do broker. Esta ação não pode ser desfeita.':
+    'The client will be disconnected and removed from the broker. This cannot be undone.',
+  'Criar, reativar, trocar senha e excluir exigem autenticação forte recente. Desativar é imediato. Clientes protegidos do broker não podem ser alterados aqui.':
+    'Creating, re-enabling, changing the password and deleting require recent strong authentication. Disabling is immediate. Protected broker clients cannot be changed here.',
+  'Informe o nome do cliente. A senha será gerada e exibida uma única vez.':
+    'Enter the client name. The password will be generated and shown only once.',
+  'Nome do cliente': 'Client name',
+  'Função atribuída:': 'Assigned role:',
+  'Use letras, números, ponto, hífen ou sublinhado (até 128 caracteres).':
+    'Use letters, numbers, dot, hyphen or underscore (up to 128 characters).',
+  'Credenciais MQTT': 'MQTT credentials',
+  'O broker MQTT não está acessível no momento.':
+    'The MQTT broker is not reachable right now.',
+  'Não foi possível carregar os clientes.': 'Could not load the clients.',
+  'Estado do broker MQTT: conexões, tráfego e funções de acesso. Os números vêm do próprio broker e são atualizados a cada 10 segundos.':
+    'MQTT broker state: connections, traffic and access roles. The numbers come from the broker itself and refresh every 10 seconds.',
+  'Broker MQTT': 'MQTT broker',
+  'Conexão do serviço de administração': 'Admin service connection',
+  'Tempo ativo': 'Uptime',
+  'Desde a última reinicialização': 'Since the last restart',
+  Atualizado: 'Updated',
+  'Dados desatualizados': 'Stale data',
+  'Leitura mais recente': 'Latest reading',
+  'Sem atualização recente do broker': 'No recent update from the broker',
+  'Não foi possível carregar as estatísticas.':
+    'Could not load the statistics.',
+  'O broker ainda não publicou estatísticas. Elas aparecem em até 10 segundos após a conexão.':
+    'The broker has not published statistics yet. They appear within 10 seconds of connecting.',
+  'Conexões e armazenamento': 'Connections and storage',
+  'Clientes conectados': 'Connected clients',
+  'Clientes (total)': 'Clients (total)',
+  'Máximo de clientes': 'Peak clients',
+  'Mensagens armazenadas': 'Stored messages',
+  'Memória em uso': 'Memory in use',
+  'Pico de memória': 'Peak memory',
+  'Tráfego acumulado': 'Cumulative traffic',
+  'Mensagens recebidas': 'Messages received',
+  'Mensagens enviadas': 'Messages sent',
+  'Publicações recebidas': 'Publishes received',
+  'Publicações enviadas': 'Publishes sent',
+  'Publicações descartadas': 'Publishes dropped',
+  'Bytes recebidos': 'Bytes received',
+  'Bytes enviados': 'Bytes sent',
+  Conexões: 'Connections',
+  'Carga média': 'Load average',
+  'Funções de acesso (somente leitura)': 'Access roles (read-only)',
+  'Não foi possível carregar as funções.': 'Could not load the roles.',
+  Atribuível: 'Assignable',
+  Reservada: 'Reserved',
+  'As funções definem o que cada cliente pode publicar e assinar. Elas são mantidas no broker e não podem ser alteradas por esta página.':
+    'Roles define what each client may publish and subscribe to. They are kept in the broker and cannot be changed from this page.',
   'Visão geral': 'Overview',
   Usuários: 'Users',
   Aplicações: 'Applications',
