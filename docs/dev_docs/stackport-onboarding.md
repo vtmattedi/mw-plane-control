@@ -190,16 +190,18 @@ nothing for OAuth or Mail.
    | Client ID | mw-mqtt |
    | Audience | mw-mqtt |
    | Required scope | openid |
-   | Additional scopes | mqtt.clients.read mqtt.clients.write mqtt.clients.delete mqtt.credentials.rotate mqtt.roles.read mqtt.server.read |
+   | Additional scopes | mqtt.clients.read mqtt.clients.write mqtt.clients.delete mqtt.credentials.rotate mqtt.roles.read mqtt.roles.write mqtt.roles.delete mqtt.server.read |
    | Redirect URI | https://admin-mqtt.mattediworks.com/_identity-unused-callback |
 
    Save the issued secret as `MW_IDENTITY_INTROSPECTION_CLIENT_SECRET` in the MQTT
    project's `secrets/admin-api.env`, not here.
    That file must also set `ADMIN_AUTH_MODE=federated`: the service defaults to its
    standalone `token` mode and refuses to start without tokens.
-2. Edit the BFF's own Identity application: add audience `mw-mqtt` and the six
-   `mqtt.*` scopes to its allowed audiences and scopes.
-3. In this project's `.env` append the six `mqtt.*` scopes to
+2. Edit the BFF's own Identity application: add audience `mw-mqtt` and the eight
+   `mqtt.*` scopes to its allowed audiences and scopes. `mqtt.roles.write` and
+   `mqtt.roles.delete` are needed only for editing roles; without them the console can still
+   list clients and roles, and role changes fail with an authorization error.
+3. In this project's `.env` append the eight `mqtt.*` scopes to
    `BFF_DELEGATION_SCOPES` (keep the OAuth and Mail scopes) and set:
 
    ```dotenv
@@ -215,7 +217,11 @@ Facade routes (browser path `/api/mqtt/...`, forwarded to `/admin/api/...`):
 | Route | Scope | Step-up |
 | --- | --- | --- |
 | GET /server, GET /stats | mqtt.server.read | no |
-| GET /roles | mqtt.roles.read | no |
+| GET /roles, GET /roles/{name} | mqtt.roles.read | no |
+| POST /roles | mqtt.roles.write | yes |
+| DELETE /roles/{name} | mqtt.roles.delete | yes |
+| POST /roles/{name}/acls, POST /roles/{name}/acls/remove | mqtt.roles.write | yes |
+| PUT, DELETE /clients/{username}/roles/{role} | mqtt.roles.write | yes |
 | GET /docs, GET /docs/{version} | mqtt.server.read | no |
 | GET /clients, GET /clients/{username} | mqtt.clients.read | no |
 | POST /clients | mqtt.clients.write | yes (returns a generated password once) |

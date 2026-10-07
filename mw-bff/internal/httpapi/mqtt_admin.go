@@ -13,7 +13,7 @@ import (
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/session"
 )
 
-const maxMQTTAdminRequestBytes int64 = 16 * 1024
+const maxMQTTAdminRequestBytes int64 = 32 * 1024
 
 type mqttAdminProxy struct {
 	delegation   *delegation.Client

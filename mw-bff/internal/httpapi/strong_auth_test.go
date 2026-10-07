@@ -59,6 +59,12 @@ func TestSensitiveMQTTRoutes(t *testing.T) {
 		{http.MethodPost, "/admin/api/clients/gw1/password"},
 		{http.MethodPost, "/admin/api/clients/gw1/enable"},
 		{http.MethodDelete, "/admin/api/clients/gw1"},
+		{http.MethodPost, "/admin/api/roles"},
+		{http.MethodDelete, "/admin/api/roles/viewer"},
+		{http.MethodPost, "/admin/api/roles/viewer/acls"},
+		{http.MethodPost, "/admin/api/roles/viewer/acls/remove"},
+		{http.MethodPut, "/admin/api/clients/gw1/roles/viewer"},
+		{http.MethodDelete, "/admin/api/clients/gw1/roles/viewer"},
 	}
 	for _, r := range sensitive {
 		if !sensitiveMQTTRoute(r.method, r.path) {
@@ -71,6 +77,7 @@ func TestSensitiveMQTTRoutes(t *testing.T) {
 		{http.MethodGet, "/admin/api/stats"},
 		{http.MethodGet, "/admin/api/server"},
 		{http.MethodGet, "/admin/api/roles"},
+		{http.MethodGet, "/admin/api/roles/viewer"},
 		// Disabling only removes access; it must stay a fast kill switch.
 		{http.MethodPost, "/admin/api/clients/gw1/disable"},
 	}
