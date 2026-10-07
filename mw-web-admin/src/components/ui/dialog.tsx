@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from 'react'
 import { cn } from '@/lib/utils'
+import { useOptionalPreferences } from '@/preferences/preferences-context'
 import styles from './dialog.module.scss'
 
 export const Dialog = DialogPrimitive.Root
@@ -23,6 +24,7 @@ export const DialogContent = forwardRef<HTMLDivElement, DialogContentProps>(
     { children, className, closeDisabled = false, ...props },
     ref,
   ) {
+    const tr = useOptionalPreferences()?.tr ?? ((text: string) => text)
     return (
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className={styles.overlay} />
@@ -33,7 +35,7 @@ export const DialogContent = forwardRef<HTMLDivElement, DialogContentProps>(
         >
           {children}
           <DialogPrimitive.Close
-            aria-label="Fechar"
+            aria-label={tr('Fechar')}
             className={styles.close}
             disabled={closeDisabled}
             type="button"

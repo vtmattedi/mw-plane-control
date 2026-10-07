@@ -15,6 +15,9 @@ func TestResolveKnownRoutes(t *testing.T) {
 		{http.MethodGet, "/server", ScopeServerRead, "/admin/api/server"},
 		{http.MethodGet, "/stats", ScopeServerRead, "/admin/api/stats"},
 		{http.MethodGet, "/roles", ScopeRolesRead, "/admin/api/roles"},
+		{http.MethodGet, "/docs", ScopeServerRead, "/admin/api/docs"},
+		{http.MethodGet, "/docs/v1", ScopeServerRead, "/admin/api/docs/v1"},
+		{http.MethodGet, "/docs/v12", ScopeServerRead, "/admin/api/docs/v12"},
 		{http.MethodGet, "/clients", ScopeClientsRead, "/admin/api/clients"},
 		{http.MethodPost, "/clients", ScopeClientsWrite, "/admin/api/clients"},
 		{http.MethodGet, "/clients/nmnw-gateway-aabbccddeeff", ScopeClientsRead, "/admin/api/clients/nmnw-gateway-aabbccddeeff"},
@@ -63,6 +66,13 @@ func TestResolveRejectsUnmappedAndTraversalRoutes(t *testing.T) {
 		{http.MethodGet, "/clients//gw1"},
 		{http.MethodGet, `/clients\gw1`},
 		{http.MethodGet, "/dynsec"},
+		{http.MethodPost, "/docs"},
+		{http.MethodDelete, "/docs/v1"},
+		{http.MethodGet, "/docs/latest"},
+		{http.MethodGet, "/docs/v1/extra"},
+		{http.MethodGet, "/docs/V1"},
+		{http.MethodGet, "/docs/v1234"},
+		{http.MethodGet, "/docs/../clients"},
 		{http.MethodPost, "/commands"},
 	}
 

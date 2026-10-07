@@ -6,6 +6,7 @@ import {
   KeyRound,
   Mail,
   Network,
+  Radio,
   ShieldCheck,
   Users,
 } from 'lucide-react'
@@ -16,7 +17,19 @@ import { Card } from '@/components/ui/card'
 import { controlRequest } from '@/lib/control-api'
 import { usePreferences } from '@/preferences/preferences-context'
 
-const modules = [
+type Module = {
+  name: string
+  description: string
+  icon: typeof ShieldCheck
+  to: string
+  endpoint: string
+  accent: string
+  // A reachable service is not always a healthy one: when set, the module counts as
+  // online only if this accepts the response.
+  healthy?: (body: unknown) => boolean
+}
+
+const modules: Module[] = [
   {
     name: 'Identity',
     description: 'Pessoas, aplicações e políticas de acesso.',
@@ -41,6 +54,17 @@ const modules = [
     endpoint: '/mail/health',
     accent: 'bg-[#23a77b]/12 text-[#168361]',
   },
+  {
+    name: 'MQTT',
+    description: 'Clientes, credenciais e estado do broker.',
+    icon: Radio,
+    to: '/mqtt/clients',
+    endpoint: '/mqtt/server',
+    accent: 'bg-[#2fa4d9]/12 text-[#1d7fb0]',
+    // The admin API answers even while its broker connection is down.
+    healthy: (body) =>
+      (body as { brokerConnected?: unknown } | null)?.brokerConnected === true,
+  },
 ]
 
 export default function Home() {
@@ -48,7 +72,13 @@ export default function Home() {
   const queries = useQueries({
     queries: modules.map((module) => ({
       queryKey: ['module-health', module.name],
-      queryFn: () => controlRequest<unknown>(module.endpoint),
+      queryFn: async () => {
+        const body = await controlRequest<unknown>(module.endpoint)
+        if (module.healthy && !module.healthy(body)) {
+          throw new Error(`${module.name} is not healthy`)
+        }
+        return body
+      },
       retry: 0,
       refetchInterval: 60_000,
     })),
@@ -104,7 +134,7 @@ export default function Home() {
             icon={AppWindow}
             label={tr('Plano')}
             note={tr('Aplicações MattediWorks')}
-            value="v1.0"
+            value="v1.1"
           />
         </section>
 
@@ -122,7 +152,7 @@ export default function Home() {
               {tr('Dados atualizados em tempo real')}
             </span>
           </div>
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {modules.map((module, index) => {
               const Icon = module.icon
               const query = queries[index]
