@@ -16,6 +16,8 @@ const (
 	ScopeClientsDelete     = "mqtt.clients.delete"
 	ScopeCredentialsRotate = "mqtt.credentials.rotate"
 	ScopeRolesRead         = "mqtt.roles.read"
+	ScopeRolesWrite        = "mqtt.roles.write"
+	ScopeRolesDelete       = "mqtt.roles.delete"
 	ScopeServerRead        = "mqtt.server.read"
 )
 
@@ -23,6 +25,9 @@ var ErrRouteNotFound = errors.New("MW MQTT admin route not found")
 
 // docVersion mirrors the admin API's published version names (v1, v2, ...).
 var docVersion = regexp.MustCompile(`^v[0-9]{1,3}$`)
+
+// role mirrors the broker admin API's own role-name rule.
+var role = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`)
 
 // username mirrors the broker admin API's own username rule.
 var username = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
@@ -50,6 +55,8 @@ func Resolve(method string, facadePath string) (Route, error) {
 		return route(path, ScopeServerRead), nil
 	case method == http.MethodGet && path == "/roles":
 		return route(path, ScopeRolesRead), nil
+	case method == http.MethodPost && path == "/roles":
+		return route(path, ScopeRolesWrite), nil
 	case method == http.MethodGet && path == "/clients":
 		return route(path, ScopeClientsRead), nil
 	case method == http.MethodPost && path == "/clients":
@@ -59,6 +66,9 @@ func Resolve(method string, facadePath string) (Route, error) {
 	parts := strings.Split(strings.Trim(path, "/"), "/")
 	if len(parts) == 2 && parts[0] == "docs" && method == http.MethodGet && docVersion.MatchString(parts[1]) {
 		return route(path, ScopeServerRead), nil
+	}
+	if len(parts) >= 2 && parts[0] == "roles" {
+		return resolveRole(method, path, parts)
 	}
 	if len(parts) < 2 || parts[0] != "clients" || !username.MatchString(parts[1]) {
 		return Route{}, ErrRouteNotFound
@@ -75,9 +85,32 @@ func Resolve(method string, facadePath string) (Route, error) {
 		return route(path, ScopeClientsWrite), nil
 	case len(parts) == 3 && parts[2] == "password" && method == http.MethodPost:
 		return route(path, ScopeCredentialsRotate), nil
+	// Giving or taking a role changes who may do what, so it needs the roles scope, not
+	// the clients scope.
+	case len(parts) == 4 && parts[2] == "roles" && role.MatchString(parts[3]) &&
+		(method == http.MethodPut || method == http.MethodDelete):
+		return route(path, ScopeRolesWrite), nil
 	default:
 		return Route{}, ErrRouteNotFound
 	}
+}
+
+// resolveRole maps the /roles/{name}... routes.
+func resolveRole(method string, path string, parts []string) (Route, error) {
+	if !role.MatchString(parts[1]) {
+		return Route{}, ErrRouteNotFound
+	}
+	switch {
+	case len(parts) == 2 && method == http.MethodGet:
+		return route(path, ScopeRolesRead), nil
+	case len(parts) == 2 && method == http.MethodDelete:
+		return route(path, ScopeRolesDelete), nil
+	case len(parts) == 3 && parts[2] == "acls" && method == http.MethodPost:
+		return route(path, ScopeRolesWrite), nil
+	case len(parts) == 4 && parts[2] == "acls" && parts[3] == "remove" && method == http.MethodPost:
+		return route(path, ScopeRolesWrite), nil
+	}
+	return Route{}, ErrRouteNotFound
 }
 
 func route(path string, scope string) Route {

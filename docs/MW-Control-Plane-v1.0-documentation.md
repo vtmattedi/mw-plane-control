@@ -1100,14 +1100,16 @@ above are unchanged: OAuth and Mail behave exactly as before.
   introspection (client and audience `mw-mqtt`) and applies changes to Mosquitto through
   Dynamic Security with its own narrowly scoped broker user.
 - **Facade:** `/api/mqtt/*` in the BFF, explicit routes only, one delegated scope per
-  route (`mqtt.clients.read|write|delete`, `mqtt.credentials.rotate`, `mqtt.roles.read`,
-  `mqtt.server.read`). Create, re-enable, password rotation and delete require fresh
-  WebAuthn; disabling a client does not, so it stays a fast kill switch.
+  route (`mqtt.clients.read|write|delete`, `mqtt.credentials.rotate`,
+  `mqtt.roles.read|write|delete`, `mqtt.server.read`). Create, re-enable, password rotation,
+  delete, and every change to roles or role assignments require fresh WebAuthn; disabling a
+  client does not, so it stays a fast kill switch.
 - **Optional:** the facade is disabled unless `BFF_MQTT_BASE_URL` is set, so a v1.0
   deployment is unaffected until it opts in.
 - **Console:** an `MQTT` group with clients, broker status and documentation pages. The
   overview shows an MQTT module card that is online only while the broker connection is up.
-- **Roles are read-only** in the console. Only roles the service lists as assignable can
-  be given to a client.
+- **Roles** can be created, edited and deleted in the console, and assigned to clients. The
+  broker's own roles are reserved, no rule can grant the control channel, and deleting a role
+  that clients still hold needs explicit confirmation.
 
 Enabling it is described in `dev_docs/stackport-onboarding.md`, section 3b.
