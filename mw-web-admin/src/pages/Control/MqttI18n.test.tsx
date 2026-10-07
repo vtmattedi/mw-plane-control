@@ -194,7 +194,9 @@ describe('MQTT pages respect the English language', () => {
     useApi()
     renderPage('server')
     expect(await screen.findByText('Connected')).toBeInTheDocument()
-    expect(await screen.findByText('Assignable')).toBeInTheDocument()
+    expect(
+      await screen.findByRole('link', { name: 'Manage roles' }),
+    ).toBeInTheDocument()
     expect(
       screen.getByText('No recent update from the broker'),
     ).toBeInTheDocument()

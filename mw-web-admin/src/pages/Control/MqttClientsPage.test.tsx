@@ -273,3 +273,133 @@ describe('MqttClientsPage', () => {
     ).toBeInTheDocument()
   })
 })
+
+describe('client roles dialog', () => {
+  const rolesFixture = {
+    roles: [
+      {
+        name: 'nmnw',
+        description: 'Trusted',
+        acls: [
+          { type: 'publishClientSend', topic: '#', allow: true, priority: 0 },
+        ],
+        reserved: false,
+        assignable: true,
+        clientCount: 1,
+      },
+      {
+        name: 'viewer',
+        description: '',
+        acls: [],
+        reserved: false,
+        assignable: true,
+        clientCount: 0,
+      },
+      {
+        name: 'admin',
+        description: '',
+        acls: [],
+        reserved: true,
+        assignable: false,
+        clientCount: 1,
+      },
+    ],
+    assignable: ['nmnw', 'viewer'],
+  }
+
+  const withRoles =
+    (roles: unknown = rolesFixture): Handler =>
+    (path, init) =>
+      path === '/mqtt/roles' ? roles : baseHandler(path, init)
+
+  function rowOf(name: string) {
+    return within(screen.getByText(name).closest('tr') as HTMLElement)
+  }
+
+  it('lists the assignable roles and gives one to the client', async () => {
+    const user = userEvent.setup()
+    useApi(withRoles())
+    renderPage()
+    await screen.findByText('gw1')
+
+    await user.click(rowOf('gw1').getByRole('button', { name: 'Funções' }))
+    const dialog = await screen.findByRole('dialog', {
+      name: /Funções do cliente · gw1/,
+    })
+    expect(within(dialog).getByText('nmnw')).toBeInTheDocument()
+    expect(within(dialog).getByText('viewer')).toBeInTheDocument()
+    // A reserved role is never offered.
+    expect(within(dialog).queryByText('admin')).toBeNull()
+
+    // gw1 already holds nmnw; viewer can be added.
+    expect(
+      within(dialog).getAllByRole('button', { name: 'Remover' }),
+    ).toHaveLength(1)
+    await user.click(within(dialog).getByRole('button', { name: 'Adicionar' }))
+    await waitFor(() => expect(mutationCalls()).toHaveLength(1))
+    expect(mutationCalls()[0][0]).toBe('/mqtt/clients/gw1/roles/viewer')
+    expect(mutationCalls()[0][1]?.method).toBe('PUT')
+  })
+
+  it('removes a role only after a confirmation', async () => {
+    const user = userEvent.setup()
+    useApi(withRoles())
+    renderPage()
+    await screen.findByText('gw1')
+    await user.click(rowOf('gw1').getByRole('button', { name: 'Funções' }))
+    const dialog = await screen.findByRole('dialog', {
+      name: /Funções do cliente/,
+    })
+
+    await user.click(within(dialog).getByRole('button', { name: 'Remover' }))
+    const confirm = await screen.findByRole('alertdialog', {
+      name: 'Remover função?',
+    })
+    await user.click(within(confirm).getByRole('button', { name: 'Cancelar' }))
+    expect(mutationCalls()).toHaveLength(0)
+
+    await user.click(within(dialog).getByRole('button', { name: 'Remover' }))
+    const again = await screen.findByRole('alertdialog', {
+      name: 'Remover função?',
+    })
+    await user.click(within(again).getByRole('button', { name: 'Remover' }))
+    await waitFor(() => expect(mutationCalls()).toHaveLength(1))
+    expect(mutationCalls()[0][0]).toBe('/mqtt/clients/gw1/roles/nmnw')
+    expect(mutationCalls()[0][1]?.method).toBe('DELETE')
+  })
+
+  it('points to the roles page when no role can be assigned', async () => {
+    const user = userEvent.setup()
+    // The service lists a role as assignable but returns no role details for it, so the
+    // client is manageable while the dialog has nothing to offer.
+    useApi(withRoles({ roles: [], assignable: ['nmnw'] }))
+    renderPage()
+    await screen.findByText('gw1')
+
+    await user.click(rowOf('gw1').getByRole('button', { name: 'Funções' }))
+    const dialog = await screen.findByRole('dialog', {
+      name: /Funções do cliente · gw1/,
+    })
+    expect(
+      within(dialog).getByText(
+        /Ainda não há funções que possam ser atribuídas/,
+      ),
+    ).toBeInTheDocument()
+    expect(
+      within(dialog).getByRole('link', { name: 'Criar uma função' }),
+    ).toHaveAttribute('href', '/mqtt/roles')
+    expect(
+      within(dialog).queryByRole('button', { name: 'Adicionar' }),
+    ).toBeNull()
+  })
+
+  it('offers no role editing for a protected client', async () => {
+    useApi(withRoles())
+    renderPage()
+    await screen.findByText('mqtt-admin')
+    expect(rowOf('mqtt-admin').getByText('Protegido')).toBeInTheDocument()
+    expect(
+      rowOf('mqtt-admin').queryByRole('button', { name: 'Funções' }),
+    ).toBeNull()
+  })
+})

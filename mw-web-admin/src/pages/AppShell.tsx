@@ -68,6 +68,7 @@ const groups: Group[] = [
     label: 'MQTT',
     items: [
       { label: 'Clientes', to: '/mqtt/clients', icon: Radio },
+      { label: 'Funções', to: '/mqtt/roles', icon: KeyRound },
       { label: 'Broker', to: '/mqtt/server', icon: ServerCog },
       { label: 'Documentação', to: '/mqtt/docs', icon: BookOpen },
     ],

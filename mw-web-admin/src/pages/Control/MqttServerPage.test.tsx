@@ -74,7 +74,7 @@ beforeEach(() => {
 })
 
 describe('MqttServerPage', () => {
-  it('shows broker health, formatted statistics and read-only roles', async () => {
+  it('shows broker health, formatted statistics and links to the roles', async () => {
     useApi({
       '/mqtt/server': {
         brokerConnected: true,
@@ -107,10 +107,13 @@ describe('MqttServerPage', () => {
     expect(screen.getByText('36,1')).toBeInTheDocument()
     expect(screen.getByText('839 KB')).toBeInTheDocument()
 
-    // Roles are read-only; only the assignable one is marked as such.
-    expect(await screen.findByText('Atribuível')).toBeInTheDocument()
-    expect(screen.getByText('Reservada')).toBeInTheDocument()
-    expect(screen.getByText('$CONTROL/dynamic-security/#')).toBeInTheDocument()
+    // The page summarises the roles and links to where they are managed.
+    expect(
+      await screen.findByText('2 funções · 1 atribuíveis'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: 'Gerenciar funções' }),
+    ).toHaveAttribute('href', '/mqtt/roles')
     expect(screen.queryByRole('button', { name: /excluir|criar/i })).toBeNull()
   })
 
