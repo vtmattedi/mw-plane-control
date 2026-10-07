@@ -3,6 +3,7 @@ package httpapi
 import (
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -99,6 +100,16 @@ func (p *mqttAdminProxy) serve(
 		[]string{route.Scope},
 	)
 	if err != nil {
+		// The error carries only Identity's HTTP status and OAuth error code, never a
+		// token or secret. Without this line a refused delegation is indistinguishable
+		// from a missing audience, a missing scope or a stale login.
+		slog.WarnContext(
+			r.Context(),
+			"MQTT admin delegation failed",
+			"audience", p.audience,
+			"scope", route.Scope,
+			"error", err,
+		)
 		writeJSONError(w, http.StatusBadGateway, "mqtt_delegation_failed")
 		return
 	}
@@ -116,6 +127,12 @@ func (p *mqttAdminProxy) serve(
 		body,
 	)
 	if err != nil {
+		slog.WarnContext(
+			r.Context(),
+			"MQTT admin upstream request failed",
+			"path", route.DownstreamPath,
+			"error", err,
+		)
 		writeJSONError(w, http.StatusBadGateway, "mqtt_upstream_unavailable")
 		return
 	}
