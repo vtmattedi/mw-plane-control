@@ -113,6 +113,21 @@ function readableError(code: string) {
       'Arquive a aplicação antes de excluí-la permanentemente.',
     application_in_use:
       'Esta aplicação ainda possui usuários associados, códigos de autorização ou tokens emitidos.',
+    broker_unavailable: 'O broker MQTT não está acessível no momento.',
+    already_exists: 'Já existe um cliente MQTT com este nome.',
+    not_found: 'O cliente MQTT não foi encontrado.',
+    protected_user: 'Este cliente é protegido e não pode ser alterado aqui.',
+    role_not_allowed: 'Esta função não pode ser atribuída por aqui.',
+    invalid_username:
+      'Use letras, números, ponto, hífen ou sublinhado (até 128 caracteres).',
+    too_many_failures:
+      'Muitas tentativas recusadas. Aguarde um minuto e tente novamente.',
+    mqtt_federation_rejected:
+      'O serviço MQTT recusou as credenciais do control plane.',
+    mqtt_delegation_failed:
+      'Não foi possível obter autorização para o serviço MQTT.',
+    mqtt_upstream_unavailable: 'O serviço MQTT não está disponível.',
+    mqtt_upstream_failed: 'O serviço MQTT falhou ao processar a solicitação.',
   }
   return labels[code] ?? 'Não foi possível concluir a solicitação.'
 }
