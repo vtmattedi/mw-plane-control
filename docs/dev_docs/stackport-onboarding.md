@@ -176,6 +176,54 @@ Keep hybrid mode during migration; move each service to `federated` after these
 paths and fresh WebAuthn-sensitive operations work. Resource applications do not
 need separate user assignments for BFF token exchange in the current code.
 
+## 3b. MW MQTT admin resource registration (optional)
+
+`mqtt-admin` lives in the MQTT broker's Stackport project (see that repository's
+`admin/README.md`) and is a downstream service like OAuth and Mail. The BFF
+facade is disabled until `BFF_MQTT_BASE_URL` is set, so deploying this code changes
+nothing for OAuth or Mail.
+
+1. In Identity -> Applications create a confidential application:
+
+   | Field | MW MQTT |
+   | --- | --- |
+   | Client ID | mw-mqtt |
+   | Audience | mw-mqtt |
+   | Required scope | openid |
+   | Additional scopes | mqtt.clients.read mqtt.clients.write mqtt.clients.delete mqtt.credentials.rotate mqtt.roles.read mqtt.server.read |
+   | Redirect URI | https://admin-mqtt.mattediworks.com/_identity-unused-callback |
+
+   Save the issued secret as `MW_IDENTITY_INTROSPECTION_CLIENT_SECRET` in the MQTT
+   project's `secrets/admin-api.env`, not here.
+2. Edit the BFF's own Identity application: add audience `mw-mqtt` and the six
+   `mqtt.*` scopes to its allowed audiences and scopes.
+3. In this project's `.env` append the six `mqtt.*` scopes to
+   `BFF_DELEGATION_SCOPES` (keep the OAuth and Mail scopes) and set:
+
+   ```dotenv
+   BFF_MQTT_BASE_URL=https://admin-mqtt.mattediworks.com
+   BFF_MQTT_HOST=
+   BFF_MQTT_AUDIENCE=mw-mqtt
+   BFF_MQTT_HTTP_TIMEOUT_SECONDS=5
+   ```
+4. Redeploy Plane Control and sign in again so the session acquires the new scopes.
+
+Facade routes (browser path `/api/mqtt/...`, forwarded to `/admin/api/...`):
+
+| Route | Scope | Step-up |
+| --- | --- | --- |
+| GET /server, GET /stats | mqtt.server.read | no |
+| GET /roles | mqtt.roles.read | no |
+| GET /clients, GET /clients/{username} | mqtt.clients.read | no |
+| POST /clients | mqtt.clients.write | yes (returns a generated password once) |
+| POST /clients/{username}/disable | mqtt.clients.write | no (fast kill switch) |
+| POST /clients/{username}/enable | mqtt.clients.write | yes |
+| POST /clients/{username}/password | mqtt.credentials.rotate | yes |
+| DELETE /clients/{username} | mqtt.clients.delete | yes |
+
+A broker outage reaches the browser as `503 {"error":"broker_unavailable"}`; every
+other downstream failure is a generic 502.
+
 ## 4. WOI: human login application
 
 In Identity -> Applications create:

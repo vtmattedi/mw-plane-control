@@ -42,6 +42,10 @@ func main() {
 	if cfg.MailBaseURL == "" || cfg.MailHost == "" || cfg.MailAudience != "mw-mail" {
 		issues = append(issues, "MW Mail federation must be configured with audience mw-mail")
 	}
+	// MQTT admin federation is optional; when enabled it must target audience mw-mqtt.
+	if cfg.MQTTBaseURL != "" && cfg.MQTTAudience != "mw-mqtt" {
+		issues = append(issues, "MW MQTT federation must use audience mw-mqtt")
+	}
 	if len(issues) > 0 {
 		fatal(strings.Join(issues, "; "))
 	}
