@@ -1,4 +1,4 @@
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, Inbox } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { usePreferences } from '@/preferences/preferences-context'
@@ -59,7 +59,7 @@ export function ResourceTable({
       <div className="grid min-h-56 place-items-center p-8 text-center">
         <div>
           <div className="bg-muted mx-auto mb-4 grid size-11 place-items-center rounded-2xl">
-            <span className="text-muted-foreground text-lg">MW</span>
+            <Inbox aria-hidden="true" className="text-muted-foreground size-5" />
           </div>
           <h3 className="text-sm font-semibold">{emptyTitle}</h3>
           <p className="text-muted-foreground mx-auto mt-1 max-w-sm text-sm">
