@@ -25,6 +25,7 @@ import {
   MailDocsPage,
   MailProjectsPage,
   MailUsagePage,
+  MqttDocsPage,
   OAuthAuditPage,
   OAuthDocsPage,
   OAuthMetricsPage,
@@ -42,6 +43,9 @@ const OAuthProvidersPage = lazy(
 const MailConfigurationPage = lazy(
   () => import('@/pages/Control/MailConfigurationPage'),
 )
+const MqttClientsPage = lazy(() => import('@/pages/Control/MqttClientsPage'))
+const MqttServerPage = lazy(() => import('@/pages/Control/MqttServerPage'))
+const MqttRolesPage = lazy(() => import('@/pages/Control/MqttRolesPage'))
 const IdentityApplicationDetailPage = lazy(() =>
   import('@/pages/Control/IdentityDetailPages').then((module) => ({
     default: module.IdentityApplicationDetailPage,
@@ -181,6 +185,39 @@ function AppRoutes() {
               >
                 <OAuthDocPage />
               </Suspense>
+            }
+          />
+          <Route
+            path="mqtt/clients"
+            element={
+              <DeferredPage>
+                <MqttClientsPage />
+              </DeferredPage>
+            }
+          />
+          <Route path="mqtt/docs" element={<MqttDocsPage />} />
+          <Route
+            path="mqtt/docs/:version"
+            element={
+              <DeferredPage>
+                <OAuthDocPage module="MQTT" basePath="/mqtt/docs" />
+              </DeferredPage>
+            }
+          />
+          <Route
+            path="mqtt/roles"
+            element={
+              <DeferredPage>
+                <MqttRolesPage />
+              </DeferredPage>
+            }
+          />
+          <Route
+            path="mqtt/server"
+            element={
+              <DeferredPage>
+                <MqttServerPage />
+              </DeferredPage>
             }
           />
           <Route path="mail/projects" element={<MailProjectsPage />} />

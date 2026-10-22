@@ -155,10 +155,10 @@ const configs: Record<string, ResourcePageConfig> = {
       'Operações federadas, rota, escopo autorizado e ator humano preservado.',
     icon: FileClock,
     endpoint: '/oauth/audit',
-    collectionKey: 'audit',
+    collectionKey: 'items',
     columns: [
       { key: 'event_type', label: 'Evento' },
-      { key: 'actor', label: 'Ator' },
+      { key: 'metadata.actor_identity_sub', label: 'Ator' },
       { key: 'status', label: 'Status' },
       { key: 'request_id', label: 'Request ID' },
       { key: 'created_at', label: 'Data' },
@@ -315,6 +315,23 @@ const configs: Record<string, ResourcePageConfig> = {
     emptyDescription:
       'O contrato atual do Mail ainda não publica uma rota de auditoria.',
   },
+  mqttDocs: {
+    module: 'MQTT',
+    title: 'Documentação da API',
+    description: 'Guia de conexão e contrato de integração do serviço MQTT.',
+    icon: BookOpen,
+    endpoint: '/mqtt/docs',
+    collectionKey: 'versions',
+    columns: [
+      { key: 'version', label: 'Versão' },
+      { key: 'status', label: 'Status' },
+      { key: 'content_type', label: 'Formato' },
+    ],
+    rowHref: (row) =>
+      typeof row.version === 'string' ? `/mqtt/docs/${row.version}` : undefined,
+    emptyTitle: 'Nenhuma versão publicada',
+    emptyDescription: 'A documentação publicada pelo serviço aparecerá aqui.',
+  },
   mailDocs: {
     module: 'Mail',
     title: 'Documentação da API',
@@ -368,3 +385,4 @@ export const MailEventsPage = () => <ResourcePage config={configs.mailEvents} />
 export const MailUsagePage = () => <ResourcePage config={configs.mailUsage} />
 export const MailAuditPage = () => <ResourcePage config={configs.mailAudit} />
 export const MailDocsPage = () => <ResourcePage config={configs.mailDocs} />
+export const MqttDocsPage = () => <ResourcePage config={configs.mqttDocs} />

@@ -123,6 +123,10 @@ services:
       BFF_MAIL_HOST: "${BFF_MAIL_HOST:-mailgo.mattediworks.com}"
       BFF_MAIL_AUDIENCE: "${BFF_MAIL_AUDIENCE:-mw-mail}"
       BFF_MAIL_HTTP_TIMEOUT_SECONDS: "${BFF_MAIL_HTTP_TIMEOUT_SECONDS:-5}"
+      BFF_MQTT_BASE_URL: "${BFF_MQTT_BASE_URL:-}"
+      BFF_MQTT_HOST: "${BFF_MQTT_HOST:-}"
+      BFF_MQTT_AUDIENCE: "${BFF_MQTT_AUDIENCE:-mw-mqtt}"
+      BFF_MQTT_HTTP_TIMEOUT_SECONDS: "${BFF_MQTT_HTTP_TIMEOUT_SECONDS:-5}"
     expose:
       - "7200"
     extra_hosts:

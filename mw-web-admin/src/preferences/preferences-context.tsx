@@ -40,6 +40,268 @@ const defaults: Preferences = {
 }
 
 const english: Record<string, string> = {
+  'Funções de acesso': 'Access roles',
+  'Nova função': 'New role',
+  'Gerenciar funções': 'Manage roles',
+  'Funções definem o que cada cliente pode publicar e assinar. Crie, edite e atribua funções aqui; as funções do próprio broker são reservadas.':
+    "Roles define what each client may publish and subscribe to. Create, edit and assign roles here; the broker's own roles are reserved.",
+  'Cadastradas no broker': 'Registered in the broker',
+  Atribuíveis: 'Assignable',
+  'Podem ser dadas a clientes': 'Can be given to clients',
+  Reservadas: 'Reserved',
+  'Administração do broker': 'Broker administration',
+  Restrita: 'Restricted',
+  Descrição: 'Description',
+  Regras: 'Rules',
+  Detalhes: 'Details',
+  'Crie uma função para definir o que um cliente pode fazer.':
+    'Create a role to define what a client may do.',
+  'Nenhuma função': 'No roles',
+  'Criar, editar e excluir funções, e dá-las a clientes, exigem autenticação forte recente. Nenhuma regra pode conceder o canal de controle do broker ($CONTROL).':
+    "Creating, editing and deleting roles, and giving them to clients, require recent strong authentication. No rule can grant the broker's control channel ($CONTROL).",
+  'Excluir função?': 'Delete role?',
+  'Esta função está em uso por {n} cliente. Ele perderá imediatamente o acesso que ela concede.':
+    'This role is used by {n} client. It will immediately lose the access the role grants.',
+  'Esta função está em uso por {n} clientes. Eles perderão imediatamente o acesso que ela concede.':
+    'This role is used by {n} clients. They will immediately lose the access the role grants.',
+  'Nenhum cliente usa esta função. Esta ação não pode ser desfeita.':
+    'No client uses this role. This cannot be undone.',
+  'Escolha um ponto de partida. As regras podem ser editadas depois.':
+    'Pick a starting point. The rules can be edited afterwards.',
+  'Nome da função': 'Role name',
+  'Descrição (opcional)': 'Description (optional)',
+  'Use letras, números, ponto, hífen ou sublinhado (até 64 caracteres).':
+    'Use letters, numbers, dot, hyphen or underscore (up to 64 characters).',
+  'Já existe uma função com este nome.':
+    'A role with this name already exists.',
+  'Ponto de partida': 'Starting point',
+  'Regras iniciais': 'Initial rules',
+  'Sem regras: o cliente não poderá fazer nada até você adicionar.':
+    'No rules: a client can do nothing until you add some.',
+  'Criar função': 'Create role',
+  'Em branco': 'Blank',
+  'Sem regras. Adicione as regras depois.': 'No rules. Add them afterwards.',
+  'Acesso total (confiável)': 'Full access (trusted)',
+  'Publicar, assinar e receber em todos os tópicos. Use só para gateways e serviços confiáveis.':
+    'Publish, subscribe and receive on every topic. Use only for trusted gateways and services.',
+  'Somente leitura': 'Read only',
+  'Assinar e receber em todos os tópicos, sem publicar.':
+    'Subscribe and receive on every topic, without publishing.',
+  'Isolado por cliente': 'Isolated per client',
+  'Cada cliente só acessa devices/<seu usuário>/#. Um cliente não alcança os tópicos de outro.':
+    "Each client only reaches devices/<its username>/#. One client cannot reach another's topics.",
+  'Monitoramento do broker': 'Broker monitoring',
+  'Ler as estatísticas do broker ($SYS), sem acesso a mensagens.':
+    'Read the broker statistics ($SYS), with no access to messages.',
+  'Regras que esta função concede.': 'Rules this role grants.',
+  'Função do broker: não pode ser alterada aqui.':
+    'Broker role: it cannot be changed here.',
+  'Nenhum cliente usa esta função.': 'No client uses this role.',
+  'Sem regras: nenhum acesso é concedido.': 'No rules: no access is granted.',
+  Tópico: 'Topic',
+  Efeito: 'Effect',
+  Prioridade: 'Priority',
+  Negar: 'Deny',
+  'Remover regra': 'Remove rule',
+  'Remover regra?': 'Remove rule?',
+  'Adicionar regra': 'Add rule',
+  'Filtro de tópico': 'Topic filter',
+  '+ e # são curingas; %u e %c valem o usuário e o client ID do próprio cliente.':
+    "+ and # are wildcards; %u and %c stand for the client's own username and client ID.",
+  '{n} cliente usa esta função e perde esse acesso imediatamente.':
+    '{n} client uses this role and loses that access immediately.',
+  '{n} clientes usam esta função e perdem esse acesso imediatamente.':
+    '{n} clients use this role and lose that access immediately.',
+  Remover: 'Remove',
+  Adicionar: 'Add',
+  'Remover função?': 'Remove role?',
+  'O cliente perde imediatamente o acesso que esta função concede.':
+    'The client immediately loses the access this role grants.',
+  'Funções do cliente': 'Client roles',
+  'As funções definem o que o cliente pode publicar e assinar. Alterar exige autenticação forte recente.':
+    'Roles define what the client may publish and subscribe to. Changing them requires recent strong authentication.',
+  'Ainda não há funções que possam ser atribuídas.':
+    'There are no roles that can be assigned yet.',
+  'Criar uma função': 'Create a role',
+  regras: 'rules',
+  funções: 'roles',
+  atribuíveis: 'assignable',
+  'Criar, reativar, trocar senha, excluir e alterar funções exigem autenticação forte recente. Desativar é imediato. Clientes protegidos do broker não podem ser alterados aqui.':
+    'Creating, re-enabling, changing the password, deleting and changing roles require recent strong authentication. Disabling is immediate. Protected broker clients cannot be changed here.',
+  'As funções definem o que cada cliente pode publicar e assinar. Gerencie-as na página de funções.':
+    'Roles define what each client may publish and subscribe to. Manage them on the roles page.',
+  'O cliente publica': 'The client publishes',
+  'O broker entrega ao cliente': 'The broker delivers to the client',
+  'O cliente assina (filtro exato)': 'The client subscribes (exact filter)',
+  'O cliente assina (filtros que combinam)':
+    'The client subscribes (matching filters)',
+  'O cliente remove assinatura (filtro exato)':
+    'The client unsubscribes (exact filter)',
+  'O cliente remove assinatura (filtros que combinam)':
+    'The client unsubscribes (matching filters)',
+  'Escolha um tipo de regra.': 'Choose a rule type.',
+  'Filtro de tópico inválido: use + e # só como nível inteiro, e # apenas no fim.':
+    'Invalid topic filter: use + and # only as a whole level, and # only at the end.',
+  'A prioridade deve ser um número inteiro entre -1000 e 1000.':
+    'The priority must be a whole number between -1000 and 1000.',
+  'O canal de controle do broker ($CONTROL) não pode ser concedido a uma função.':
+    "The broker's control channel ($CONTROL) cannot be granted to a role.",
+  'Ninguém pode publicar em tópicos que começam com $. Para ler estatísticas, use assinar e receber.':
+    'Nobody can publish to topics that start with $. To read statistics, use subscribe and receive.',
+  'Esta função é reservada ao broker e não pode ser alterada aqui.':
+    'This role is reserved to the broker and cannot be changed here.',
+  'Esta função ainda está em uso por clientes.':
+    'This role is still used by clients.',
+  'A regra é inválida. Revise o tipo, o filtro de tópico e a prioridade.':
+    'The rule is invalid. Review the type, topic filter and priority.',
+  'Nenhuma função pode conceder o canal de controle do broker nem publicar em tópicos $.':
+    "No role can grant the broker's control channel or publish to $ topics.",
+  'Escolha a função do cliente.': "Choose the client's role.",
+  'A descrição é longa demais ou tem caracteres inválidos.':
+    'The description is too long or has invalid characters.',
+  'Clientes, credenciais e estado do broker.':
+    'Clients, credentials and broker status.',
+  'Nova credencial': 'New credential',
+  Credencial: 'Credential',
+  'Credencial gerada': 'Generated credential',
+  Copiar: 'Copy',
+  Copiado: 'Copied',
+  'Copiar todas': 'Copy all',
+  'Tudo copiado': 'All copied',
+  Concluir: 'Done',
+  Fechar: 'Close',
+  'A operação foi concluída. Copie e armazene a credencial em um local seguro.':
+    'The operation completed. Copy and store the credential in a safe place.',
+  'A operação foi concluída. Copie e armazene as credenciais em um local seguro.':
+    'The operation completed. Copy and store the credentials in a safe place.',
+  'Esta credencial não será exibida novamente depois que esta janela for fechada.':
+    'This credential will not be shown again after this window is closed.',
+  'Estas credenciais não serão exibidas novamente depois que esta janela for fechada.':
+    'These credentials will not be shown again after this window is closed.',
+  'Sua sessão expirou. Entre novamente.':
+    'Your session expired. Sign in again.',
+  'Sua conta não tem permissão para esta operação.':
+    'Your account does not have permission for this operation.',
+  'Confirme sua identidade para continuar.':
+    'Confirm your identity to continue.',
+  'O serviço não está disponível no momento.':
+    'The service is unavailable right now.',
+  'Já existe uma identidade com este e-mail.':
+    'An identity with this email already exists.',
+  'Já existe uma aplicação com este Client ID.':
+    'An application with this Client ID already exists.',
+  'Revise os campos informados e tente novamente.':
+    'Review the fields and try again.',
+  'Arquive a aplicação antes de excluí-la permanentemente.':
+    'Archive the application before deleting it permanently.',
+  'Esta aplicação ainda possui usuários associados, códigos de autorização ou tokens emitidos.':
+    'This application still has associated users, authorization codes or issued tokens.',
+  'Não foi possível concluir a solicitação.':
+    'The request could not be completed.',
+  'Já existe um cliente MQTT com este nome.':
+    'An MQTT client with this name already exists.',
+  'O cliente MQTT não foi encontrado.': 'The MQTT client was not found.',
+  'Este cliente é protegido e não pode ser alterado aqui.':
+    'This client is protected and cannot be changed here.',
+  'Esta função não pode ser atribuída por aqui.':
+    'This role cannot be assigned here.',
+  'Muitas tentativas recusadas. Aguarde um minuto e tente novamente.':
+    'Too many refused attempts. Wait a minute and try again.',
+  'O serviço MQTT recusou as credenciais do control plane.':
+    'The MQTT service rejected the control plane credentials.',
+  'Não foi possível obter autorização para o serviço MQTT. Saia e entre novamente.':
+    'Could not get authorization for the MQTT service. Sign out and sign in again.',
+  'O serviço MQTT não está disponível.': 'The MQTT service is unavailable.',
+  'O serviço MQTT falhou ao processar a solicitação.':
+    'The MQTT service failed to process the request.',
+  'Guia de conexão e contrato de integração do serviço MQTT.':
+    'Connection guide and integration contract for the MQTT service.',
+  'Contrato público de integração do MW Mail.':
+    'Public integration contract for MW Mail.',
+  Clientes: 'Clients',
+  Broker: 'Broker',
+  'Novo cliente': 'New client',
+  'Clientes MQTT': 'MQTT clients',
+  'Usuários do broker MQTT: gateways, dispositivos e serviços. A senha é gerada automaticamente e exibida uma única vez.':
+    'MQTT broker users: gateways, devices and services. The password is generated automatically and shown only once.',
+  'Cadastrados no broker': 'Registered in the broker',
+  Conectados: 'Connected',
+  'Sessões abertas agora': 'Sessions open right now',
+  Assinaturas: 'Subscriptions',
+  'Ativas no broker': 'Active on the broker',
+  'Mensagens retidas': 'Retained messages',
+  'Estado guardado pelo broker': 'State kept by the broker',
+  Cliente: 'Client',
+  Funções: 'Roles',
+  'Crie um cliente para um gateway, dispositivo ou serviço.':
+    'Create a client for a gateway, device or service.',
+  'Nenhum cliente MQTT': 'No MQTT clients',
+  Protegido: 'Protected',
+  'Ativar cliente?': 'Enable client?',
+  'Desativar cliente?': 'Disable client?',
+  'O cliente poderá se conectar novamente com a senha atual.':
+    'The client will be able to connect again with its current password.',
+  'O cliente será desconectado e não poderá se conectar até ser reativado.':
+    'The client will be disconnected and cannot connect until re-enabled.',
+  'Gerar nova senha?': 'Generate a new password?',
+  'Gerar nova senha': 'Generate new password',
+  'Nova senha': 'New password',
+  'A senha atual deixará de funcionar e a nova será exibida apenas uma vez.':
+    'The current password will stop working and the new one is shown only once.',
+  'Excluir cliente?': 'Delete client?',
+  Excluir: 'Delete',
+  'Criar cliente': 'Create client',
+  'O cliente será desconectado e removido do broker. Esta ação não pode ser desfeita.':
+    'The client will be disconnected and removed from the broker. This cannot be undone.',
+  'Criar, reativar, trocar senha e excluir exigem autenticação forte recente. Desativar é imediato. Clientes protegidos do broker não podem ser alterados aqui.':
+    'Creating, re-enabling, changing the password and deleting require recent strong authentication. Disabling is immediate. Protected broker clients cannot be changed here.',
+  'Informe o nome do cliente. A senha será gerada e exibida uma única vez.':
+    'Enter the client name. The password will be generated and shown only once.',
+  'Nome do cliente': 'Client name',
+  'Função atribuída:': 'Assigned role:',
+  'Use letras, números, ponto, hífen ou sublinhado (até 128 caracteres).':
+    'Use letters, numbers, dot, hyphen or underscore (up to 128 characters).',
+  'Credenciais MQTT': 'MQTT credentials',
+  'O broker MQTT não está acessível no momento.':
+    'The MQTT broker is not reachable right now.',
+  'Não foi possível carregar os clientes.': 'Could not load the clients.',
+  'Estado do broker MQTT: conexões, tráfego e funções de acesso. Os números vêm do próprio broker e são atualizados a cada 10 segundos.':
+    'MQTT broker state: connections, traffic and access roles. The numbers come from the broker itself and refresh every 10 seconds.',
+  'Broker MQTT': 'MQTT broker',
+  'Conexão do serviço de administração': 'Admin service connection',
+  'Tempo ativo': 'Uptime',
+  'Desde a última reinicialização': 'Since the last restart',
+  Atualizado: 'Updated',
+  'Dados desatualizados': 'Stale data',
+  'Leitura mais recente': 'Latest reading',
+  'Sem atualização recente do broker': 'No recent update from the broker',
+  'Não foi possível carregar as estatísticas.':
+    'Could not load the statistics.',
+  'O broker ainda não publicou estatísticas. Elas aparecem em até 10 segundos após a conexão.':
+    'The broker has not published statistics yet. They appear within 10 seconds of connecting.',
+  'Conexões e armazenamento': 'Connections and storage',
+  'Clientes conectados': 'Connected clients',
+  'Clientes (total)': 'Clients (total)',
+  'Máximo de clientes': 'Peak clients',
+  'Mensagens armazenadas': 'Stored messages',
+  'Memória em uso': 'Memory in use',
+  'Pico de memória': 'Peak memory',
+  'Tráfego acumulado': 'Cumulative traffic',
+  'Mensagens recebidas': 'Messages received',
+  'Mensagens enviadas': 'Messages sent',
+  'Publicações recebidas': 'Publishes received',
+  'Publicações enviadas': 'Publishes sent',
+  'Publicações descartadas': 'Publishes dropped',
+  'Bytes recebidos': 'Bytes received',
+  'Bytes enviados': 'Bytes sent',
+  Conexões: 'Connections',
+  'Carga média': 'Load average',
+  'Funções de acesso (somente leitura)': 'Access roles (read-only)',
+  'Não foi possível carregar as funções.': 'Could not load the roles.',
+  Atribuível: 'Assignable',
+  Reservada: 'Reserved',
+  'As funções definem o que cada cliente pode publicar e assinar. Elas são mantidas no broker e não podem ser alteradas por esta página.':
+    'Roles define what each client may publish and subscribe to. They are kept in the broker and cannot be changed from this page.',
   'Visão geral': 'Overview',
   Usuários: 'Users',
   Aplicações: 'Applications',
@@ -496,6 +758,11 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
       {children}
     </PreferencesContext.Provider>
   )
+}
+
+/** Like usePreferences, but returns null outside a provider (shared components, tests). */
+export function useOptionalPreferences() {
+  return useContext(PreferencesContext)
 }
 
 export function usePreferences() {
