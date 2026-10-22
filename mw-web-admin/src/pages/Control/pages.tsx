@@ -155,10 +155,10 @@ const configs: Record<string, ResourcePageConfig> = {
       'Operações federadas, rota, escopo autorizado e ator humano preservado.',
     icon: FileClock,
     endpoint: '/oauth/audit',
-    collectionKey: 'audit',
+    collectionKey: 'items',
     columns: [
       { key: 'event_type', label: 'Evento' },
-      { key: 'actor', label: 'Ator' },
+      { key: 'metadata.actor_identity_sub', label: 'Ator' },
       { key: 'status', label: 'Status' },
       { key: 'request_id', label: 'Request ID' },
       { key: 'created_at', label: 'Data' },
