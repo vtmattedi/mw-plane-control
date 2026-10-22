@@ -16,6 +16,7 @@ import {
   Menu,
   Moon,
   Network,
+  Radio,
   ArrowRightToLine,
   ArrowLeftToLine,
   ServerCog,
@@ -61,6 +62,15 @@ const groups: Group[] = [
       { label: 'Auditoria', to: '/oauth/audit', icon: FileClock },
       { label: 'Servidor', to: '/oauth/server', icon: ServerCog },
       { label: 'Documentação', to: '/oauth/docs', icon: BookOpen },
+    ],
+  },
+  {
+    label: 'MQTT',
+    items: [
+      { label: 'Clientes', to: '/mqtt/clients', icon: Radio },
+      { label: 'Funções', to: '/mqtt/roles', icon: KeyRound },
+      { label: 'Broker', to: '/mqtt/server', icon: ServerCog },
+      { label: 'Documentação', to: '/mqtt/docs', icon: BookOpen },
     ],
   },
   {
@@ -193,16 +203,12 @@ function Sidebar({
       {!mobile && (
         <button
           aria-label={tr(collapsed ? 'Expandir menu' : 'Recolher menu')}
-          className="border-border bg-background text-muted-foreground hover:text-foreground absolute top-1/4 -right-4 z-50 grid size-8 -translate-y-1/2 place-items-center rounded-full border shadow-md transition-colors "
+          className="border-border bg-background text-muted-foreground hover:text-foreground absolute top-1/4 -right-4 z-50 grid size-8 -translate-y-1/2 place-items-center rounded-full border shadow-md transition-colors"
           onClick={onCollapse}
           title={tr(collapsed ? 'Expandir menu' : 'Recolher menu')}
           type="button"
         >
-          {collapsed ? (
-            <ArrowRightToLine />
-          ) : (
-            <ArrowLeftToLine  />
-          )}
+          {collapsed ? <ArrowRightToLine /> : <ArrowLeftToLine />}
         </button>
       )}
       <div
@@ -227,7 +233,7 @@ function Sidebar({
 
       <nav
         aria-label={tr('Navegação principal')}
-        className={`flex-1 overflow-y-auto px-3 py-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-sidebar-accent/50`}
+        className={`scrollbar-thumb-sidebar-accent/50 flex-1 scrollbar-thin scrollbar-track-transparent overflow-y-auto px-3 py-4`}
       >
         {groups.map((group) => {
           const open = collapsed || preferences.groupOpen[group.label] !== false
@@ -255,7 +261,7 @@ function Sidebar({
                     return (
                       <NavLink
                         className={({ isActive }) =>
-                          `${collapsed? '' : 'ml-2'} flex h-9 items-center rounded-xl text-[13px] font-medium transition-colors ${collapsed ? 'justify-center' : 'gap-3 px-3'} ${isActive ? 'bg-primary text-primary-foreground shadow-sm' : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}`
+                          `${collapsed ? '' : 'ml-2'} flex h-9 items-center rounded-xl text-[13px] font-medium transition-colors ${collapsed ? 'justify-center' : 'gap-3 px-3'} ${isActive ? 'bg-primary text-primary-foreground shadow-sm' : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}`
                         }
                         data-slot="sidebar-nav-link"
                         end={item.end}

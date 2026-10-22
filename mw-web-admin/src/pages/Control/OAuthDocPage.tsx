@@ -16,20 +16,28 @@ type DocumentationResponse = {
   documentation: string
 }
 
+const descriptions = {
+  OAuth: 'Contrato público de integração do MW OAuth.',
+  Mail: 'Contrato público de integração do MW Mail.',
+  MQTT: 'Guia de conexão e contrato de integração do serviço MQTT.',
+} as const
+
 export default function OAuthDocPage({
   module = 'OAuth',
   basePath = '/oauth/docs',
 }: {
-  module?: 'OAuth' | 'Mail'
+  module?: 'OAuth' | 'Mail' | 'MQTT'
   basePath?: string
 }) {
   const { version = 'v1' } = useParams()
-  const { tr } = usePreferences()
+  const { language, tr } = usePreferences()
+  // The MQTT service publishes each version in both UI languages.
+  const lang = module === 'MQTT' ? `?lang=${language}` : ''
   const query = useQuery({
-    queryKey: [`${module.toLowerCase()}-docs`, version],
+    queryKey: [`${module.toLowerCase()}-docs`, version, lang],
     queryFn: () =>
       controlRequest<DocumentationResponse>(
-        `${basePath}/${encodeURIComponent(version)}`,
+        `${basePath}/${encodeURIComponent(version)}${lang}`,
       ),
   })
 
@@ -42,7 +50,7 @@ export default function OAuthDocPage({
           </Link>
         </Button>
         <PageHeader
-          description={tr('Contrato público de integração do MW OAuth.')}
+          description={tr(descriptions[module])}
           eyebrow={module}
           icon={BookOpen}
           title={`${tr('Documentação da API')} · ${version}`}

@@ -49,6 +49,29 @@ func sensitiveOAuthRoute(method, path string) bool {
 	return method == http.MethodPut && strings.HasSuffix(path, "/oauth/google")
 }
 
+// sensitiveMQTTRoute lists the broker operations that need fresh WebAuthn: issuing a user
+// (its generated password is returned), rotating a password, re-enabling a user, deleting
+// one, and everything that changes who may do what: creating or deleting roles, editing
+// their rules, and giving or taking roles from clients. Disabling is deliberately not
+// step-up: it only removes access, so it must stay available as a fast kill switch.
+func sensitiveMQTTRoute(method, path string) bool {
+	switch method {
+	case http.MethodDelete:
+		// Clients, roles, and a client's role assignments.
+		return strings.HasPrefix(path, "/admin/api/clients/") ||
+			strings.HasPrefix(path, "/admin/api/roles/")
+	case http.MethodPut:
+		return strings.HasPrefix(path, "/admin/api/clients/") && strings.Contains(path, "/roles/")
+	case http.MethodPost:
+		return path == "/admin/api/clients" ||
+			path == "/admin/api/roles" ||
+			strings.HasPrefix(path, "/admin/api/roles/") ||
+			strings.HasSuffix(path, "/password") ||
+			strings.HasSuffix(path, "/enable")
+	}
+	return false
+}
+
 func sensitiveMailRoute(method, path string) bool {
 	if method == http.MethodDelete && strings.HasPrefix(path, "/admin/api/projects/") {
 		return true

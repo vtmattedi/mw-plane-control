@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ConfirmContext, type Confirmation } from './confirm-context'
+import { useOptionalPreferences } from '@/preferences/preferences-context'
 import { Button } from './ui/button'
 import {
   Dialog,
@@ -15,6 +16,7 @@ interface PendingConfirmation extends Confirmation {
 }
 
 export function AppConfirmProvider({ children }: { children: ReactNode }) {
+  const tr = useOptionalPreferences()?.tr ?? ((text: string) => text)
   const [pending, setPending] = useState<PendingConfirmation | null>(null)
   const cancelRef = useRef<HTMLButtonElement>(null)
   const confirm = useCallback(
@@ -59,14 +61,14 @@ export function AppConfirmProvider({ children }: { children: ReactNode }) {
               variant="secondary"
               onClick={() => finish(false)}
             >
-              Cancelar
+              {tr('Cancelar')}
             </Button>
             <Button
               type="button"
               variant="destructive"
               onClick={() => finish(true)}
             >
-              {pending?.confirmLabel ?? 'Confirmar'}
+              {pending?.confirmLabel ?? tr('Confirmar')}
             </Button>
           </DialogFooter>
         </DialogContent>

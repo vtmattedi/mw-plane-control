@@ -1,6 +1,6 @@
 # MW Control Plane v1.0 — Technical Documentation
 
-**Status:** v1.0 baseline  
+**Status:** v1.0 baseline; v1.1 adds the MQTT module (section 30)  
 **Scope:** MW Plane Control shared administrative control plane  
 **Components:** MW Identity, MW BFF, Gateway, MW Web Admin, delegated MattediWorks services  
 **Reference state:** Steps 01–13 implemented and tested through `STEP 13 API/OPS PASS`
@@ -1087,3 +1087,29 @@ MW Web Admin
 ```
 
 This is the baseline architecture for future MW Control Plane development.
+
+---
+
+## 30. v1.1: MQTT module
+
+v1.1 adds MQTT broker administration as a third downstream service. The v1.0 contracts
+above are unchanged: OAuth and Mail behave exactly as before.
+
+- **Service:** `mqtt-admin`, in the MQTT broker's own Stackport project, reached on its own
+  domain like MW OAuth and MW Mail. It validates delegated tokens by authenticated
+  introspection (client and audience `mw-mqtt`) and applies changes to Mosquitto through
+  Dynamic Security with its own narrowly scoped broker user.
+- **Facade:** `/api/mqtt/*` in the BFF, explicit routes only, one delegated scope per
+  route (`mqtt.clients.read|write|delete`, `mqtt.credentials.rotate`,
+  `mqtt.roles.read|write|delete`, `mqtt.server.read`). Create, re-enable, password rotation,
+  delete, and every change to roles or role assignments require fresh WebAuthn; disabling a
+  client does not, so it stays a fast kill switch.
+- **Optional:** the facade is disabled unless `BFF_MQTT_BASE_URL` is set, so a v1.0
+  deployment is unaffected until it opts in.
+- **Console:** an `MQTT` group with clients, broker status and documentation pages. The
+  overview shows an MQTT module card that is online only while the broker connection is up.
+- **Roles** can be created, edited and deleted in the console, and assigned to clients. The
+  broker's own roles are reserved, no rule can grant the control channel, and deleting a role
+  that clients still hold needs explicit confirmation.
+
+Enabling it is described in `dev_docs/stackport-onboarding.md`, section 3b.

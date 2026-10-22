@@ -9,6 +9,7 @@ import (
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/delegation"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/identityclient"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/mwmail"
+	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/mwmqtt"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/mwoauth"
 	"github.com/vtmattedi/mw-plane-control/mw-bff/internal/session"
 )
@@ -23,6 +24,8 @@ func New(
 	oauthAudience string,
 	mailClient *mwmail.Client,
 	mailAudience string,
+	mqttClient *mwmqtt.Client,
+	mqttAudience string,
 	authConfig AuthConfig,
 ) http.Handler {
 	if identity == nil {
@@ -61,6 +64,14 @@ func New(
 		sessions,
 		mailClient,
 		mailAudience,
+		authConfig.StrongAuthMaxAge,
+	)
+
+	mqttAdmin := newMQTTAdminProxy(
+		delegationClient,
+		sessions,
+		mqttClient,
+		mqttAudience,
 		authConfig.StrongAuthMaxAge,
 	)
 
@@ -121,6 +132,15 @@ func New(
 			"/mail/{path...}",
 			func(w http.ResponseWriter, r *http.Request) {
 				mailAdmin.serve(authHandlers, w, r)
+			},
+		)
+	}
+
+	if mqttAdmin != nil {
+		mux.HandleFunc(
+			"/mqtt/{path...}",
+			func(w http.ResponseWriter, r *http.Request) {
+				mqttAdmin.serve(authHandlers, w, r)
 			},
 		)
 	}
