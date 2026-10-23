@@ -407,8 +407,53 @@ func (h *identityAuthHandlers) account(
 			AccountType:     result.User.AccountType,
 			EmailVerifiedAt: result.User.EmailVerifiedAt,
 			Applications:    applications,
+			Notice:          r.URL.Query().Get("notice"),
 		},
 	)
+}
+
+func (h *identityAuthHandlers) removeApplication(w http.ResponseWriter, r *http.Request) {
+	_, result, err := h.currentSession(r)
+	if err != nil {
+		h.clearAuthCookies(w)
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	if h.config.StrongAuthMaxAge > 0 && time.Since(result.Session.AuthTime) > h.config.StrongAuthMaxAge {
+		http.Redirect(w, r, "/login?auth=strong&return_to=/account", http.StatusSeeOther)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 8*1024)
+	if err := r.ParseForm(); err != nil {
+		writePlainError(w, http.StatusBadRequest, "invalid application removal form")
+		return
+	}
+	csrfCookie := cookieValue(r, csrfCookieName)
+	if csrfCookie == "" ||
+		!auth.TokensEqual(csrfCookie, r.FormValue("csrf_token")) ||
+		!auth.TokenMatchesHash(csrfCookie, result.Session.CSRFHash) ||
+		r.FormValue("confirm") != "yes" {
+		writePlainError(w, http.StatusForbidden, "invalid application removal request")
+		return
+	}
+
+	delivery, err := h.service.RemoveConnectedApplication(r.Context(), result.User.ID, r.PathValue("id"), remoteIP(r))
+	if errors.Is(err, auth.ErrNotFound) {
+		writePlainError(w, http.StatusNotFound, "application is not connected to this account")
+		return
+	}
+	if err != nil {
+		writePlainError(w, http.StatusInternalServerError, "application removal failed")
+		return
+	}
+	notice := "app_removed"
+	switch delivery.Status {
+	case "failed":
+		notice = "app_removal_pending"
+	case "skipped":
+		notice = "app_removed_no_callback"
+	}
+	http.Redirect(w, r, "/account?notice="+notice, http.StatusSeeOther)
 }
 
 func (h *identityAuthHandlers) deleteAccount(w http.ResponseWriter, r *http.Request) {
@@ -460,7 +505,7 @@ func (h *identityAuthHandlers) privacy(w http.ResponseWriter, _ *http.Request) {
 		Lead: "Como o MW Identity usa e protege os dados necessários para autenticar sua conta.",
 		Sections: []webstatic.InfoSection{
 			{Title: "Dados da conta", Body: "O serviço mantém seu identificador estável, nome de usuário, nome, e-mail, estado de verificação e configurações de autenticação. Aplicativos recebem apenas os dados permitidos pelos escopos autorizados."},
-			{Title: "Aplicativos conectados", Body: "A página da conta mostra os aplicativos aos quais sua identidade está atribuída. Cada aplicativo mantém separadamente seus próprios perfis e dados de negócio."},
+			{Title: "Aplicativos conectados", Body: "A página da conta mostra os aplicativos aos quais sua identidade está conectada. Cada aplicativo mantém separadamente seus próprios perfis e dados de negócio. Ao remover um aplicativo, o MW Identity revoga o acesso dele imediatamente e pede que ele exclua seus dados; o restante da sua conta continua ativo."},
 			{Title: "Sessões e auditoria", Body: "Sessões, eventos de segurança e ações administrativas são registrados para proteção, investigação e operação do serviço."},
 			{Title: "Credenciais", Body: "Senhas e tokens não são armazenados em texto puro. Segredos sensíveis usam hash ou criptografia apropriada ao seu propósito."},
 			{Title: "Exclusão da conta", Body: "Ao excluir sua conta, o MW Identity revoga imediatamente os acessos e notifica os aplicativos conectados. Cada aplicativo exclui ou anonimiza seus dados conforme suas obrigações de retenção. Falhas de entrega mantêm a identidade desativada e a exclusão pendente para nova tentativa administrativa."},

@@ -15,6 +15,13 @@ import (
 
 var deletionRetryDelays = []time.Duration{250 * time.Millisecond, 750 * time.Millisecond}
 
+// Why an application receives identity.user.deleted. Either way the application
+// must delete or anonymize its local data for the subject.
+const (
+	DeletionReasonAccountDeleted          = "account_deleted"
+	DeletionReasonApplicationDisconnected = "application_disconnected"
+)
+
 func (s *Service) ConnectedApplications(ctx context.Context, userID string) ([]ConnectedApplication, error) {
 	return s.store.ListIdentityUserApplications(ctx, userID)
 }
@@ -44,7 +51,7 @@ func (s *Service) DeleteAccount(ctx context.Context, userID, remoteIP string) (D
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			deliveries[index] = s.deliverDeletion(ctx, userID, app, now)
+			deliveries[index] = s.deliverDeletion(ctx, userID, app, now, DeletionReasonAccountDeleted)
 		}()
 	}
 	wg.Wait()
@@ -84,7 +91,62 @@ func (s *Service) DeleteAccount(ctx context.Context, userID, remoteIP string) (D
 	return DeleteAccountResult{Deleted: true, Deliveries: deliveries}, nil
 }
 
-func (s *Service) deliverDeletion(ctx context.Context, userID string, app ConnectedApplication, requestedAt time.Time) DeletionDelivery {
+// RemoveConnectedApplication disconnects one application from the account. Its
+// codes and tokens stop working at once, the application is asked to delete the
+// user's local data, and the assignment is removed only after it confirms (or
+// when it has no deletion callback). If delivery fails, access stays revoked and
+// the user can retry.
+func (s *Service) RemoveConnectedApplication(ctx context.Context, userID, applicationID, remoteIP string) (DeletionDelivery, error) {
+	apps, err := s.store.ListIdentityUserApplications(ctx, userID)
+	if err != nil {
+		return DeletionDelivery{}, err
+	}
+	var app ConnectedApplication
+	found := false
+	for _, candidate := range apps {
+		if candidate.ID == applicationID {
+			app, found = candidate, true
+			break
+		}
+	}
+	if !found {
+		return DeletionDelivery{}, ErrNotFound
+	}
+
+	now := s.now().UTC()
+	if err := s.store.RevokeIdentityUserApplicationAccess(ctx, userID, app.ClientID); err != nil {
+		return DeletionDelivery{}, err
+	}
+	delivery := s.deliverDeletion(ctx, userID, app, now, DeletionReasonApplicationDisconnected)
+	completed := delivery.Status != "failed"
+
+	status := map[bool]string{true: "completed", false: "pending"}[completed]
+	s.recordAudit(ctx, audit.Event{
+		ID:         mustAuditID(),
+		EventType:  "identity.application.disconnect_" + status,
+		Status:     map[bool]string{true: "success", false: "failure"}[completed],
+		Severity:   map[bool]string{true: "info", false: "warning"}[completed],
+		UserID:     &userID,
+		RemoteIP:   remoteIP,
+		ReasonCode: DeletionReasonApplicationDisconnected,
+		Metadata: map[string]any{
+			"application_id": app.ID,
+			"client_id":      app.ClientID,
+			"delivery":       delivery,
+		},
+		CreatedAt: now,
+	})
+
+	if !completed {
+		return delivery, nil
+	}
+	if err := s.store.RemoveIdentityUserAssignment(ctx, app.ID, userID); err != nil {
+		return DeletionDelivery{}, err
+	}
+	return delivery, nil
+}
+
+func (s *Service) deliverDeletion(ctx context.Context, userID string, app ConnectedApplication, requestedAt time.Time, reason string) DeletionDelivery {
 	result := DeletionDelivery{
 		ApplicationID: app.ID,
 		ClientID:      app.ClientID,
@@ -105,6 +167,7 @@ func (s *Service) deliverDeletion(ctx context.Context, userID string, app Connec
 		"sub":            userID,
 		"application_id": app.ID,
 		"client_id":      app.ClientID,
+		"reason":         reason,
 		"requested_at":   requestedAt.Format(time.RFC3339),
 	})
 	if err != nil {
