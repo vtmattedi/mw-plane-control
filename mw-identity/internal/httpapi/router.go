@@ -185,6 +185,7 @@ func New(
 	mux.HandleFunc("GET /security", authHandlers.security)
 	mux.HandleFunc("POST /logout", authHandlers.logout)
 	mux.HandleFunc("POST /account/delete", authHandlers.deleteAccount)
+	mux.HandleFunc("POST /account/applications/{id}/remove", authHandlers.removeApplication)
 
 	return operationalMiddleware(metrics, securityHeaders(mux))
 }

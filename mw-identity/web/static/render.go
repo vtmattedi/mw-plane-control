@@ -36,6 +36,8 @@ type AccountData struct {
 	AccountType     string
 	EmailVerifiedAt *time.Time
 	Applications    []auth.ConnectedApplication
+	// Notice is the outcome of a redirect back to /account, e.g. "app_removed".
+	Notice string
 }
 
 type InfoSection struct {

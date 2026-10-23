@@ -91,6 +91,41 @@ func (s *Store) BeginIdentityUserDeletion(ctx context.Context, userID string, no
 	return nil
 }
 
+// RevokeIdentityUserApplicationAccess ends one application's access for a user.
+// Rows are deleted rather than marked revoked so the application stops being
+// listed as connected; the maintenance job would purge revoked rows anyway.
+func (s *Store) RevokeIdentityUserApplicationAccess(ctx context.Context, userID, clientID string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin application access revocation: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err = tx.ExecContext(ctx, `DELETE FROM identity_authorization_codes
+		WHERE user_id = ? AND client_id = ?`, userID, clientID); err != nil {
+		return fmt.Errorf("revoke application authorization codes: %w", err)
+	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM identity_access_tokens
+		WHERE user_id = ? AND client_id = ?`, userID, clientID); err != nil {
+		return fmt.Errorf("revoke application access tokens: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit application access revocation: %w", err)
+	}
+	return nil
+}
+
+// RemoveIdentityUserAssignment removes a user's own allow assignment. A deny
+// assignment is kept: on a default_allow application, deleting it would grant
+// the access an administrator took away.
+func (s *Store) RemoveIdentityUserAssignment(ctx context.Context, applicationID, userID string) error {
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM identity_application_assignments
+		WHERE application_id = ? AND user_id = ? AND access_effect = 'allow'`, applicationID, userID); err != nil {
+		return fmt.Errorf("remove identity user assignment: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) DeleteIdentityUser(ctx context.Context, userID string) error {
 	result, err := s.db.ExecContext(ctx, `DELETE FROM identity_users WHERE id = ?`, userID)
 	if err != nil {

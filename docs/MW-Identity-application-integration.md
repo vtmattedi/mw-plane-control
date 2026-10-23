@@ -71,9 +71,12 @@ Public identities cannot authorize for the `mw-identity-admin` audience. The Adm
 
 ## 5. Connected applications and deletion
 
-The Identity account page derives connected applications from assignments. Applications with local user data should configure `delete_callback_uri`.
+The Identity account page derives connected applications from assignments and issued access tokens. Applications with local user data should configure `delete_callback_uri`.
 
-When the user or an administrator deletes an account, Identity first disables the user and revokes sessions, authorization codes, and access tokens. It then sends this JSON to every configured callback:
+The same `identity.user.deleted` event is sent in two situations. In both, the application must treat the subject as gone and delete or anonymize its local data:
+
+- **Account deletion** (`reason: account_deleted`). The user or an administrator deletes the account. Identity first disables the user and revokes sessions, authorization codes and access tokens, then sends the event to every configured callback.
+- **Application removal** (`reason: application_disconnected`). The user removes one application from the account page. Identity deletes that application's authorization codes and access tokens for the user, then sends the event to that application only. The Identity account and every other application are unaffected, and the user may sign in to the application again later if its access policy allows it.
 
 ```json
 {
@@ -82,9 +85,12 @@ When the user or an administrator deletes an account, Identity first disables th
   "sub": "usr_bM8...",
   "application_id": "app_...",
   "client_id": "woi-production",
+  "reason": "account_deleted",
   "requested_at": "2026-08-15T02:30:00Z"
 }
 ```
+
+`reason` is informational: process both values the same way. Applications that predate it keep working because they validate `type`, not `reason`.
 
 The request includes:
 
@@ -98,4 +104,11 @@ Validate the lifecycle JWT with Identity JWKS. Require `iss` to match the config
 
 Return any 2xx status only after the event has been durably accepted. Processing must be idempotent by event ID and subject. Identity makes three total attempts: immediately, after 250 ms, and after a further 750 ms. Redirect responses are not followed.
 
-The application should immediately disable its local account and sessions, then delete or anonymize application data according to its retention obligations. If delivery fails, Identity keeps the central account disabled and deletion-pending so an administrator can trigger the same routine again from MW Control.
+The application should immediately disable its local account and sessions, then delete or anonymize application data according to its retention obligations.
+
+If delivery fails:
+
+- for account deletion, Identity keeps the central account disabled and deletion-pending so an administrator can trigger the same routine again from MW Control;
+- for application removal, the application's access stays revoked but the user's assignment is kept, so the user can retry from the account page. A `deny` assignment set by an administrator is never removed by the user.
+
+Identity cannot verify that an application actually deleted its data; a 2xx response is the application's commitment that it accepted the request. Applications without `delete_callback_uri` are skipped, and the account page tells the user so.
