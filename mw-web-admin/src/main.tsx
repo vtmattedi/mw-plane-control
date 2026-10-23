@@ -9,6 +9,22 @@ import './styles/globals.css'
 
 initializeTheme()
 
+// After a deploy the hashed chunks of the previous build are gone. A tab that
+// still runs the old build fails to import them; reload once to pick up the new
+// index.html. The timestamp guard prevents a reload loop if the failure persists.
+window.addEventListener('vite:preloadError', (event) => {
+  const key = 'mw-admin:chunk-reload'
+  try {
+    const last = Number(sessionStorage.getItem(key) ?? 0)
+    if (Date.now() - last < 30_000) return
+    sessionStorage.setItem(key, String(Date.now()))
+  } catch {
+    return
+  }
+  event.preventDefault()
+  window.location.reload()
+})
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
