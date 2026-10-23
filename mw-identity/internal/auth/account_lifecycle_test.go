@@ -33,7 +33,7 @@ func TestDeletionCallbackUsesThreeTotalAttempts(t *testing.T) {
 	service := &Service{httpClient: server.Client(), lifecycleSigner: lifecycleTestSigner{}, publicIssuer: "https://identity.example"}
 	result := service.deliverDeletion(context.Background(), "usr_public", ConnectedApplication{
 		ID: "app_woi", ClientID: "woi", DeleteCallbackURI: server.URL,
-	}, time.Unix(1_700_000_000, 0).UTC())
+	}, time.Unix(1_700_000_000, 0).UTC(), DeletionReasonAccountDeleted)
 
 	if result.Status != "failed" || result.Attempts != 3 || attempts.Load() != 3 {
 		t.Fatalf("unexpected delivery result: %#v, requests=%d", result, attempts.Load())
@@ -58,7 +58,7 @@ func TestDeletionCallbackStopsAfterSuccess(t *testing.T) {
 	service := &Service{httpClient: server.Client(), lifecycleSigner: lifecycleTestSigner{}, publicIssuer: "https://identity.example"}
 	result := service.deliverDeletion(context.Background(), "usr_public", ConnectedApplication{
 		ID: "app_woi", ClientID: "woi", DeleteCallbackURI: server.URL,
-	}, time.Now())
+	}, time.Now(), DeletionReasonAccountDeleted)
 
 	if result.Status != "delivered" || result.Attempts != 2 || attempts.Load() != 2 {
 		t.Fatalf("unexpected delivery result: %#v, requests=%d", result, attempts.Load())

@@ -957,18 +957,73 @@ footer a {
   list-style: none;
 }
 .connected-app-list li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
+  display: grid;
+  gap: 10px;
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--soft);
 }
-.connected-app-list li div {
+.connected-app-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.connected-app-row div {
   display: grid;
   gap: 3px;
+}
+.app-remove summary {
+  width: max-content;
+  color: var(--danger);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.app-remove form {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+.app-remove p,
+.app-remove label {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.app-remove label {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+}
+.app-remove input[type="checkbox"] {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--danger);
+}
+.app-remove .danger-button {
+  justify-self: start;
+  margin-top: 2px;
+}
+.notice-line {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--orange) 30%, var(--line));
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--orange) 8%, var(--panel));
+  font-size: 11px;
+  line-height: 1.45;
+}
+.notice-line.warning {
+  border-color: color-mix(in srgb, var(--danger) 35%, var(--line));
+  color: var(--danger);
 }
 .connected-app-list li span:not(.role-badge) {
   color: var(--muted);

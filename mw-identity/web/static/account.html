@@ -230,12 +230,47 @@
               <p>Aplicativos nos quais esta identidade possui acesso.</p>
             </div>
           </div>
+          {{if eq .Notice "app_removed"}}
+          <p class="notice-line" role="status">
+            Aplicativo removido. Ele confirmou o pedido de exclusão dos seus dados.
+          </p>
+          {{else if eq .Notice "app_removed_no_callback"}}
+          <p class="notice-line" role="status">
+            Aplicativo removido e acesso revogado. Este aplicativo não recebe
+            pedidos automáticos de exclusão; fale com ele para apagar seus dados.
+          </p>
+          {{else if eq .Notice "app_removal_pending"}}
+          <p class="notice-line warning" role="status">
+            O acesso foi revogado, mas o aplicativo não confirmou a exclusão.
+            Tente remover novamente em alguns minutos.
+          </p>
+          {{end}}
           {{if .Applications}}
           <ul class="connected-app-list">
             {{range .Applications}}
             <li>
-              <div><strong>{{.Name}}</strong><span>{{.ClientID}}</span></div>
-              <span class="role-badge">{{.Role}}</span>
+              <div class="connected-app-row">
+                <div><strong>{{.Name}}</strong><span>{{.ClientID}}</span></div>
+                <span class="role-badge">{{.Role}}</span>
+              </div>
+              <details class="app-remove">
+                <summary>Remover</summary>
+                <form method="post" action="/account/applications/{{.ID}}/remove">
+                  <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}" />
+                  <p>
+                    O acesso é revogado agora e {{.Name}} recebe um pedido para
+                    excluir seus dados. Você pode entrar de novo depois, se o
+                    aplicativo permitir.
+                  </p>
+                  <label>
+                    <input type="checkbox" name="confirm" value="yes" required />
+                    Remover {{.Name}} da minha conta
+                  </label>
+                  <button class="danger-button" type="submit">
+                    Remover aplicativo
+                  </button>
+                </form>
+              </details>
             </li>
             {{end}}
           </ul>
