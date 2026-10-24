@@ -7,13 +7,15 @@ const IdentityStrongAccountJS = `(async () => {
   const enrollment = document.getElementById('totp-enrollment'); const qrCode = document.getElementById('totp-qr-code');
   const code = document.getElementById('totp-code'); const setup = document.getElementById('totp-setup'); const confirm = document.getElementById('totp-confirm'); const disable = document.getElementById('totp-disable');
   const strongStatus = document.getElementById('strong-auth-status');
+  const pt = (document.documentElement.lang || '').toLowerCase().startsWith('pt');
+  const tr = (en, ptText) => (pt ? ptText : en);
   const api = async (path, options={}) => { options.headers = {...(options.headers||{}), 'X-MW-CSRF': csrf}; const r=await fetch(path,options); if(!r.ok){let b={};try{b=await r.json()}catch{};throw new Error(b?.error?.code||b?.error||('HTTP '+r.status));} return r; };
   function relativeTime(unixSeconds){
     const diff = Math.max(0, Math.floor(Date.now()/1000) - unixSeconds);
-    if (diff < 60) return 'agora mesmo';
-    if (diff < 3600) return 'há ' + Math.floor(diff/60) + ' min';
-    if (diff < 86400) return 'há ' + Math.floor(diff/3600) + ' h';
-    return 'há ' + Math.floor(diff/86400) + ' d';
+    if (diff < 60) return tr('just now', 'agora mesmo');
+    if (diff < 3600) return tr(Math.floor(diff/60) + ' min ago', 'há ' + Math.floor(diff/60) + ' min');
+    if (diff < 86400) return tr(Math.floor(diff/3600) + ' h ago', 'há ' + Math.floor(diff/3600) + ' h');
+    return tr(Math.floor(diff/86400) + ' d ago', 'há ' + Math.floor(diff/86400) + ' d');
   }
   async function load(){
     const r=await fetch('/api/strong/status',{cache:'no-store'});
@@ -22,11 +24,11 @@ const IdentityStrongAccountJS = `(async () => {
     if (strongStatus) {
       strongStatus.classList.toggle('weak', !b.recent_webauthn);
       strongStatus.textContent = b.recent_webauthn
-        ? 'Autenticação reforçada confirmada ' + relativeTime(b.auth_time) + '.'
-        : 'Sem confirmação reforçada recente (sessão iniciada ' + relativeTime(b.auth_time) + '). Confirme sua identidade para ações sensíveis.';
+        ? tr('Strong sign-in confirmed ', 'Login forte confirmado ') + relativeTime(b.auth_time) + '.'
+        : tr('No recent strong sign-in (session started ' + relativeTime(b.auth_time) + '). Confirm it’s you before sensitive actions.', 'Sem login forte recente (sessão iniciada ' + relativeTime(b.auth_time) + '). Confirme que é você antes de ações sensíveis.');
     }
     if (!root) return;
-    root.hidden=false;setup.hidden=b.totp_enabled;disable.hidden=!b.totp_enabled;if(status)status.textContent=b.totp_enabled?'Authenticator fallback enabled.':'Authenticator fallback disabled.';
+    root.hidden=false;setup.hidden=b.totp_enabled;disable.hidden=!b.totp_enabled;if(status)status.textContent=b.totp_enabled?tr('Authenticator app on.','App autenticador ativado.'):tr('Authenticator app off.','App autenticador desativado.');
   }
   setup?.addEventListener('click',async()=>{setup.disabled=true;try{const r=await api('/api/totp/setup',{method:'POST'});const b=await r.json();secret.textContent=b.secret;qrCode.src=b.qr_code_data_url;enrollment.hidden=false;code.focus();}catch(e){status.textContent=e.message;}finally{setup.disabled=false;}});
   code?.addEventListener('input',()=>{code.value=code.value.replace(/\D/g,'').slice(0,6);});
@@ -42,6 +44,11 @@ const IdentityTOTPLoginJS = `(() => {
 
 const IdentityRecoveryJS = `(() => {
   const status = document.getElementById('recovery-status');
+  const pt = (document.documentElement.lang || '').toLowerCase().startsWith('pt');
+  const tr = (en, ptText) => (pt ? ptText : en);
+  // The token lives in the fragment; keep it when switching language.
+  const languageLink = document.querySelector('.language-link');
+  if (languageLink && location.hash) languageLink.href += location.hash;
   const button = document.getElementById('recovery-start');
   const token = location.hash.startsWith('#token=')
     ? decodeURIComponent(location.hash.slice(7))
@@ -81,7 +88,7 @@ const IdentityRecoveryJS = `(() => {
     clientExtensionResults: credential.getClientExtensionResults(),
   });
   if (!token) {
-    status.textContent = 'Recovery token missing from URL fragment.';
+    status.textContent = tr('This recovery link is missing its token.', 'Este link de recuperação está sem o token.');
     button.disabled = true;
     return;
   }
@@ -92,11 +99,11 @@ const IdentityRecoveryJS = `(() => {
         method: 'POST', credentials: 'same-origin', headers: {'X-MW-Recovery': token},
       });
       let started = await response.json();
-      if (!response.ok) throw new Error('Recovery capability rejected');
+      if (!response.ok) throw new Error(tr('This recovery link was rejected. Ask the operator for a new one.', 'Este link de recuperação foi recusado. Peça um novo ao operador.'));
       const credential = await navigator.credentials.create({
         publicKey: prepareCreation(started.options.publicKey),
       });
-      if (!credential) throw new Error('Passkey registration was cancelled.');
+      if (!credential) throw new Error(tr('Passkey registration was cancelled.', 'Cadastro da passkey cancelado.'));
       response = await fetch('/api/recovery/webauthn/verify', {
         method: 'POST', credentials: 'same-origin',
         headers: {
@@ -107,11 +114,11 @@ const IdentityRecoveryJS = `(() => {
         body: JSON.stringify(registrationJSON(credential)),
       });
       const result = await response.json();
-      if (!response.ok) throw new Error('Recovery verification failed');
+      if (!response.ok) throw new Error(tr('The recovery could not be verified.', 'Não deu para validar a recuperação.'));
       history.replaceState(null, '', location.pathname);
       location.assign(result.redirect_to || '/account');
     } catch (error) {
-      status.textContent = error?.message || 'Recovery failed.';
+      status.textContent = error?.message || tr('Recovery failed.', 'A recuperação falhou.');
       button.disabled = false;
     }
   });

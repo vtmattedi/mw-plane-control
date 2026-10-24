@@ -48,12 +48,17 @@ func main() {
 	deleteCallbackURI := flag.String(
 		"delete-callback-uri",
 		"",
-		"optional HTTPS account-deletion callback URI",
+		"HTTPS account-deletion callback URI; required unless -internal",
 	)
 	allowPublicSignup := flag.Bool(
 		"allow-public-signup",
 		false,
 		"allow this application to create public Identity accounts",
+	)
+	internal := flag.Bool(
+		"internal",
+		false,
+		"internal application behind the MW BFF with no user data of its own; exempt from the delete callback",
 	)
 	asJSON := flag.Bool(
 		"json",
@@ -164,6 +169,7 @@ func main() {
 			PostLogoutRedirectURIs: postLogoutURIs,
 			DeleteCallbackURI:      *deleteCallbackURI,
 			AllowPublicSignup:      *allowPublicSignup,
+			Internal:               *internal,
 			Scopes:                 scopes,
 			Claims:                 claims,
 			Audiences:              audiences,
@@ -176,6 +182,8 @@ func main() {
 			applications.ErrClientIDExists,
 		):
 			fatal("client-id already exists")
+		case errors.Is(err, applications.ErrDeleteCallbackRequired):
+			fatal("delete-callback-uri is required for applications that are not -internal")
 		case errors.Is(
 			err,
 			applications.ErrInvalidApplication,
@@ -198,6 +206,7 @@ func main() {
 				"name":          result.Application.Name,
 				"client_id":     result.Application.ClientID,
 				"type":          result.Application.ApplicationType,
+				"internal":      result.Application.Internal,
 				"redirect_uris": result.Application.RedirectURIs,
 				"scopes":        result.Application.Scopes,
 				"audiences":     result.Application.Audiences,

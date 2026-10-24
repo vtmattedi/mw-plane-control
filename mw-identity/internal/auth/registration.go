@@ -12,6 +12,8 @@ import (
 var usernamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{2,31}$`)
 
 type RegisterPublicRequest struct {
+	// ClientID is the application the sign-up started from. Empty means a
+	// stand-alone sign-up: the account is created with no connected application.
 	ClientID string
 	Email    string
 	Username string
@@ -38,9 +40,12 @@ func (s *Service) PublicSignupApplication(ctx context.Context, clientID string) 
 }
 
 func (s *Service) RegisterPublic(ctx context.Context, request RegisterPublicRequest, remoteIP string) (User, error) {
-	app, err := s.PublicSignupApplication(ctx, request.ClientID)
-	if err != nil {
-		return User{}, err
+	var app SignupApplication
+	if strings.TrimSpace(request.ClientID) != "" {
+		var err error
+		if app, err = s.PublicSignupApplication(ctx, request.ClientID); err != nil {
+			return User{}, err
+		}
 	}
 	email, err := NormalizeEmail(request.Email)
 	if err != nil {
@@ -73,10 +78,14 @@ func (s *Service) RegisterPublic(ctx context.Context, request RegisterPublicRequ
 		UsernameNormalized: input.UsernameNormalized, AccountType: input.AccountType,
 		PasswordHash: input.PasswordHash, Enabled: true, CreatedAt: now, UpdatedAt: now,
 	}
+	metadata := map[string]any{"standalone": true}
+	if app.ID != "" {
+		metadata = map[string]any{"client_id": app.ClientID}
+	}
 	s.recordAudit(ctx, audit.Event{
 		ID: mustAuditID(), EventType: "identity.user.created", Status: "success",
 		Severity: "info", UserID: &user.ID, RemoteIP: remoteIP,
-		ReasonCode: "public_registration", Metadata: map[string]any{"client_id": app.ClientID}, CreatedAt: now,
+		ReasonCode: "public_registration", Metadata: metadata, CreatedAt: now,
 	})
 	return user, nil
 }

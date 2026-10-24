@@ -36,7 +36,14 @@ function valueAtPath(row: Record<string, unknown>, path: string): unknown {
   }, row)
 }
 
-export type ResourceColumn = { key: string; label: string }
+type BadgeTone = 'positive' | 'warning' | 'danger' | 'info' | 'neutral'
+
+export type ResourceColumn = {
+  key: string
+  label: string
+  /** Derives a badge from the whole row; the label is translated. */
+  badge?: (row: Record<string, unknown>) => { label: string; tone: BadgeTone }
+}
 
 export function ResourceTable({
   rows,
@@ -95,7 +102,10 @@ export function ResourceTable({
                   'delivery_status',
                   'severity',
                 ].includes(column.key)
-                const content = isStatus ? (
+                const badge = column.badge?.(row)
+                const content = badge ? (
+                  <StatusBadge tone={badge.tone}>{tr(badge.label)}</StatusBadge>
+                ) : isStatus ? (
                   <StatusBadge
                     tone={
                       value === true ||

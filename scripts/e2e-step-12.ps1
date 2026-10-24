@@ -170,7 +170,7 @@ BFF_STRONG_AUTH_MAX_AGE_MINUTES=5
         "run", "--rm", "--entrypoint", "/app/create-application", "mw-identity",
         "--name", "MW Admin Step 12",
         "--client-id", $BFFClientID,
-        "--type", "confidential",
+        "--type", "confidential", "--internal",
         "--auth-policy", "strong",
         "--redirect-uri", $BFFCallback,
         "--scope", "openid", "--scope", "profile", "--scope", "email", "--scope", "identity.admin"
@@ -195,7 +195,7 @@ BFF_STRONG_AUTH_MAX_AGE_MINUTES=5
             "compose", "-f", (Join-Path $Root "docker-compose.yml"), "-f", $Step12Compose,
             "--env-file", $Step12Env,
             "run", "--rm", "--entrypoint", "/app/create-application", "mw-identity",
-            "--name", $Spec.Name, "--client-id", $Spec.ID, "--type", "confidential",
+            "--name", $Spec.Name, "--client-id", $Spec.ID, "--type", "confidential", "--internal",
             "--auth-policy", $Spec.Policy, "--redirect-uri", $Spec.Redirect,
             "--scope", "openid", "--json"
         )

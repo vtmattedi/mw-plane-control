@@ -208,6 +208,7 @@ try {
         --name "Step 04 Client" `
         --client-id $ClientID `
         --type confidential `
+        --internal `
         --redirect-uri $RedirectURI `
         --scope openid `
         --scope profile `

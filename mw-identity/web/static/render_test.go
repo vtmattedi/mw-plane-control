@@ -2,6 +2,7 @@ package static
 
 import (
 	"bytes"
+	"html"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -20,6 +21,7 @@ func TestEmbeddedPortalBundleIsComplete(t *testing.T) {
 		"account.html",
 		"info.html",
 		"recovery.html",
+		"register.html",
 	} {
 		value, err := Files.ReadFile(name)
 		if err != nil {
@@ -31,13 +33,29 @@ func TestEmbeddedPortalBundleIsComplete(t *testing.T) {
 	}
 }
 
+func TestRenderContinueKeepsTargetUsable(t *testing.T) {
+	var output bytes.Buffer
+	target := "/oauth/authorize?client_id=woi&scope=openid+email"
+	if err := RenderContinue(&output, ContinueData{Lang: LangEN, Target: target}); err != nil {
+		t.Fatal(err)
+	}
+	// Attribute values are HTML-escaped; browsers decode them back to the target.
+	body := html.UnescapeString(output.String())
+	if !strings.Contains(body, `content="0; url=`+target+`"`) || !strings.Contains(body, `href="`+target+`"`) {
+		t.Fatalf("continue page does not carry the target: %s", body)
+	}
+	if strings.Contains(body, "ZgotmplZ") {
+		t.Fatal("template filtered the target")
+	}
+}
+
 func TestRenderRecoveryUsesSharedPortalAssets(t *testing.T) {
 	var output bytes.Buffer
-	if err := RenderRecovery(&output); err != nil {
+	if err := RenderRecovery(&output, RecoveryData{Page: Page{Lang: LangPT}}); err != nil {
 		t.Fatal(err)
 	}
 	body := output.String()
-	for _, want := range []string{"Recuperar identidade", "/static/portal.css", "/static/brand.svg#mark", `id="recovery-start"`} {
+	for _, want := range []string{"Recuperar conta", "/static/portal.css", "/static/brand.svg#mark", `id="recovery-start"`} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("recovery page does not contain %q", want)
 		}
@@ -77,13 +95,27 @@ func TestRenderAccountAndInformationPages(t *testing.T) {
 		t.Fatal(err)
 	}
 	accountBody := accountOutput.String()
-	for _, want := range []string{"Á", "admin@example.com", "Passkeys", "Aplicativo autenticador", "totp-qr-code", "/static/brand.svg#mark"} {
+	for _, want := range []string{"Á", "admin@example.com", "Passkeys", "App autenticador", "totp-qr-code", "/static/brand.svg#mark"} {
 		if !strings.Contains(accountBody, want) {
 			t.Fatalf("account page does not contain %q", want)
 		}
 	}
 	if strings.Contains(accountBody, `token"><script>`) {
 		t.Fatal("account template data was not escaped")
+	}
+	if strings.Contains(accountBody, "strong-setup-banner") {
+		t.Fatal("strong-setup banner shown without an application asking for it")
+	}
+	if strings.Contains(accountBody, "<script>") {
+		t.Fatal("account page has an inline script, which the CSP blocks")
+	}
+
+	var setupOutput bytes.Buffer
+	if err := RenderAccount(&setupOutput, AccountData{StrongSetupContinue: "/oauth/authorize?client_id=woi"}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(setupOutput.String(), `href="/oauth/authorize?client_id=woi"`) {
+		t.Fatal("strong-setup banner does not link back to the authorization")
 	}
 
 	var infoOutput bytes.Buffer

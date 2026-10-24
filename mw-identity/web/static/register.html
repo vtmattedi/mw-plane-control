@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="{{.Lang}}">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#f7f7f5" />
     <meta name="color-scheme" content="light dark" />
-    <title>Criar conta · MattediWorks</title>
+    <title>{{t .Lang "register.meta_title"}} · MattediWorks</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -23,14 +23,26 @@
         </svg>
         <span>MATTEDI<span>WORKS</span></span>
       </a>
+      <div class="topbar-actions">
+        <a
+          class="language-link"
+          href="{{.LangSwitchURL}}"
+          title="{{t .Lang "lang.switch_label"}}"
+          >{{t .Lang "lang.switch_code"}}</a
+        >
+      </div>
     </header>
     <main class="account-shell narrow-shell">
       <section class="settings-card">
         <div class="settings-heading">
           <div>
             <span class="eyebrow dark"><i></i> MW Identity</span>
-            <h1>Criar conta</h1>
-            <p>Crie sua identidade para continuar em {{.AppName}}.</p>
+            <h1>{{t .Lang "register.title"}}</h1>
+            {{if .AppName}}
+            <p>{{t .Lang "register.lead_app" .AppName}}</p>
+            {{else}}
+            <p>{{t .Lang "register.lead_standalone"}}</p>
+            {{end}}
           </div>
         </div>
         {{if .Error}}
@@ -40,8 +52,14 @@
           <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
           <input type="hidden" name="client_id" value="{{.ClientID}}" />
           <input type="hidden" name="return_to" value="{{.ReturnTo}}" />
+          <input type="hidden" name="language" value="{{.Lang}}" />
+          <div class="hp-field" aria-hidden="true">
+            <label
+              >Website<input name="website" tabindex="-1" autocomplete="off"
+            /></label>
+          </div>
           <label
-            >Nome de usuário<input
+            >{{t .Lang "register.username"}}<input
               name="username"
               required
               minlength="3"
@@ -49,14 +67,14 @@
               autocomplete="username"
           /></label>
           <label
-            >E-mail<input
+            >{{t .Lang "register.email"}}<input
               name="email"
               type="email"
               required
               autocomplete="email"
           /></label>
           <label
-            >Senha<input
+            >{{t .Lang "register.password"}}<input
               name="password"
               type="password"
               required
@@ -64,16 +82,9 @@
               maxlength="256"
               autocomplete="new-password"
           /></label>
-          <p class="inline-status">
-            O e-mail pode ser verificado posteriormente nas configurações da
-            conta.
-          </p>
-          <button class="primary-button" type="submit">Criar conta</button>
-          <a
-            class="secondary-button"
-            href="/login?return_to={{urlquery .ReturnTo}}"
-            >Já tenho uma conta</a
-          >
+          <p class="inline-status">{{t .Lang "register.hint"}}</p>
+          <button class="primary-button" type="submit">{{t .Lang "register.submit"}}</button>
+          <a class="secondary-button" href="{{.LoginURL}}">{{t .Lang "register.have_account"}}</a>
         </form>
       </section>
     </main>

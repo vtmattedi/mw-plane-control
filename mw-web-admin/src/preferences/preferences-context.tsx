@@ -162,6 +162,9 @@ const english: Record<string, string> = {
   'Clientes, credenciais e estado do broker.':
     'Clients, credentials and broker status.',
   'Nova credencial': 'New credential',
+  'Credenciais do projeto': 'Project credentials',
+  Ativado: 'Enabled',
+  Desativado: 'Disabled',
   Credencial: 'Credential',
   'Credencial gerada': 'Generated credential',
   Copiar: 'Copy',
@@ -507,6 +510,21 @@ const english: Record<string, string> = {
     'Post-logout redirect URIs (optional)',
   'Cadastro público': 'Public registration',
   'Callback de exclusão de conta': 'Account deletion callback',
+  'Callback de exclusão de conta (obrigatório)':
+    'Account deletion callback (required)',
+  'Callback de exclusão de conta (opcional)':
+    'Account deletion callback (optional)',
+  Uso: 'Usage',
+  'Para usuários': 'User-facing',
+  'Interna (MW BFF)': 'Internal (MW BFF)',
+  Exclusão: 'Deletion',
+  Interna: 'Internal',
+  'Callback pendente': 'Callback missing',
+  'Callback ativo': 'Callback set',
+  'Aplicações para usuários precisam de um callback de exclusão de conta.':
+    'User-facing applications need an account deletion callback.',
+  'Esta aplicação não tem callback de exclusão de conta. Ela continua funcionando, mas a próxima edição exige um callback, ou que ela seja marcada como interna.':
+    'This application has no account deletion callback. It keeps working, but its next edit needs a callback, or marking it internal.',
   'Tipo de conta': 'Account type',
   'Conta pública': 'Public account',
   'Conta corporativa': 'Workforce account',

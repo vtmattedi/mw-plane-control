@@ -161,6 +161,7 @@ func main() {
 				LoginRateLimitAttempts: cfg.LoginRateLimitAttempts,
 				LoginRateLimitWindow:   cfg.LoginRateLimitWindow,
 				StrongAuthMaxAge:       cfg.StrongAuthMaxAge,
+				PublicSignupEnabled:    cfg.PublicSignupEnabled,
 			},
 			httpapi.OIDCMetadataConfig{
 				PublicIssuer:   cfg.PublicIssuer,

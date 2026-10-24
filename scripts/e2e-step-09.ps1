@@ -101,6 +101,7 @@ try {
         --name "MW Admin Step 09" `
         --client-id $BFFClientID `
         --type confidential `
+        --internal `
         --redirect-uri $CallbackURL `
         --scope openid `
         --scope profile `
@@ -117,6 +118,7 @@ try {
         --name "Step 09 Test Resource Server" `
         --client-id $RSClientID `
         --type confidential `
+        --internal `
         --redirect-uri "https://step09-rs.invalid/callback" `
         --scope openid `
         --scope test.read `

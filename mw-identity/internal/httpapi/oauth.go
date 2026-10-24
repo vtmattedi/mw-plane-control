@@ -92,7 +92,7 @@ func (h *oauthHandlers) authorize(
 		} else if validated.Application.AuthenticationPolicy == "strong" {
 			mode = "&auth=strong"
 		}
-		loginURL := "/login?return_to=" + url.QueryEscape(r.URL.RequestURI()) + mode
+		loginURL := loginPath(r) + "?return_to=" + url.QueryEscape(r.URL.RequestURI()) + mode
 		http.Redirect(w, r, loginURL, http.StatusSeeOther)
 		return
 	}
@@ -104,7 +104,7 @@ func (h *oauthHandlers) authorize(
 				h.redirectToStrongSetup(w, r)
 				return
 			}
-			loginURL := "/login?return_to=" + url.QueryEscape(r.URL.RequestURI()) + "&auth=webauthn"
+			loginURL := loginPath(r) + "?return_to=" + url.QueryEscape(r.URL.RequestURI()) + "&auth=webauthn"
 			http.Redirect(w, r, loginURL, http.StatusSeeOther)
 			return
 		}
@@ -113,7 +113,7 @@ func (h *oauthHandlers) authorize(
 			h.redirectToStrongSetup(w, r)
 			return
 		}
-		loginURL := "/login?return_to=" + url.QueryEscape(r.URL.RequestURI()) + "&auth=strong"
+		loginURL := loginPath(r) + "?return_to=" + url.QueryEscape(r.URL.RequestURI()) + "&auth=strong"
 		http.Redirect(w, r, loginURL, http.StatusSeeOther)
 		return
 	}

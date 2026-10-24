@@ -1012,6 +1012,24 @@ footer a {
   justify-self: start;
   margin-top: 2px;
 }
+.step-up-signup {
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+.step-up-signup a {
+  color: var(--ink);
+  font-weight: 700;
+}
+/* Honeypot: off-screen for people, still present for form-filling bots. */
+.hp-field {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
 .notice-line {
   margin: 0 0 12px;
   padding: 10px 12px;

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  AlertTriangle,
   Archive,
   AppWindow,
   KeyRound,
@@ -41,6 +42,8 @@ type Application = {
   post_logout_redirect_uris: string[]
   delete_callback_uri?: string
   allow_public_signup: boolean
+  internal?: boolean
+  needs_delete_callback?: boolean
   scopes: string[]
   claims: string[]
   audiences: string[]
@@ -56,6 +59,7 @@ type ApplicationForm = {
   post_logout_redirect_uris: string
   delete_callback_uri: string
   allow_public_signup: boolean
+  internal: boolean
   scopes: string
   claims: string
   audiences: string
@@ -129,6 +133,7 @@ export function IdentityApplicationDetailPage() {
       post_logout_redirect_uris,
       delete_callback_uri,
       allow_public_signup,
+      internal,
       scopes,
       claims,
       audiences,
@@ -141,6 +146,7 @@ export function IdentityApplicationDetailPage() {
       post_logout_redirect_uris: (post_logout_redirect_uris ?? []).join(', '),
       delete_callback_uri: delete_callback_uri ?? '',
       allow_public_signup: allow_public_signup === true,
+      internal: internal === true,
       scopes: (scopes ?? []).join(', '),
       claims: (claims ?? []).join(', '),
       audiences: (audiences ?? []).join(', '),
@@ -356,6 +362,19 @@ export function IdentityApplicationDetailPage() {
           )}
           {form && query.data && (
             <>
+              {query.data.needs_delete_callback && (
+                <div
+                  className="border-warning/20 bg-warning/10 text-warning flex gap-2 rounded-xl border p-3 text-sm"
+                  role="status"
+                >
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                  <span>
+                    {tr(
+                      'Esta aplicação não tem callback de exclusão de conta. Ela continua funcionando, mas a próxima edição exige um callback, ou que ela seja marcada como interna.',
+                    )}
+                  </span>
+                </div>
+              )}
               <fieldset
                 className="contents"
                 disabled={Boolean(query.data.archived_at)}
@@ -429,9 +448,31 @@ export function IdentityApplicationDetailPage() {
                       value={form.post_logout_redirect_uris}
                     />
                   </Field>
+                  <Field label={tr('Uso')}>
+                    <Select
+                      onChange={(event) =>
+                        setForm({
+                          ...form,
+                          internal: event.target.value === 'internal',
+                          allow_public_signup:
+                            event.target.value === 'internal'
+                              ? false
+                              : form.allow_public_signup,
+                        })
+                      }
+                      value={form.internal ? 'internal' : 'users'}
+                    >
+                      <option value="users">{tr('Para usuários')}</option>
+                      <option value="internal">{tr('Interna (MW BFF)')}</option>
+                    </Select>
+                  </Field>
                   <Field
                     className="sm:col-span-2"
-                    label={tr('Callback de exclusão de conta')}
+                    label={tr(
+                      form.internal
+                        ? 'Callback de exclusão de conta (opcional)'
+                        : 'Callback de exclusão de conta (obrigatório)',
+                    )}
                   >
                     <Input
                       onChange={(delete_callback_uri) =>
@@ -443,6 +484,7 @@ export function IdentityApplicationDetailPage() {
                   </Field>
                   <Field label={tr('Cadastro público')}>
                     <Select
+                      disabled={form.internal}
                       onChange={(event) =>
                         setForm({
                           ...form,

@@ -39,6 +39,7 @@ type UpdateApplication struct {
 	PostLogoutRedirectURIs []string `json:"post_logout_redirect_uris"`
 	DeleteCallbackURI      string   `json:"delete_callback_uri"`
 	AllowPublicSignup      bool     `json:"allow_public_signup"`
+	Internal               bool     `json:"internal"`
 	Scopes                 []string `json:"scopes"`
 	Claims                 []string `json:"claims"`
 	Audiences              []string `json:"audiences"`

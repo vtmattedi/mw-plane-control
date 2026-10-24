@@ -18,15 +18,29 @@ type LoginData struct {
 	RequiredAuth    string
 }
 
+// Page carries the language every catalog-driven page needs: Lang selects the
+// copy, LangSwitchURL is the same page in the other language.
+type Page struct {
+	Lang          string
+	LangSwitchURL string
+}
+
 type RegistrationData struct {
+	Page
 	CSRFToken string
 	Error     string
 	ReturnTo  string
 	ClientID  string
 	AppName   string
+	LoginURL  string
+}
+
+type RecoveryData struct {
+	Page
 }
 
 type AccountData struct {
+	Page
 	Email           string
 	DisplayName     string
 	IsSuperadmin    bool
@@ -38,6 +52,9 @@ type AccountData struct {
 	Applications    []auth.ConnectedApplication
 	// Notice is the outcome of a redirect back to /account, e.g. "app_removed".
 	Notice string
+	// StrongSetupContinue is where to return once a strong credential exists,
+	// set only when an application sent the user here to enroll one.
+	StrongSetupContinue string
 }
 
 type InfoSection struct {
@@ -46,6 +63,7 @@ type InfoSection struct {
 }
 
 type InfoData struct {
+	Page
 	Kind     string
 	Title    string
 	Lead     string
@@ -79,22 +97,43 @@ func AssetHandler() http.Handler {
 	})
 }
 
+// pageFuncs is available to every catalog-driven template.
+var pageFuncs = template.FuncMap{
+	"t":     T,
+	"value": Value,
+	"slice": func(value string, start, end int) string {
+		runes := []rune(value)
+		if start < 0 || end > len(runes) || start >= end {
+			return "MW"
+		}
+		return string(runes[start:end])
+	},
+}
+
+func pageTemplate(name, file string) *template.Template {
+	return template.Must(template.New(name).Funcs(pageFuncs).Parse(mustRead(file)))
+}
+
 var (
-	loginPT = template.Must(template.New("login-pt").Parse(mustRead("index.html")))
-	loginEN = template.Must(template.New("login-en").Parse(mustRead("indexEN.html")))
-	account = template.Must(template.New("account").Funcs(template.FuncMap{
-		"slice": func(value string, start, end int) string {
-			runes := []rune(value)
-			if start < 0 || end > len(runes) || start >= end {
-				return "MW"
-			}
-			return string(runes[start:end])
-		},
-	}).Parse(mustRead("account.html")))
-	info         = template.Must(template.New("info").Parse(mustRead("info.html")))
-	recovery     = template.Must(template.New("recovery").Parse(mustRead("recovery.html")))
-	registration = template.Must(template.New("registration").Parse(mustRead("register.html")))
+	loginPT      = template.Must(template.New("login-pt").Parse(mustRead("index.html")))
+	loginEN      = template.Must(template.New("login-en").Parse(mustRead("indexEN.html")))
+	account      = pageTemplate("account", "account.html")
+	info         = pageTemplate("info", "info.html")
+	recovery     = pageTemplate("recovery", "recovery.html")
+	registration = pageTemplate("registration", "register.html")
+	continuation = pageTemplate("continue", "continue.html")
 )
+
+// ContinueData drives the hand-off page shown after a form POST that
+// continues to an application.
+type ContinueData struct {
+	Lang   string
+	Target string
+}
+
+func RenderContinue(w io.Writer, data ContinueData) error {
+	return continuation.Execute(w, data)
+}
 
 func RenderLogin(w io.Writer, english bool, data LoginData) error {
 	if english {
@@ -111,8 +150,8 @@ func RenderInfo(w io.Writer, data InfoData) error {
 	return info.Execute(w, data)
 }
 
-func RenderRecovery(w io.Writer) error {
-	return recovery.Execute(w, nil)
+func RenderRecovery(w io.Writer, data RecoveryData) error {
+	return recovery.Execute(w, data)
 }
 
 func RenderRegistration(w io.Writer, data RegistrationData) error {
