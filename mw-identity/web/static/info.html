@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="{{.Lang}}">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -20,25 +20,28 @@
         <svg class="brand-symbol" aria-hidden="true"><use href="/static/brand.svg#mark" /></svg>
         <span>MATTEDI<span>WORKS</span></span>
       </a>
-      <button class="theme-button" type="button" data-theme-toggle aria-label="Alternar tema">
-        <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#moon" /></svg>
-      </button>
+      <div class="topbar-actions">
+        <a class="language-link" href="{{.LangSwitchURL}}" title="{{t .Lang "lang.switch_label"}}">{{t .Lang "lang.switch_code"}}</a>
+        <button class="theme-button" type="button" data-theme-toggle aria-label="{{t .Lang "common.theme"}}">
+          <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#moon" /></svg>
+        </button>
+      </div>
     </header>
     <main class="info-shell">
-      <a class="back-link" href="{{.BackURL}}"><svg class="icon" aria-hidden="true"><use href="/static/icons.svg#arrow-left" /></svg>Voltar</a>
+      <a class="back-link" href="{{.BackURL}}"><svg class="icon" aria-hidden="true"><use href="/static/icons.svg#arrow-left" /></svg>{{t .Lang "common.back"}}</a>
       <span class="eyebrow dark"><i></i> MW Identity</span>
       <h1>{{.Title}}</h1>
       <p class="info-lead">{{.Lead}}</p>
-      <nav class="account-tabs" aria-label="Informações do MW Identity">
-        <a href="/account">Conta</a>
-        <a href="/privacy" class="{{if eq .Kind "privacy"}}active{{end}}" {{if eq .Kind "privacy"}}aria-current="page"{{end}}>Privacidade</a>
-        <a href="/security" class="{{if eq .Kind "security"}}active{{end}}" {{if eq .Kind "security"}}aria-current="page"{{end}}>Segurança</a>
+      <nav class="account-tabs" aria-label="{{t .Lang "info.tabs_label"}}">
+        <a href="/account">{{t .Lang "common.account"}}</a>
+        <a href="/privacy" class="{{if eq .Kind "privacy"}}active{{end}}" {{if eq .Kind "privacy"}}aria-current="page"{{end}}>{{t .Lang "common.privacy"}}</a>
+        <a href="/security" class="{{if eq .Kind "security"}}active{{end}}" {{if eq .Kind "security"}}aria-current="page"{{end}}>{{t .Lang "common.security"}}</a>
       </nav>
       <div class="info-grid">
         {{range .Sections}}<section class="settings-card"><h2>{{.Title}}</h2><p>{{.Body}}</p></section>{{end}}
       </div>
-      <p class="info-note">Este é um resumo operacional do MW Identity, não um documento jurídico completo.</p>
-      <footer class="page-footer"><span>© 2026 MattediWorks</span></footer>
+      <p class="info-note">{{t .Lang "info.note"}}</p>
+      <footer class="page-footer"><span>{{t .Lang "common.copyright"}}</span></footer>
     </main>
   </body>
 </html>

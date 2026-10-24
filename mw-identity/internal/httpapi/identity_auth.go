@@ -86,6 +86,9 @@ func (h *identityAuthHandlers) loginPage(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
+	// Remember an explicit language choice first: a signed-in visitor is
+	// redirected to the account page below, which should honor it.
+	rememberLanguage(w, r, h.secure)
 	requestedAuth := requestedLoginAuth(r.URL.Query().Get("auth"))
 	if _, _, err := h.currentSession(r); err == nil && requestedAuth == "" {
 		http.Redirect(w, r, "/account", http.StatusSeeOther)
@@ -181,6 +184,30 @@ func (h *identityAuthHandlers) registrationTarget(r *http.Request, clientID, ret
 	return webstatic.RegistrationData{ReturnTo: returnTo, ClientID: clientID, AppName: app.Name}, true
 }
 
+// withRegistrationLinks fills the language-dependent links of the sign-up
+// page. They are built from the form's own fields so a POST that re-renders
+// the page (after an error) keeps the app's client_id and return_to.
+func withRegistrationLinks(data webstatic.RegistrationData, lang string) webstatic.RegistrationData {
+	data.Lang = lang
+	other := "en"
+	login := "/login"
+	if lang == webstatic.LangEN {
+		other = "pt"
+		login = "/login/en"
+	}
+	query := url.Values{"lang": {other}}
+	if data.ClientID != "" {
+		query.Set("client_id", data.ClientID)
+	}
+	if data.ReturnTo != "" {
+		query.Set("return_to", data.ReturnTo)
+		login += "?return_to=" + url.QueryEscape(data.ReturnTo)
+	}
+	data.LangSwitchURL = "/register?" + query.Encode()
+	data.LoginURL = login
+	return data
+}
+
 func (h *identityAuthHandlers) registerPage(w http.ResponseWriter, r *http.Request) {
 	clientID := strings.TrimSpace(r.URL.Query().Get("client_id"))
 	data, ok := h.registrationTarget(r, clientID, safeReturnTo(r.URL.Query().Get("return_to")))
@@ -194,10 +221,12 @@ func (h *identityAuthHandlers) registerPage(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	h.setLoginCSRFCookie(w, token)
+	rememberLanguage(w, r, h.secure)
+	data = withRegistrationLinks(data, pageLanguage(r))
 	data.CSRFToken = token
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	_ = webstatic.RenderRegistration(w, r.URL.Path == "/register/en", data)
+	_ = webstatic.RenderRegistration(w, data)
 }
 
 func (h *identityAuthHandlers) register(w http.ResponseWriter, r *http.Request) {
@@ -216,7 +245,10 @@ func (h *identityAuthHandlers) register(w http.ResponseWriter, r *http.Request) 
 		writePlainError(w, http.StatusBadRequest, "registration failed")
 		return
 	}
-	english := r.FormValue("language") == "en"
+	lang := languageFromTag(r.FormValue("language"))
+	if lang == "" {
+		lang = pageLanguage(r)
+	}
 	clientID := strings.TrimSpace(r.FormValue("client_id"))
 	data, ok := h.registrationTarget(r, clientID, safeReturnTo(r.FormValue("return_to")))
 	if !ok {
@@ -239,12 +271,15 @@ func (h *identityAuthHandlers) register(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 		h.setLoginCSRFCookie(w, token)
-		taken := errors.Is(err, auth.ErrEmailExists) || errors.Is(err, auth.ErrUsernameExists)
+		data = withRegistrationLinks(data, lang)
 		data.CSRFToken = token
-		data.Error = registrationError(english, taken)
+		data.Error = webstatic.T(lang, "register.error_generic")
+		if errors.Is(err, auth.ErrEmailExists) || errors.Is(err, auth.ErrUsernameExists) {
+			data.Error = webstatic.T(lang, "register.error_taken")
+		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusBadRequest)
-		_ = webstatic.RenderRegistration(w, english, data)
+		_ = webstatic.RenderRegistration(w, data)
 		return
 	}
 	session, err := h.service.CreateSessionForUser(r.Context(), user.ID, remoteIP(r), "password")
@@ -255,7 +290,7 @@ func (h *identityAuthHandlers) register(w http.ResponseWriter, r *http.Request) 
 	setSessionCookie(w, sessionCookieName, session.SessionToken, session.ExpiresAt, h.secure, true)
 	setSessionCookie(w, csrfCookieName, session.CSRFToken, session.ExpiresAt, h.secure, false)
 	clearCookie(w, loginCSRFCookieName, h.secure, false)
-	redirectAfterForm(w, r, returnTo, english)
+	redirectAfterForm(w, r, returnTo, lang == webstatic.LangEN)
 }
 
 // redirectAfterForm finishes a successful form POST. The CSP's form-action
@@ -282,20 +317,7 @@ func (h *identityAuthHandlers) continuePage(w http.ResponseWriter, r *http.Reque
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	_ = webstatic.RenderContinue(w, webstatic.ContinueData{Target: target, English: r.URL.Query().Get("lang") == "en"})
-}
-
-func registrationError(english, taken bool) string {
-	switch {
-	case english && taken:
-		return "That email or username is already in use."
-	case english:
-		return "The account could not be created. Check the details you entered."
-	case taken:
-		return "O e-mail ou nome de usuário já está em uso."
-	default:
-		return "Não foi possível criar a conta. Confira os dados informados."
-	}
+	_ = webstatic.RenderContinue(w, webstatic.ContinueData{Lang: pageLanguage(r), Target: target})
 }
 
 func (h *identityAuthHandlers) setLoginCSRFCookie(w http.ResponseWriter, token string) {
@@ -476,6 +498,7 @@ func (h *identityAuthHandlers) account(
 	_ = webstatic.RenderAccount(
 		w,
 		webstatic.AccountData{
+			Page:                h.page(w, r),
 			Email:               result.User.Email,
 			DisplayName:         result.User.DisplayName,
 			IsSuperadmin:        result.User.IsSuperadmin,
@@ -590,32 +613,33 @@ func (h *identityAuthHandlers) deleteAccount(w http.ResponseWriter, r *http.Requ
 	http.Redirect(w, r, "/login?deletion_pending=1", http.StatusSeeOther)
 }
 
-func (h *identityAuthHandlers) privacy(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_ = webstatic.RenderInfo(w, webstatic.InfoData{
-		Kind: "privacy", Title: "Privacidade", BackURL: "/",
-		Lead: "Como o MW Identity usa e protege os dados necessários para autenticar sua conta.",
-		Sections: []webstatic.InfoSection{
-			{Title: "Dados da conta", Body: "O serviço mantém seu identificador estável, nome de usuário, nome, e-mail, estado de verificação e configurações de autenticação. Aplicativos recebem apenas os dados permitidos pelos escopos autorizados."},
-			{Title: "Aplicativos conectados", Body: "A página da conta mostra os aplicativos aos quais sua identidade está conectada. Cada aplicativo mantém separadamente seus próprios perfis e dados de negócio. Ao remover um aplicativo, o MW Identity revoga o acesso dele imediatamente e pede que ele exclua seus dados; o restante da sua conta continua ativo."},
-			{Title: "Sessões e auditoria", Body: "Sessões, eventos de segurança e ações administrativas são registrados para proteção, investigação e operação do serviço."},
-			{Title: "Credenciais", Body: "Senhas e tokens não são armazenados em texto puro. Segredos sensíveis usam hash ou criptografia apropriada ao seu propósito."},
-			{Title: "Exclusão da conta", Body: "Ao excluir sua conta, o MW Identity revoga imediatamente os acessos e notifica os aplicativos conectados. Cada aplicativo exclui ou anonimiza seus dados conforme suas obrigações de retenção. Falhas de entrega mantêm a identidade desativada e a exclusão pendente para nova tentativa administrativa."},
-		},
-	})
+func (h *identityAuthHandlers) privacy(w http.ResponseWriter, r *http.Request) {
+	h.renderInfo(w, r, "privacy", 5)
 }
 
-func (h *identityAuthHandlers) security(w http.ResponseWriter, _ *http.Request) {
+func (h *identityAuthHandlers) security(w http.ResponseWriter, r *http.Request) {
+	h.renderInfo(w, r, "security", 3)
+}
+
+// renderInfo renders an information page whose copy lives in the catalog
+// under <kind>.title, <kind>.lead and <kind>.s<n>.title/body.
+func (h *identityAuthHandlers) renderInfo(w http.ResponseWriter, r *http.Request, kind string, sections int) {
+	page := h.page(w, r)
+	data := webstatic.InfoData{
+		Page:    page,
+		Kind:    kind,
+		Title:   webstatic.T(page.Lang, kind+".title"),
+		Lead:    webstatic.T(page.Lang, kind+".lead"),
+		BackURL: "/",
+	}
+	for i := 1; i <= sections; i++ {
+		data.Sections = append(data.Sections, webstatic.InfoSection{
+			Title: webstatic.T(page.Lang, fmt.Sprintf("%s.s%d.title", kind, i)),
+			Body:  webstatic.T(page.Lang, fmt.Sprintf("%s.s%d.body", kind, i)),
+		})
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_ = webstatic.RenderInfo(w, webstatic.InfoData{
-		Kind: "security", Title: "Segurança", BackURL: "/",
-		Lead: "Controles disponíveis para manter sua identidade e o ecossistema MattediWorks protegidos.",
-		Sections: []webstatic.InfoSection{
-			{Title: "Passkeys", Body: "Passkeys são o método principal para acessos administrativos e confirmações de alta segurança."},
-			{Title: "Código autenticador", Body: "TOTP funciona como alternativa controlada. Ações críticas ainda podem exigir uma confirmação recente com passkey."},
-			{Title: "Recuperação", Body: "A recuperação é iniciada por um operador e usa uma capacidade curta e de uso único para substituir a confiança comprometida."},
-		},
-	})
+	_ = webstatic.RenderInfo(w, data)
 }
 
 func (h *identityAuthHandlers) logout(
@@ -751,7 +775,7 @@ func (h *identityAuthHandlers) renderLoginFailure(
 	if english {
 		message = "Invalid email or password."
 	} else {
-		message = "E-mail ou senha inválidos."
+		message = "Email ou senha inválidos."
 	}
 	_ = webstatic.RenderLogin(
 		w,
@@ -764,27 +788,8 @@ func (h *identityAuthHandlers) renderLoginFailure(
 	)
 }
 
-// loginPath picks the portal language for a sign-in an application started.
-// The OIDC ui_locales parameter wins; otherwise the browser's first preferred
-// language decides. Portuguese stays the default.
-func loginPath(r *http.Request) string {
-	tag := ""
-	if locales := strings.Fields(r.URL.Query().Get("ui_locales")); len(locales) > 0 {
-		tag = locales[0]
-	} else {
-		tag, _, _ = strings.Cut(r.Header.Get("Accept-Language"), ",")
-		tag, _, _ = strings.Cut(tag, ";")
-	}
-	tag = strings.ToLower(strings.TrimSpace(tag))
-	if tag == "en" || strings.HasPrefix(tag, "en-") {
-		return "/login/en"
-	}
-	return "/login"
-}
-
 func loginPageEnglish(r *http.Request) bool {
-	return r.URL.Path == "/login/en" ||
-		strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("lang")), "en")
+	return pageLanguage(r) == webstatic.LangEN
 }
 
 func (h *identityAuthHandlers) clearAuthCookies(

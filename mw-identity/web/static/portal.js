@@ -17,8 +17,14 @@
     input.value = params.get("return_to") || input.value || "";
   });
   var languageLink = document.querySelector("[data-language-link]");
+  // Keep the app's return_to and friends when switching language; the link
+  // itself carries the explicit lang choice.
   if (languageLink && params.toString()) {
-    languageLink.href += "?" + params.toString();
+    var switchURL = new URL(languageLink.getAttribute("href"), location.href);
+    params.forEach(function (value, key) {
+      if (key !== "lang") switchURL.searchParams.set(key, value);
+    });
+    languageLink.href = switchURL.pathname + switchURL.search;
   }
   function show(name, preserveError) {
     if (webauthnOnly && name !== "step-up" && name !== "success") {
@@ -107,7 +113,7 @@
         throw new Error(
           english
             ? "Passkeys are not supported by this browser."
-            : "Passkeys não são compatíveis com este navegador.",
+            : "Este navegador não suporta passkeys.",
         );
       var optionsResponse = await fetch(optionsPath, {
         method: "POST",
@@ -118,7 +124,7 @@
         throw new Error(
           english
             ? "The confirmation could not be started."
-            : "Não foi possível iniciar a confirmação.",
+            : "Não deu para iniciar a confirmação.",
         );
       var payload = await optionsResponse.json();
       var options =
@@ -164,7 +170,7 @@
         throw new Error(
           english
             ? "The passkey could not be verified."
-            : "A passkey não pôde ser confirmada.",
+            : "Não deu para confirmar a passkey.",
         );
       var body = await verify.json().catch(function () {
         return {};
@@ -177,7 +183,7 @@
           error.message ||
             (english
               ? "This passkey could not be used."
-              : "Não foi possível usar esta passkey."),
+              : "Não deu para usar esta passkey."),
         );
     }
   }
@@ -202,7 +208,7 @@
           throw new Error(
             english
               ? "Enter your email before using a TOTP code."
-              : "Informe seu e-mail antes de usar o código TOTP.",
+              : "Digite seu email antes de usar o código do app autenticador.",
           );
         }
         var response = await fetch("/api/totp/login", {
@@ -220,7 +226,7 @@
         });
         if (!response.ok) {
           throw new Error(
-            english ? "The TOTP code is invalid." : "O código TOTP é inválido.",
+            english ? "The TOTP code is invalid." : "Código inválido. Confira o app autenticador e tente de novo.",
           );
         }
         location.assign(body.redirect_to || "/account");
