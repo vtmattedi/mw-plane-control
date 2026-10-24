@@ -2,6 +2,7 @@ package static
 
 import (
 	"bytes"
+	"html"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -20,6 +21,8 @@ func TestEmbeddedPortalBundleIsComplete(t *testing.T) {
 		"account.html",
 		"info.html",
 		"recovery.html",
+		"register.html",
+		"registerEN.html",
 	} {
 		value, err := Files.ReadFile(name)
 		if err != nil {
@@ -28,6 +31,22 @@ func TestEmbeddedPortalBundleIsComplete(t *testing.T) {
 		if len(value) == 0 {
 			t.Fatalf("embedded asset %q is empty", name)
 		}
+	}
+}
+
+func TestRenderContinueKeepsTargetUsable(t *testing.T) {
+	var output bytes.Buffer
+	target := "/oauth/authorize?client_id=woi&scope=openid+email"
+	if err := RenderContinue(&output, ContinueData{Target: target, English: true}); err != nil {
+		t.Fatal(err)
+	}
+	// Attribute values are HTML-escaped; browsers decode them back to the target.
+	body := html.UnescapeString(output.String())
+	if !strings.Contains(body, `content="0; url=`+target+`"`) || !strings.Contains(body, `href="`+target+`"`) {
+		t.Fatalf("continue page does not carry the target: %s", body)
+	}
+	if strings.Contains(body, "ZgotmplZ") {
+		t.Fatal("template filtered the target")
 	}
 }
 
@@ -84,6 +103,20 @@ func TestRenderAccountAndInformationPages(t *testing.T) {
 	}
 	if strings.Contains(accountBody, `token"><script>`) {
 		t.Fatal("account template data was not escaped")
+	}
+	if strings.Contains(accountBody, "strong-setup-banner") {
+		t.Fatal("strong-setup banner shown without an application asking for it")
+	}
+	if strings.Contains(accountBody, "<script>") {
+		t.Fatal("account page has an inline script, which the CSP blocks")
+	}
+
+	var setupOutput bytes.Buffer
+	if err := RenderAccount(&setupOutput, AccountData{StrongSetupContinue: "/oauth/authorize?client_id=woi"}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(setupOutput.String(), `href="/oauth/authorize?client_id=woi"`) {
+		t.Fatal("strong-setup banner does not link back to the authorization")
 	}
 
 	var infoOutput bytes.Buffer

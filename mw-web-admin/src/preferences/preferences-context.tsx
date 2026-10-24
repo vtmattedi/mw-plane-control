@@ -162,6 +162,9 @@ const english: Record<string, string> = {
   'Clientes, credenciais e estado do broker.':
     'Clients, credentials and broker status.',
   'Nova credencial': 'New credential',
+  'Credenciais do projeto': 'Project credentials',
+  Ativado: 'Enabled',
+  Desativado: 'Disabled',
   Credencial: 'Credential',
   'Credencial gerada': 'Generated credential',
   Copiar: 'Copy',

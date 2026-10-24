@@ -269,6 +269,9 @@ In Identity -> Applications create:
 - Post-logout callback: `https://woi.mattediworks.com/`.
 - Account-deletion callback: `https://woi.mattediworks.com/api/auth/mw/lifecycle`.
 - Enable public signup only if WOI should accept self-registering public users.
+  Stand-alone sign-up at `https://identity.mattediworks.com/register` is a separate
+  switch, `IDENTITY_PUBLIC_SIGNUP_ENABLED` (default `true`); set it to `false` in
+  the Identity environment to close it.
 - Do not grant `identity.admin`, `mw-identity-admin`, or administrative downstream
   scopes to an ordinary WOI login client.
 

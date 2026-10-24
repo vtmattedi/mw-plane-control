@@ -57,6 +57,29 @@ func TestLoadDefaults(t *testing.T) {
 	}
 }
 
+func TestPublicSignupSwitch(t *testing.T) {
+	for _, test := range []struct {
+		value string
+		want  bool
+	}{
+		{"", true},
+		{"true", true},
+		{"false", false},
+		{"0", false},
+	} {
+		t.Setenv("IDENTITY_PUBLIC_SIGNUP_ENABLED", test.value)
+		cfg, err := Load()
+		if err != nil || cfg.PublicSignupEnabled != test.want {
+			t.Fatalf("%q: PublicSignupEnabled = %v, %v", test.value, cfg.PublicSignupEnabled, err)
+		}
+	}
+
+	t.Setenv("IDENTITY_PUBLIC_SIGNUP_ENABLED", "sometimes")
+	if _, err := Load(); err == nil {
+		t.Fatal("expected invalid IDENTITY_PUBLIC_SIGNUP_ENABLED error")
+	}
+}
+
 func TestLoadRejectsInvalidPort(t *testing.T) {
 	t.Setenv("PORT", "not-a-port")
 

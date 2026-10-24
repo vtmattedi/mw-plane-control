@@ -38,6 +38,9 @@ type AccountData struct {
 	Applications    []auth.ConnectedApplication
 	// Notice is the outcome of a redirect back to /account, e.g. "app_removed".
 	Notice string
+	// StrongSetupContinue is where to return once a strong credential exists,
+	// set only when an application sent the user here to enroll one.
+	StrongSetupContinue string
 }
 
 type InfoSection struct {
@@ -91,10 +94,23 @@ var (
 			return string(runes[start:end])
 		},
 	}).Parse(mustRead("account.html")))
-	info         = template.Must(template.New("info").Parse(mustRead("info.html")))
-	recovery     = template.Must(template.New("recovery").Parse(mustRead("recovery.html")))
-	registration = template.Must(template.New("registration").Parse(mustRead("register.html")))
+	info           = template.Must(template.New("info").Parse(mustRead("info.html")))
+	recovery       = template.Must(template.New("recovery").Parse(mustRead("recovery.html")))
+	registration   = template.Must(template.New("registration").Parse(mustRead("register.html")))
+	registrationEN = template.Must(template.New("registration-en").Parse(mustRead("registerEN.html")))
+	continuation   = template.Must(template.New("continue").Parse(mustRead("continue.html")))
 )
+
+// ContinueData drives the hand-off page shown after a form POST that
+// continues to an application.
+type ContinueData struct {
+	Target  string
+	English bool
+}
+
+func RenderContinue(w io.Writer, data ContinueData) error {
+	return continuation.Execute(w, data)
+}
 
 func RenderLogin(w io.Writer, english bool, data LoginData) error {
 	if english {
@@ -115,7 +131,10 @@ func RenderRecovery(w io.Writer) error {
 	return recovery.Execute(w, nil)
 }
 
-func RenderRegistration(w io.Writer, data RegistrationData) error {
+func RenderRegistration(w io.Writer, english bool, data RegistrationData) error {
+	if english {
+		return registrationEN.Execute(w, data)
+	}
 	return registration.Execute(w, data)
 }
 

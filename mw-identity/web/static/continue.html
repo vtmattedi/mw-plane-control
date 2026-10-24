@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="{{if .English}}en{{else}}pt-BR{{end}}">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <!--
+      A form POST may only redirect within Identity (CSP form-action 'self').
+      This page ends that navigation here and starts a new one toward the
+      application, which the policy allows.
+    -->
+    <meta http-equiv="refresh" content="0; url={{.Target}}" />
+    <title>{{if .English}}Continuing{{else}}Continuando{{end}} · MattediWorks</title>
+    <link rel="stylesheet" href="/static/portal.css" />
+    <script src="/static/theme.js" defer></script>
+  </head>
+  <body class="identity-page">
+    <main class="account-shell narrow-shell">
+      <section class="settings-card">
+        <span class="eyebrow dark"><i></i> MW Identity</span>
+        <h1>{{if .English}}Continuing…{{else}}Continuando…{{end}}</h1>
+        <p>
+          {{if .English}}Taking you back to the application.{{else}}Levando você
+          de volta ao aplicativo.{{end}}
+        </p>
+        <a class="primary-button" href="{{.Target}}"
+          >{{if .English}}Continue{{else}}Continuar{{end}}</a
+        >
+      </section>
+    </main>
+  </body>
+</html>
