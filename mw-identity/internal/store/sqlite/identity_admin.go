@@ -124,6 +124,7 @@ func (s *Store) UpdateIdentityApplication(
 		     access_policy = ?,
 		     delete_callback_uri = ?,
 		     allow_public_signup = ?,
+		     internal = ?,
 		     updated_at_unix = ?
 		 WHERE id = ?
 		   AND archived_at_unix IS NULL`,
@@ -132,6 +133,7 @@ func (s *Store) UpdateIdentityApplication(
 		value.AccessPolicy,
 		nullableString(value.DeleteCallbackURI),
 		boolInt(value.AllowPublicSignup),
+		boolInt(value.Internal),
 		now.Unix(),
 		id,
 	)

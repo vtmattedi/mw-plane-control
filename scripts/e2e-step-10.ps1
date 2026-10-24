@@ -136,7 +136,7 @@ try {
         "run", "--rm", "--entrypoint", "/app/create-application", "mw-identity",
         "--name", "MW Admin Step 10",
         "--client-id", $BFFClientID,
-        "--type", "confidential",
+        "--type", "confidential", "--internal",
         "--redirect-uri", $CallbackURL,
         "--scope", "openid",
         "--scope", "profile",

@@ -11,10 +11,18 @@ Create an Identity application with:
 - exact HTTPS redirect URIs;
 - exact post-logout redirect URIs when logout returns to the application;
 - scopes `openid profile email` as needed;
-- an optional HTTPS account deletion callback;
+- an HTTPS account deletion callback (`delete_callback_uri`), which is **required** (see below);
 - public signup enabled only when the application accepts self-service public accounts.
 
 A confidential client secret is displayed once on creation and rotation. Store it in the application's secret manager.
+
+### The deletion contract
+
+Only vetted applications use MW Identity, and implementing deletion is a condition of that vetting. Every application that signs people in with MW Identity **must** implement the `identity.user.deleted` callback described in section 5, and agrees to it in its terms of use or another written agreement with MattediWorks. Identity enforces the technical half: it refuses to create or edit an application without `delete_callback_uri` (`400 delete_callback_required`).
+
+The only exception is an **internal** application (`internal: true`): workforce tooling that runs behind the MW BFF and keeps no user data of its own, such as the admin console's BFF client and the resource servers it calls. Internal applications cannot enable public signup. Removing one from an account still revokes its access immediately; there is nothing for it to delete.
+
+Applications registered before the callback became mandatory keep working. The admin API marks them with `needs_delete_callback: true`, and their next edit must add the callback (or mark them internal). Enabling, disabling and archiving them stays available. With the CLI, pass `--delete-callback-uri` or `--internal`.
 
 ## 2. Use Authorization Code with PKCE
 
@@ -78,7 +86,7 @@ Public identities cannot authorize for the `mw-identity-admin` audience. The Adm
 
 ## 5. Connected applications and deletion
 
-The Identity account page derives connected applications from assignments and issued access tokens. Applications with local user data should configure `delete_callback_uri`.
+The Identity account page derives connected applications from assignments and issued access tokens. Every application except internal ones has a `delete_callback_uri` (section 1).
 
 The same `identity.user.deleted` event is sent in two situations. In both, the application must treat the subject as gone and delete or anonymize its local data:
 
@@ -118,4 +126,4 @@ If delivery fails:
 - for account deletion, Identity keeps the central account disabled and deletion-pending so an administrator can trigger the same routine again from MW Control;
 - for application removal, the application's access stays revoked but the user's assignment is kept, so the user can retry from the account page. A `deny` assignment set by an administrator is never removed by the user.
 
-Identity cannot verify that an application actually deleted its data; a 2xx response is the application's commitment that it accepted the request. Applications without `delete_callback_uri` are skipped, and the account page tells the user so.
+Identity cannot verify that an application actually deleted its data. That is what the deletion contract is for: a 2xx response is the application's binding commitment, under its agreement with MattediWorks, that it accepted the request and will carry it out. Internal applications and legacy applications still missing a callback are reported as skipped, and the account page tells the user so.

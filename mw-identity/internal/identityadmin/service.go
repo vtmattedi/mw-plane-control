@@ -32,6 +32,7 @@ type CreateApplicationRequest struct {
 	PostLogoutRedirectURIs []string
 	DeleteCallbackURI      string
 	AllowPublicSignup      bool
+	Internal               bool
 	Scopes                 []string
 	Claims                 []string
 	Audiences              []string
@@ -168,6 +169,7 @@ func (s *Service) CreateApplication(
 			PostLogoutRedirectURIs: request.PostLogoutRedirectURIs,
 			DeleteCallbackURI:      request.DeleteCallbackURI,
 			AllowPublicSignup:      request.AllowPublicSignup,
+			Internal:               request.Internal,
 			Scopes:                 request.Scopes,
 			Claims:                 request.Claims,
 			Audiences:              request.Audiences,
@@ -185,6 +187,7 @@ func (s *Service) CreateApplication(
 		map[string]any{
 			"application_id": result.Application.ID,
 			"client_id":      result.Application.ClientID,
+			"internal":       result.Application.Internal,
 		},
 	)
 
@@ -295,6 +298,7 @@ func (s *Service) UpdateApplication(
 		map[string]any{
 			"application_id": id,
 			"client_id":      updated.ClientID,
+			"internal":       updated.Internal,
 		},
 	)
 
@@ -692,6 +696,11 @@ func normalizeUpdate(
 		return UpdateApplication{}, ErrInvalid
 	} else {
 		request.DeleteCallbackURI = callbacks[0]
+	}
+	// An application registered before the callback was mandatory has to add
+	// one on its next edit; enabling, disabling and archiving stay available.
+	if err := applications.CheckLifecycle(request.Internal, request.AllowPublicSignup, request.DeleteCallbackURI); err != nil {
+		return UpdateApplication{}, err
 	}
 
 	request.Scopes = normalizeValues(

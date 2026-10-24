@@ -70,6 +70,7 @@ $CreatedRaw = docker compose --env-file $Step3Env run --rm `
     --name "MW Admin Step 06" `
     --client-id $ClientID `
     --type confidential `
+    --internal `
     --redirect-uri $CallbackURL `
     --scope openid `
     --scope profile `

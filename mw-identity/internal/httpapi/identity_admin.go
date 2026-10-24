@@ -234,6 +234,7 @@ func (h *identityAdminHandlers) createApplication(
 		PostLogoutRedirectURIs []string `json:"post_logout_redirect_uris"`
 		DeleteCallbackURI      string   `json:"delete_callback_uri"`
 		AllowPublicSignup      bool     `json:"allow_public_signup"`
+		Internal               bool     `json:"internal"`
 		Scopes                 []string `json:"scopes"`
 		Claims                 []string `json:"claims"`
 		Audiences              []string `json:"audiences"`
@@ -257,6 +258,7 @@ func (h *identityAdminHandlers) createApplication(
 			PostLogoutRedirectURIs: request.PostLogoutRedirectURIs,
 			DeleteCallbackURI:      request.DeleteCallbackURI,
 			AllowPublicSignup:      request.AllowPublicSignup,
+			Internal:               request.Internal,
 			Scopes:                 request.Scopes,
 			Claims:                 request.Claims,
 			Audiences:              request.Audiences,
@@ -648,6 +650,13 @@ func (h *identityAdminHandlers) writeAdminError(
 			w,
 			http.StatusBadRequest,
 			"invalid_request",
+		)
+
+	case errors.Is(err, applications.ErrDeleteCallbackRequired):
+		writeJSONError(
+			w,
+			http.StatusBadRequest,
+			"delete_callback_required",
 		)
 
 	case errors.Is(

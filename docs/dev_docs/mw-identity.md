@@ -102,10 +102,16 @@ applications
   application_type
   authentication_policy
   allow_public_signup
-  delete_callback_uri nullable
+  internal                 behind the MW BFF, no user data; exempt from the callback
+  delete_callback_uri nullable, but required unless internal
   created_at
   updated_at
 ```
+
+`delete_callback_uri` is mandatory for every non-internal application on create
+and edit (`delete_callback_uri` stays nullable only for internal and legacy
+rows). Internal applications cannot allow public signup. See the deletion
+contract in `docs/MW-Identity-application-integration.md`.
 
 Related normalized configuration:
 

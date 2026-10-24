@@ -262,6 +262,7 @@ try {
             "https://step06.example/initial"
         )
         post_logout_redirect_uris = @()
+        delete_callback_uri = "https://step06.example/account-deleted"
         scopes = @("openid", "profile", "email")
         claims = @()
         audiences = @()
@@ -277,6 +278,21 @@ try {
     }
 
     Write-Host "PASS BFF CSRF protects Identity mutations"
+
+    $NoCallbackBody = $CreateBody.Clone()
+    $NoCallbackBody.client_id = "${TestClientID}_nocallback"
+    $NoCallbackBody.Remove("delete_callback_uri")
+    $NoCallback = Invoke-AdminJSON `
+        "POST" `
+        "/api/identity/applications" `
+        $NoCallbackBody `
+        $AdminCSRF
+
+    if ($NoCallback.Status -ne 400 -or $NoCallback.RawBody -notmatch "delete_callback_required") {
+        throw "application without a delete callback was not rejected: $($NoCallback.Status) $($NoCallback.RawBody)"
+    }
+
+    Write-Host "PASS user-facing applications require a delete callback"
 
     $Created = Invoke-AdminJSON `
         "POST" `
@@ -305,6 +321,7 @@ try {
             "https://step06.example/exact-callback"
         )
         post_logout_redirect_uris = @()
+        delete_callback_uri = "https://step06.example/account-deleted"
         scopes = @("openid", "profile", "email")
         claims = @()
         audiences = @()

@@ -82,6 +82,7 @@ $CreateOutput = docker compose --env-file $EnvFile exec -T mw-identity `
     --name "MW Admin Step 03" `
     --client-id $ClientID `
     --type confidential `
+    --internal `
     --redirect-uri "https://admin.mattediworks.com/api/auth/callback" `
     --scope openid `
     --scope profile `

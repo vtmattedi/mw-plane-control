@@ -94,6 +94,7 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
     postLogoutRedirectURIs: '',
     deleteCallbackURI: '',
     allowPublicSignup: false,
+    internal: false,
     scopes: 'openid, profile, email',
     claims: '',
     audiences: '',
@@ -194,6 +195,7 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
         postLogoutRedirectURIs: '',
         deleteCallbackURI: '',
         allowPublicSignup: false,
+        internal: false,
         claims: '',
         audiences: '',
       }))
@@ -307,6 +309,7 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
         ),
         delete_callback_uri: trimPastedValue(createFields.deleteCallbackURI),
         allow_public_signup: createFields.allowPublicSignup,
+        internal: createFields.internal,
         scopes: splitFormValues(createFields.scopes),
         claims: splitFormValues(createFields.claims),
         audiences: splitFormValues(createFields.audiences),
@@ -662,9 +665,32 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
                     value={createFields.postLogoutRedirectURIs}
                   />
                 </CreateField>
+                <CreateField label={tr('Uso')}>
+                  <Select
+                    disabled={mutation.isPending}
+                    onChange={(event) =>
+                      setCreateFields((value) => ({
+                        ...value,
+                        internal: event.target.value === 'internal',
+                        allowPublicSignup:
+                          event.target.value === 'internal'
+                            ? false
+                            : value.allowPublicSignup,
+                      }))
+                    }
+                    value={createFields.internal ? 'internal' : 'users'}
+                  >
+                    <option value="users">{tr('Para usuários')}</option>
+                    <option value="internal">{tr('Interna (MW BFF)')}</option>
+                  </Select>
+                </CreateField>
                 <CreateField
                   className="sm:col-span-2"
-                  label={tr('Callback de exclusão de conta')}
+                  label={tr(
+                    createFields.internal
+                      ? 'Callback de exclusão de conta (opcional)'
+                      : 'Callback de exclusão de conta (obrigatório)',
+                  )}
                 >
                   <Input
                     disabled={mutation.isPending}
@@ -680,7 +706,7 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
                 </CreateField>
                 <CreateField label={tr('Cadastro público')}>
                   <Select
-                    disabled={mutation.isPending}
+                    disabled={mutation.isPending || createFields.internal}
                     onChange={(event) =>
                       setCreateFields((value) => ({
                         ...value,

@@ -30,6 +30,7 @@ try {
         --name "MW OAuth Resource Server" `
         --client-id "mw-oauth" `
         --type confidential `
+        --internal `
         --redirect-uri "https://oauth.mattediworks.com/_identity-unused-callback" `
         --scope openid `
         --scope oauth.projects.read `

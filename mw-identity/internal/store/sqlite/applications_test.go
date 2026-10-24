@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/applications"
+	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/auth"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identityadmin"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/oidc"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/migrations"
@@ -205,5 +206,70 @@ func TestPurgeIdentityApplicationRequiresNoDependentDataAndFreesClientID(t *test
 	input.CreatedAt = now.Add(time.Second)
 	if err := store.CreateApplication(ctx, input); err != nil {
 		t.Fatalf("recreate freed client ID: %v", err)
+	}
+}
+
+// Applications registered before the delete callback became mandatory keep
+// working, are flagged, and must add a callback on their next edit. Disabling
+// one stays possible.
+func TestLegacyApplicationWithoutDeleteCallback(t *testing.T) {
+	db, err := Open(filepath.Join(t.TempDir(), "identity.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	ctx := context.Background()
+	if err := ApplyMigrations(ctx, db, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := NewStore(db)
+	now := time.Now().UTC()
+	for _, input := range []applications.CreateInput{
+		{ID: "app_legacy", Name: "Legacy", ClientID: "legacy"},
+		{ID: "app_bff", Name: "MW Admin", ClientID: "mw_admin", Internal: true},
+	} {
+		input.ApplicationType, input.AuthenticationPolicy, input.Enabled = "public", "standard", true
+		input.RedirectURIs, input.Scopes, input.CreatedAt = []string{"https://example.com/callback"}, []string{"openid"}, now
+		if err := store.CreateApplication(ctx, input); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	legacy, err := store.IdentityApplicationByID(ctx, "app_legacy")
+	if err != nil || !legacy.NeedsDeleteCallback || legacy.Internal {
+		t.Fatalf("legacy app = needs callback %v, internal %v, err %v", legacy.NeedsDeleteCallback, legacy.Internal, err)
+	}
+	internal, err := store.IdentityApplicationByID(ctx, "app_bff")
+	if err != nil || internal.NeedsDeleteCallback || !internal.Internal {
+		t.Fatalf("internal app = needs callback %v, internal %v, err %v", internal.NeedsDeleteCallback, internal.Internal, err)
+	}
+
+	admin, err := identityadmin.New(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	edit := identityadmin.UpdateApplication{
+		Name: "Legacy renamed", RedirectURIs: []string{"https://example.com/callback"}, Scopes: []string{"openid"},
+	}
+	if _, err := admin.UpdateApplication(ctx, auth.User{ID: "usr_admin"}, "", "app_legacy", edit); !errors.Is(err, applications.ErrDeleteCallbackRequired) {
+		t.Fatalf("edit without callback error = %v", err)
+	}
+	if _, err := admin.SetApplicationState(ctx, auth.User{ID: "usr_admin"}, "", "app_legacy", "disable"); err != nil {
+		t.Fatalf("disable legacy app: %v", err)
+	}
+
+	edit.DeleteCallbackURI = "https://example.com/account-deleted"
+	updated, err := admin.UpdateApplication(ctx, auth.User{ID: "usr_admin"}, "", "app_legacy", edit)
+	if err != nil || updated.NeedsDeleteCallback {
+		t.Fatalf("edit with callback = needs callback %v, err %v", updated.NeedsDeleteCallback, err)
+	}
+
+	edit.DeleteCallbackURI, edit.Internal = "", true
+	if updated, err = admin.UpdateApplication(ctx, auth.User{ID: "usr_admin"}, "", "app_legacy", edit); err != nil || !updated.Internal {
+		t.Fatalf("mark internal = internal %v, err %v", updated.Internal, err)
+	}
+	edit.AllowPublicSignup = true
+	if _, err := admin.UpdateApplication(ctx, auth.User{ID: "usr_admin"}, "", "app_legacy", edit); !errors.Is(err, identityadmin.ErrInvalid) && !errors.Is(err, applications.ErrInvalidApplication) {
+		t.Fatalf("internal app with public sign-up error = %v", err)
 	}
 }
