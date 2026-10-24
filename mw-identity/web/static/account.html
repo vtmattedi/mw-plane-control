@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="{{.Lang}}">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#f7f7f5" />
     <meta name="color-scheme" content="light dark" />
     <meta name="mw-identity-csrf" content="{{.CSRFToken}}" />
-    <title>Sua conta · MW Identity</title>
+    <title>{{t .Lang "account.meta_title"}} · MW Identity</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -27,11 +27,17 @@
         <span>MATTEDI<span>WORKS</span></span>
       </a>
       <div class="topbar-actions">
+        <a
+          class="language-link"
+          href="{{.LangSwitchURL}}"
+          title="{{t .Lang "lang.switch_label"}}"
+          >{{t .Lang "lang.switch_code"}}</a
+        >
         <button
           class="theme-button"
           type="button"
           data-theme-toggle
-          aria-label="Alternar tema"
+          aria-label="{{t .Lang "common.theme"}}"
         >
           <svg class="icon" aria-hidden="true">
             <use href="/static/icons.svg#moon" />
@@ -48,11 +54,9 @@
             <use href="/static/icons.svg#shield" /></svg
         ></span>
         <p>
-          <strong>Configuração necessária</strong>O aplicativo que você
-          estava acessando exige uma confirmação reforçada (passkey ou
-          autenticador). Configure um método abaixo e depois
+          <strong>{{t .Lang "account.strong_title"}}</strong>{{t .Lang "account.strong_body"}}
           <a id="strong-setup-continue" href="{{.StrongSetupContinue}}"
-            >continue por aqui</a
+            >{{t .Lang "account.strong_link"}}</a
           >.
         </p>
       </div>
@@ -64,18 +68,18 @@
         </div>
         <div>
           <span class="eyebrow dark"><i></i> MW Identity</span>
-          <h1>{{if .DisplayName}}{{.DisplayName}}{{else}}Sua conta{{end}}</h1>
+          <h1>{{if .DisplayName}}{{.DisplayName}}{{else}}{{t .Lang "account.your_account"}}{{end}}</h1>
           <p>{{.Email}}</p>
         </div>
         <span class="role-badge"
-          >{{if .IsSuperadmin}}Superadmin{{else}}Conta ativa{{end}}</span
+          >{{if .IsSuperadmin}}{{t .Lang "account.badge_superadmin"}}{{else}}{{t .Lang "account.badge_active"}}{{end}}</span
         >
       </section>
 
-      <nav class="account-tabs" aria-label="Configurações da conta">
-        <a class="active" href="/account" aria-current="page">Conta</a>
-        <a href="/privacy">Privacidade</a>
-        <a href="/security">Segurança</a>
+      <nav class="account-tabs" aria-label="{{t .Lang "account.tabs_label"}}">
+        <a class="active" href="/account" aria-current="page">{{t .Lang "common.account"}}</a>
+        <a href="/privacy">{{t .Lang "common.privacy"}}</a>
+        <a href="/security">{{t .Lang "common.security"}}</a>
       </nav>
 
       <div class="account-grid">
@@ -86,13 +90,13 @@
                 <use href="/static/icons.svg#key" /></svg
             ></span>
             <div>
-              <h2>Passkeys</h2>
-              <p>Use biometria, Windows Hello ou uma chave de segurança.</p>
+              <h2>{{t .Lang "account.passkeys_title"}}</h2>
+              <p>{{t .Lang "account.passkeys_lead"}}</p>
             </div>
           </div>
           <ul class="credential-list" id="passkey-list"></ul>
           <label
-            >Nome da passkey
+            >{{t .Lang "account.passkey_name"}}
             <input
               id="passkey-label"
               maxlength="80"
@@ -101,7 +105,7 @@
             />
           </label>
           <button class="primary-button" type="button" id="passkey-register">
-            Registrar nova passkey
+            {{t .Lang "account.passkey_add"}}
           </button>
           <p
             class="inline-status"
@@ -118,12 +122,12 @@
                 <use href="/static/icons.svg#shield" /></svg
             ></span>
             <div>
-              <h2>Aplicativo autenticador</h2>
-              <p>Mantenha um código TOTP como método alternativo.</p>
+              <h2>{{t .Lang "account.totp_title"}}</h2>
+              <p>{{t .Lang "account.totp_lead"}}</p>
             </div>
           </div>
           <button class="secondary-button flush" type="button" id="totp-setup">
-            Configurar autenticador
+            {{t .Lang "account.totp_setup"}}
           </button>
           <div class="totp-enrollment" id="totp-enrollment" hidden>
             <div class="totp-qr-frame">
@@ -131,18 +135,15 @@
                 id="totp-qr-code"
                 width="256"
                 height="256"
-                alt="QR code para configurar o aplicativo autenticador"
+                alt="{{t .Lang "account.totp_qr_alt"}}"
               />
             </div>
             <div class="totp-enrollment-copy">
-              <strong>Escaneie o QR code</strong>
-              <p>
-                Use Google Authenticator, Microsoft Authenticator, 1Password ou
-                outro aplicativo compatível com TOTP.
-              </p>
-              <span>Ou informe esta chave manualmente:</span>
+              <strong>{{t .Lang "account.totp_scan"}}</strong>
+              <p>{{t .Lang "account.totp_apps"}}</p>
+              <span>{{t .Lang "account.totp_manual"}}</span>
               <code class="totp-secret" id="totp-secret"></code>
-              <label for="totp-code">Código gerado pelo aplicativo</label>
+              <label for="totp-code">{{t .Lang "account.totp_code"}}</label>
               <input
                 id="totp-code"
                 inputmode="numeric"
@@ -156,12 +157,12 @@
                 type="button"
                 id="totp-confirm"
               >
-                Confirmar código
+                {{t .Lang "account.totp_confirm"}}
               </button>
             </div>
           </div>
           <button class="danger-button" type="button" id="totp-disable" hidden>
-            Desativar autenticador
+            {{t .Lang "account.totp_disable"}}
           </button>
           <p
             class="inline-status"
@@ -178,36 +179,36 @@
                 <use href="/static/icons.svg#info" /></svg
             ></span>
             <div>
-              <h2>Sessão atual</h2>
-              <p>Informações sobre este acesso ao MW Identity.</p>
+              <h2>{{t .Lang "account.session_title"}}</h2>
+              <p>{{t .Lang "account.session_lead"}}</p>
             </div>
           </div>
           <dl>
             <div>
-              <dt>E-mail</dt>
+              <dt>{{t .Lang "account.email"}}</dt>
               <dd>{{.Email}}</dd>
             </div>
             <div>
-              <dt>Verificação do e-mail</dt>
+              <dt>{{t .Lang "account.email_verification"}}</dt>
               <dd>
-                {{if .EmailVerifiedAt}}Verificado{{else}}Não verificado{{end}}
+                {{if .EmailVerifiedAt}}{{t .Lang "account.verified"}}{{else}}{{t .Lang "account.not_verified"}}{{end}}
               </dd>
             </div>
             {{if .Username}}
             <div>
-              <dt>Nome de usuário</dt>
+              <dt>{{t .Lang "account.username"}}</dt>
               <dd>{{.Username}}</dd>
             </div>
             {{end}}
             <div>
-              <dt>Autenticação</dt>
+              <dt>{{t .Lang "account.signed_in_with"}}</dt>
               <dd>
-                {{if .AuthMethod}}{{.AuthMethod}}{{else}}Sessão ativa{{end}}
+                {{if .AuthMethod}}{{value .Lang .AuthMethod}}{{else}}{{t .Lang "account.session_active"}}{{end}}
               </dd>
             </div>
             <div>
-              <dt>Permissão</dt>
-              <dd>{{if .IsSuperadmin}}Superadmin{{else}}Usuário{{end}}</dd>
+              <dt>{{t .Lang "account.permission"}}</dt>
+              <dd>{{if .IsSuperadmin}}{{t .Lang "account.badge_superadmin"}}{{else}}{{t .Lang "account.user"}}{{end}}</dd>
             </div>
           </dl>
           <p
@@ -219,7 +220,7 @@
           <a
             class="secondary-button flush"
             href="/login?auth=strong&amp;return_to=/account"
-            >Confirmar identidade novamente</a
+            >{{t .Lang "account.reconfirm"}}</a
           >
         </section>
 
@@ -230,24 +231,16 @@
                 <use href="/static/icons.svg#info" /></svg
             ></span>
             <div>
-              <h2>Aplicativos conectados</h2>
-              <p>Aplicativos nos quais esta identidade possui acesso.</p>
+              <h2>{{t .Lang "account.apps_title"}}</h2>
+              <p>{{t .Lang "account.apps_lead"}}</p>
             </div>
           </div>
           {{if eq .Notice "app_removed"}}
-          <p class="notice-line" role="status">
-            Aplicativo removido. Ele confirmou o pedido de exclusão dos seus dados.
-          </p>
+          <p class="notice-line" role="status">{{t .Lang "account.notice_removed"}}</p>
           {{else if eq .Notice "app_removed_no_callback"}}
-          <p class="notice-line" role="status">
-            Aplicativo removido e acesso revogado. Este aplicativo não recebe
-            pedidos automáticos de exclusão; fale com ele para apagar seus dados.
-          </p>
+          <p class="notice-line" role="status">{{t .Lang "account.notice_no_callback"}}</p>
           {{else if eq .Notice "app_removal_pending"}}
-          <p class="notice-line warning" role="status">
-            O acesso foi revogado, mas o aplicativo não confirmou a exclusão.
-            Tente remover novamente em alguns minutos.
-          </p>
+          <p class="notice-line warning" role="status">{{t .Lang "account.notice_pending"}}</p>
           {{end}}
           {{if .Applications}}
           <ul class="connected-app-list">
@@ -255,23 +248,19 @@
             <li>
               <div class="connected-app-row">
                 <div><strong>{{.Name}}</strong><span>{{.ClientID}}</span></div>
-                <span class="role-badge">{{.Role}}</span>
+                <span class="role-badge">{{value $.Lang .Role}}</span>
               </div>
               <details class="app-remove">
-                <summary>Remover</summary>
+                <summary>{{t $.Lang "account.remove"}}</summary>
                 <form method="post" action="/account/applications/{{.ID}}/remove">
                   <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}" />
-                  <p>
-                    O acesso é revogado agora e {{.Name}} recebe um pedido para
-                    excluir seus dados. Você pode entrar de novo depois, se o
-                    aplicativo permitir.
-                  </p>
+                  <p>{{t $.Lang "account.remove_body" .Name}}</p>
                   <label>
                     <input type="checkbox" name="confirm" value="yes" required />
-                    Remover {{.Name}} da minha conta
+                    {{t $.Lang "account.remove_confirm" .Name}}
                   </label>
                   <button class="danger-button" type="submit">
-                    Remover aplicativo
+                    {{t $.Lang "account.remove_button"}}
                   </button>
                 </form>
               </details>
@@ -279,30 +268,27 @@
             {{end}}
           </ul>
           {{else}}
-          <p>Nenhum aplicativo conectado.</p>
+          <p>{{t .Lang "account.apps_empty"}}</p>
           {{end}}
         </section>
       </div>
 
       <section class="session-actions">
         <div>
-          <h2>Encerrar sessão</h2>
-          <p>Saia desta sessão do MW Identity neste navegador.</p>
+          <h2>{{t .Lang "account.logout_title"}}</h2>
+          <p>{{t .Lang "account.logout_lead"}}</p>
         </div>
         <form method="post" action="/logout">
           <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
-          <button class="secondary-button flush" type="submit">Sair</button>
+          <button class="secondary-button flush" type="submit">{{t .Lang "account.logout_button"}}</button>
         </form>
       </section>
 
       {{if not .IsSuperadmin}}
       <section class="session-actions danger-zone">
         <div>
-          <h2>Excluir conta</h2>
-          <p>
-            Revoga todos os acessos e solicita a exclusão da conta nos
-            aplicativos conectados. Esta ação não pode ser desfeita.
-          </p>
+          <h2>{{t .Lang "account.delete_title"}}</h2>
+          <p>{{t .Lang "account.delete_lead"}}</p>
         </div>
         <form
           method="post"
@@ -311,7 +297,7 @@
         >
           <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
           <label>
-            Digite DELETE para confirmar
+            {{t .Lang "account.delete_label"}}
             <input
               name="confirmation"
               required
@@ -320,16 +306,16 @@
             />
           </label>
           <button class="danger-button" type="submit">
-            Excluir minha conta
+            {{t .Lang "account.delete_button"}}
           </button>
         </form>
       </section>
       {{end}}
 
       <footer class="page-footer">
-        <a href="/privacy">Privacidade</a><span>•</span
-        ><a href="/security">Segurança</a><span>•</span
-        ><span>© 2026 MattediWorks</span>
+        <a href="/privacy">{{t .Lang "common.privacy"}}</a><span>•</span
+        ><a href="/security">{{t .Lang "common.security"}}</a><span>•</span
+        ><span>{{t .Lang "common.copyright"}}</span>
       </footer>
     </main>
     <script src="/webauthn-account.js" defer></script>

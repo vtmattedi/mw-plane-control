@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#f7f7f5" />
     <meta name="color-scheme" content="light dark" />
     <meta name="csrf-token" content="{{.CSRFToken}}" />
-    <title>Entrar · MattediWorks</title>
+    <title>Login · MattediWorks</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -29,7 +29,7 @@
         <span>MATTEDI<span>WORKS</span></span>
       </a>
       <div class="topbar-actions">
-        <a class="language-link" href="/login/en" data-language-link>EN</a>
+        <a class="language-link" href="/login?lang=en" title="Ver em inglês" data-language-link>EN</a>
         <button
           class="theme-button"
           type="button"
@@ -47,10 +47,10 @@
       <section class="context-panel" aria-label="MattediWorks Identity">
         <div class="context-copy">
           <span class="eyebrow"><i></i> MW Identity</span>
-          <h1>Uma identidade.<br />Todo o ecossistema.</h1>
+          <h1>Uma conta.<br />Todo o ecossistema.</h1>
           <p>
-            Entre uma vez para acessar com segurança os produtos e serviços
-            MattediWorks.
+            Faça login uma vez e use todos os apps MattediWorks com
+            segurança.
           </p>
         </div>
         <div class="context-brand" aria-label="MattediWorks">
@@ -66,7 +66,7 @@
           ></span>
           <div>
             <strong>Conexão protegida</strong
-            ><small>Seus dados de acesso permanecem no MW Identity.</small>
+            ><small>Sua senha e suas passkeys ficam só no MW Identity.</small>
           </div>
         </div>
       </section>
@@ -89,8 +89,8 @@
               <span class="mobile-mark">MW</span>
               <h2>Boas-vindas</h2>
               <p>
-                Use sua conta MattediWorks para continuar. No primeiro acesso,
-                entre normalmente com e-mail e senha.
+                Use sua conta MattediWorks para continuar. Na primeira vez,
+                entre com email e senha.
               </p>
             </div>
             <form action="/login" method="post" data-password-form>
@@ -103,7 +103,7 @@
               />
               <input type="hidden" name="language" value="pt-BR" />
               <label
-                >E-mail ou usuário<input
+                >Email ou usuário<input
                   name="email"
                   type="text"
                   autocomplete="username"
@@ -135,11 +135,11 @@
                   ></i
                   ><span>Manter conectado</span></label
                 ><button class="text-button" type="button" data-show="recovery">
-                  Recuperar acesso
+                  Perdi o acesso
                 </button>
               </div>
               <button class="primary-button" type="submit">
-                Continuar
+                Entrar
                 <svg class="icon" aria-hidden="true">
                   <use href="/static/icons.svg#arrow-right" />
                 </svg>
@@ -158,7 +158,7 @@
               Entrar com uma passkey
             </button>
             <button class="totp-shortcut" type="button" data-show="totp">
-              Entrar com código TOTP
+              Entrar com app autenticador
             </button>
           </div>
 
@@ -178,9 +178,9 @@
                 ><svg class="icon" aria-hidden="true">
                   <use href="/static/icons.svg#dots" /></svg
               ></span>
-              <h2>Código de verificação</h2>
+              <h2>Código do app autenticador</h2>
               <p>
-                Digite o código de 6 dígitos do seu aplicativo autenticador.
+                Digite o código de 6 dígitos que aparece no seu app autenticador.
               </p>
             </div>
             <form action="/api/totp/login" method="post" data-code-form>
@@ -192,7 +192,7 @@
                 data-return-to
               />
               <label
-                >Código de segurança<input
+                >Código<input
                   class="code-input"
                   name="code"
                   inputmode="numeric"
@@ -203,16 +203,16 @@
                   required
               /></label>
               <button class="primary-button" type="submit">
-                Verificar identidade
+                Entrar
                 <svg class="icon" aria-hidden="true">
                   <use href="/static/icons.svg#arrow-right" />
                 </svg>
               </button>
             </form>
             <p class="help">
-              Sem acesso ao autenticador?
+              Está sem o app autenticador?
               <button class="text-button" data-show="recovery" type="button">
-                Use a recuperação
+                Recupere o acesso
               </button>
             </p>
           </div>
@@ -239,8 +239,8 @@
               ></span>
               <h2>Confirme que é você</h2>
               <p>
-                Esta ação é sensível. Use sua passkey para confirmar sua
-                identidade.
+                Essa ação é sensível. Use sua passkey para confirmar que é
+                você.
               </p>
             </div>
             <div class="notice">
@@ -249,7 +249,7 @@
                   <use href="/static/icons.svg#shield" /></svg
               ></span>
               <p>
-                <strong>Autenticação reforçada</strong>Esta confirmação protege
+                <strong>Login forte</strong>Essa confirmação protege
                 credenciais e configurações críticas.
               </p>
             </div>
@@ -265,7 +265,7 @@
               data-show="totp"
               data-step-up-fallback
             >
-              Usar código autenticador
+              Usar app autenticador
             </button>{{end}}
             {{if and .RegistrationURL (eq .RequiredAuth "strong")}}
             <p class="step-up-signup">
@@ -281,10 +281,10 @@
                 ><svg class="icon" aria-hidden="true">
                   <use href="/static/icons.svg#external" /></svg
               ></span>
-              <h2>Autorizar acesso</h2>
+              <h2>Liberar acesso</h2>
               <p>
-                <strong data-consent-app>Este aplicativo</strong> solicita
-                acesso à sua conta.
+                <strong data-consent-app>Este app</strong> quer acessar sua
+                conta.
               </p>
             </div>
             <ul class="scope-list" data-scopes>
@@ -295,7 +295,7 @@
                 ></span>
                 <div>
                   <strong>Perfil básico</strong
-                  ><small>Nome e identificador da conta</small>
+                  ><small>Nome e ID da conta</small>
                 </div>
               </li>
               <li>
@@ -304,8 +304,8 @@
                     <use href="/static/icons.svg#check" /></svg
                 ></span>
                 <div>
-                  <strong>Endereço de e-mail</strong
-                  ><small>Seu e-mail verificado</small>
+                  <strong>Email</strong
+                  ><small>Seu email verificado</small>
                 </div>
               </li>
             </ul>
@@ -315,7 +315,7 @@
                 <button class="secondary-button" name="decision" value="deny">
                   Cancelar</button
                 ><button class="primary-button" name="decision" value="allow">
-                  Autorizar
+                  Liberar
                   <svg class="icon" aria-hidden="true">
                     <use href="/static/icons.svg#arrow-right" />
                   </svg>
@@ -338,7 +338,7 @@
               ></span>
               <h2>Recuperar acesso</h2>
               <p>
-                Confirme uma passkey já cadastrada para recuperar sua conta.
+                Use uma passkey que você já cadastrou para recuperar a conta.
               </p>
             </div>
             <button class="primary-button" type="button" data-recovery-passkey>
@@ -353,7 +353,7 @@
                   <use href="/static/icons.svg#info" /></svg
               ></span>
               <p>
-                <strong>Precisa de ajuda?</strong>Contate um administrador MW
+                <strong>Precisa de ajuda?</strong>Fale com um admin MattediWorks
                 para iniciar a recuperação manual.
               </p>
             </div>
@@ -365,14 +365,13 @@
                 ><svg class="icon" aria-hidden="true">
                   <use href="/static/icons.svg#check" /></svg
               ></span>
-              <h2>Identidade confirmada</h2>
+              <h2>Tudo certo</h2>
               <p>
-                Você pode voltar ao aplicativo. Esta janela será fechada
-                automaticamente.
+                Pode voltar para o app. Esta janela fecha sozinha.
               </p>
             </div>
             <button class="primary-button" type="button" data-close>
-              Voltar ao aplicativo
+              Voltar para o app
               <svg class="icon" aria-hidden="true">
                 <use href="/static/icons.svg#arrow-right" />
               </svg>

@@ -164,10 +164,11 @@ func (h *identityStrongHandlers) loginTOTP(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, 200, map[string]any{"redirect_to": target})
 }
 
-func (h *identityStrongHandlers) recoveryPage(w http.ResponseWriter, _ *http.Request) {
+func (h *identityStrongHandlers) recoveryPage(w http.ResponseWriter, r *http.Request) {
+	page := h.auth.page(w, r)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	_ = webstatic.RenderRecovery(w)
+	_ = webstatic.RenderRecovery(w, webstatic.RecoveryData{Page: page})
 }
 func (h *identityStrongHandlers) recoveryScript(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/javascript; charset=utf-8")

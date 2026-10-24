@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="{{.Lang}}">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#f7f7f5" />
     <meta name="color-scheme" content="light dark" />
-    <title>Recuperação · MW Identity</title>
+    <title>{{t .Lang "recovery.meta_title"}} · MW Identity</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -25,45 +25,48 @@
         </svg>
         <span>MATTEDI<span>WORKS</span></span>
       </a>
-      <button
-        class="theme-button"
-        type="button"
-        data-theme-toggle
-        aria-label="Alternar tema"
-      >
-        <svg class="icon" aria-hidden="true">
-          <use href="/static/icons.svg#moon" />
-        </svg>
-      </button>
+      <div class="topbar-actions">
+        <a
+          class="language-link"
+          href="{{.LangSwitchURL}}"
+          title="{{t .Lang "lang.switch_label"}}"
+          >{{t .Lang "lang.switch_code"}}</a
+        >
+        <button
+          class="theme-button"
+          type="button"
+          data-theme-toggle
+          aria-label="{{t .Lang "common.theme"}}"
+        >
+          <svg class="icon" aria-hidden="true">
+            <use href="/static/icons.svg#moon" />
+          </svg>
+        </button>
+      </div>
     </header>
     <main class="info-shell recovery-shell">
       <a class="back-link" href="/login"
         ><svg class="icon" aria-hidden="true">
           <use href="/static/icons.svg#arrow-left" /></svg
-        >Voltar ao login</a
+        >{{t .Lang "recovery.back"}}</a
       >
       <span class="round-icon"
         ><svg class="icon" aria-hidden="true">
           <use href="/static/icons.svg#rotate" /></svg
       ></span>
-      <h1>Recuperar identidade</h1>
-      <p class="info-lead">
-        Esta recuperação é iniciada por um operador. A capacidade permanece no
-        fragmento da URL e não é enviada automaticamente ao servidor.
-      </p>
+      <h1>{{t .Lang "recovery.title"}}</h1>
+      <p class="info-lead">{{t .Lang "recovery.lead"}}</p>
       <div class="notice">
         <span
           ><svg class="icon" aria-hidden="true">
             <use href="/static/icons.svg#shield" /></svg
         ></span>
         <p>
-          <strong>Confirme o ambiente</strong>Continue apenas em um dispositivo
-          confiável e registre uma nova passkey para substituir o acesso
-          anterior.
+          <strong>{{t .Lang "recovery.notice_title"}}</strong>{{t .Lang "recovery.notice_body"}}
         </p>
       </div>
       <button class="primary-button" id="recovery-start" type="button">
-        Registrar passkey substituta<svg class="icon" aria-hidden="true">
+        {{t .Lang "recovery.start"}}<svg class="icon" aria-hidden="true">
           <use href="/static/icons.svg#arrow-right" />
         </svg>
       </button>
@@ -74,9 +77,9 @@
         aria-live="polite"
       ></p>
       <footer class="page-footer">
-        <a href="/privacy">Privacidade</a><span>•</span
-        ><a href="/security">Segurança</a><span>•</span
-        ><span>© 2026 MattediWorks</span>
+        <a href="/privacy">{{t .Lang "common.privacy"}}</a><span>•</span
+        ><a href="/security">{{t .Lang "common.security"}}</a><span>•</span
+        ><span>{{t .Lang "common.copyright"}}</span>
       </footer>
     </main>
     <script src="/recovery.js" defer></script>

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="{{if .English}}en{{else}}pt-BR{{end}}">
+<html lang="{{.Lang}}">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -10,7 +10,7 @@
       application, which the policy allows.
     -->
     <meta http-equiv="refresh" content="0; url={{.Target}}" />
-    <title>{{if .English}}Continuing{{else}}Continuando{{end}} · MattediWorks</title>
+    <title>{{t .Lang "continue.meta_title"}} · MattediWorks</title>
     <link rel="stylesheet" href="/static/portal.css" />
     <script src="/static/theme.js" defer></script>
   </head>
@@ -18,14 +18,9 @@
     <main class="account-shell narrow-shell">
       <section class="settings-card">
         <span class="eyebrow dark"><i></i> MW Identity</span>
-        <h1>{{if .English}}Continuing…{{else}}Continuando…{{end}}</h1>
-        <p>
-          {{if .English}}Taking you back to the application.{{else}}Levando você
-          de volta ao aplicativo.{{end}}
-        </p>
-        <a class="primary-button" href="{{.Target}}"
-          >{{if .English}}Continue{{else}}Continuar{{end}}</a
-        >
+        <h1>{{t .Lang "continue.title"}}</h1>
+        <p>{{t .Lang "continue.body"}}</p>
+        <a class="primary-button" href="{{.Target}}">{{t .Lang "continue.button"}}</a>
       </section>
     </main>
   </body>

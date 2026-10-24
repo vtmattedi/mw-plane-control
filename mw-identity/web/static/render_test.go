@@ -22,7 +22,6 @@ func TestEmbeddedPortalBundleIsComplete(t *testing.T) {
 		"info.html",
 		"recovery.html",
 		"register.html",
-		"registerEN.html",
 	} {
 		value, err := Files.ReadFile(name)
 		if err != nil {
@@ -37,7 +36,7 @@ func TestEmbeddedPortalBundleIsComplete(t *testing.T) {
 func TestRenderContinueKeepsTargetUsable(t *testing.T) {
 	var output bytes.Buffer
 	target := "/oauth/authorize?client_id=woi&scope=openid+email"
-	if err := RenderContinue(&output, ContinueData{Target: target, English: true}); err != nil {
+	if err := RenderContinue(&output, ContinueData{Lang: LangEN, Target: target}); err != nil {
 		t.Fatal(err)
 	}
 	// Attribute values are HTML-escaped; browsers decode them back to the target.
@@ -52,11 +51,11 @@ func TestRenderContinueKeepsTargetUsable(t *testing.T) {
 
 func TestRenderRecoveryUsesSharedPortalAssets(t *testing.T) {
 	var output bytes.Buffer
-	if err := RenderRecovery(&output); err != nil {
+	if err := RenderRecovery(&output, RecoveryData{Page: Page{Lang: LangPT}}); err != nil {
 		t.Fatal(err)
 	}
 	body := output.String()
-	for _, want := range []string{"Recuperar identidade", "/static/portal.css", "/static/brand.svg#mark", `id="recovery-start"`} {
+	for _, want := range []string{"Recuperar conta", "/static/portal.css", "/static/brand.svg#mark", `id="recovery-start"`} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("recovery page does not contain %q", want)
 		}
@@ -96,7 +95,7 @@ func TestRenderAccountAndInformationPages(t *testing.T) {
 		t.Fatal(err)
 	}
 	accountBody := accountOutput.String()
-	for _, want := range []string{"Á", "admin@example.com", "Passkeys", "Aplicativo autenticador", "totp-qr-code", "/static/brand.svg#mark"} {
+	for _, want := range []string{"Á", "admin@example.com", "Passkeys", "App autenticador", "totp-qr-code", "/static/brand.svg#mark"} {
 		if !strings.Contains(accountBody, want) {
 			t.Fatalf("account page does not contain %q", want)
 		}

@@ -85,6 +85,8 @@ const IdentityWebAuthnLoginJS = `(() => {
 
 const IdentityWebAuthnAccountJS = `(() => {
   const root = document.getElementById('passkeys');
+  const pt = (document.documentElement.lang || '').toLowerCase().startsWith('pt');
+  const tr = (en, ptText) => (pt ? ptText : en);
   if (!root || !window.PublicKeyCredential || !navigator.credentials) return;
 
   const csrf = document.querySelector('meta[name="mw-identity-csrf"]')?.content || '';
@@ -139,7 +141,7 @@ const IdentityWebAuthnAccountJS = `(() => {
       ...options,
       headers,
     });
-    if (!response.ok) throw new Error('Passkey operation failed.');
+    if (!response.ok) throw new Error(tr('The passkey operation failed.', 'A operação com a passkey falhou.'));
     return response;
   };
 
@@ -153,9 +155,9 @@ const IdentityWebAuthnAccountJS = `(() => {
       title.textContent = item.label || 'Passkey';
       const remove = document.createElement('button');
       remove.type = 'button';
-      remove.textContent = 'Remove';
+      remove.textContent = tr('Remove', 'Remover');
       remove.addEventListener('click', async () => {
-        if (!confirm('Remove this passkey?')) return;
+        if (!confirm(tr('Remove this passkey?', 'Remover esta passkey?'))) return;
         remove.disabled = true;
         try {
           await api('/api/webauthn/credentials/' + encodeURIComponent(item.credential_id), {
@@ -163,7 +165,7 @@ const IdentityWebAuthnAccountJS = `(() => {
           });
           await load();
         } catch (error) {
-          if (status) status.textContent = error?.message || 'Could not remove passkey.';
+          if (status) status.textContent = error?.message || tr('Could not remove the passkey.', 'Não deu para remover a passkey.');
           remove.disabled = false;
         }
       });
@@ -172,14 +174,14 @@ const IdentityWebAuthnAccountJS = `(() => {
     }
     if (!list.children.length) {
       const empty = document.createElement('li');
-      empty.textContent = 'No passkeys registered.';
+      empty.textContent = tr('No passkeys yet.', 'Nenhuma passkey cadastrada ainda.');
       list.append(empty);
     }
   };
 
   register.addEventListener('click', async () => {
     register.disabled = true;
-    if (status) status.textContent = 'Waiting for authenticator…';
+    if (status) status.textContent = tr('Waiting for your authenticator…', 'Aguardando o autenticador…');
     try {
       const begin = await api('/api/webauthn/register/options', {
         method: 'POST',
@@ -190,7 +192,7 @@ const IdentityWebAuthnAccountJS = `(() => {
       const credential = await navigator.credentials.create({
         publicKey: prepareCreation(started.options.publicKey),
       });
-      if (!credential) throw new Error('Passkey registration was cancelled.');
+      if (!credential) throw new Error(tr('Passkey registration was cancelled.', 'Cadastro da passkey cancelado.'));
       await api('/api/webauthn/register/verify', {
         method: 'POST',
         headers: {
@@ -200,10 +202,10 @@ const IdentityWebAuthnAccountJS = `(() => {
         body: JSON.stringify(registrationJSON(credential)),
       });
       label.value = '';
-      if (status) status.textContent = 'Passkey registered.';
+      if (status) status.textContent = tr('Passkey added.', 'Passkey adicionada.');
       await load();
     } catch (error) {
-      if (status) status.textContent = error?.message || 'Could not register passkey.';
+      if (status) status.textContent = error?.message || tr('Could not add the passkey.', 'Não deu para adicionar a passkey.');
     } finally {
       register.disabled = false;
     }
@@ -211,6 +213,6 @@ const IdentityWebAuthnAccountJS = `(() => {
 
   root.hidden = false;
   load().catch(() => {
-    if (status) status.textContent = 'Could not load passkeys.';
+    if (status) status.textContent = tr('Could not load your passkeys.', 'Não deu para carregar suas passkeys.');
   });
 })();`
