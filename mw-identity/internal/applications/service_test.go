@@ -58,6 +58,7 @@ func TestCreateConfidentialApplication(
 			Name:            "MW Admin",
 			ClientID:        "mw_admin",
 			ApplicationType: "confidential",
+			Internal:        true,
 			RedirectURIs: []string{
 				"https://admin.mattediworks.com/api/auth/callback",
 			},
@@ -99,6 +100,7 @@ func TestRedirectMatchingIsExact(t *testing.T) {
 		CreateRequest{
 			Name:     "MW Admin",
 			ClientID: "mw_admin",
+			Internal: true,
 			RedirectURIs: []string{
 				"https://admin.mattediworks.com/api/auth/callback",
 			},
@@ -186,5 +188,41 @@ func TestCreateTrimsInvisibleCharactersAroundURIs(t *testing.T) {
 	}
 	if got := result.Application.DeleteCallbackURI; got != "https://woi.mattediworks.com/api/auth/mw/lifecycle" {
 		t.Fatalf("delete callback URI = %q", got)
+	}
+}
+
+func TestCreateEnforcesTheDeletionContract(t *testing.T) {
+	base := func() CreateRequest {
+		return CreateRequest{
+			Name:         "Your App",
+			ClientID:     "your-app",
+			RedirectURIs: []string{"https://app.example.com/callback"},
+		}
+	}
+
+	cases := []struct {
+		name   string
+		modify func(*CreateRequest)
+		want   error
+	}{
+		{"user-facing app without callback", func(*CreateRequest) {}, ErrDeleteCallbackRequired},
+		{"user-facing app with blank callback", func(r *CreateRequest) { r.DeleteCallbackURI = "  " }, ErrDeleteCallbackRequired},
+		{"user-facing app with callback", func(r *CreateRequest) { r.DeleteCallbackURI = "https://app.example.com/account-deleted" }, nil},
+		{"internal app without callback", func(r *CreateRequest) { r.Internal = true }, nil},
+		{"internal app cannot open public sign-up", func(r *CreateRequest) { r.Internal = true; r.AllowPublicSignup = true }, ErrInvalidApplication},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			service, _ := NewService(&memoryApplicationStore{})
+			request := base()
+			tc.modify(&request)
+			result, err := service.Create(context.Background(), request)
+			if err != tc.want {
+				t.Fatalf("error = %v; want %v", err, tc.want)
+			}
+			if err == nil && result.Application.Internal != request.Internal {
+				t.Fatalf("internal = %v; want %v", result.Application.Internal, request.Internal)
+			}
+		})
 	}
 }

@@ -109,6 +109,8 @@ function readableError(code: string) {
     email_exists: 'Já existe uma identidade com este e-mail.',
     client_id_exists: 'Já existe uma aplicação com este Client ID.',
     invalid_request: 'Revise os campos informados e tente novamente.',
+    delete_callback_required:
+      'Aplicações para usuários precisam de um callback de exclusão de conta.',
     application_archive_required:
       'Arquive a aplicação antes de excluí-la permanentemente.',
     application_in_use:

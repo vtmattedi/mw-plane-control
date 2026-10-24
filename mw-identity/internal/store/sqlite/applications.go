@@ -49,8 +49,9 @@ func (s *Store) CreateApplication(
 			created_at_unix,
 			updated_at_unix,
 			delete_callback_uri,
-			allow_public_signup
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)`,
+			allow_public_signup,
+			internal
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
 		input.ID,
 		input.Name,
 		input.ClientID,
@@ -63,6 +64,7 @@ func (s *Store) CreateApplication(
 		input.CreatedAt.Unix(),
 		nullableString(input.DeleteCallbackURI),
 		boolInt(input.AllowPublicSignup),
+		boolInt(input.Internal),
 	)
 	if err != nil {
 		if strings.Contains(
@@ -160,6 +162,7 @@ func (s *Store) ApplicationByClientID(
 		updated           int64
 		deleteCallback    sql.NullString
 		allowPublicSignup int
+		internal          int
 	)
 
 	err := s.db.QueryRowContext(
@@ -177,7 +180,8 @@ func (s *Store) ApplicationByClientID(
 			created_at_unix,
 			updated_at_unix,
 			delete_callback_uri,
-			allow_public_signup
+			allow_public_signup,
+			internal
 		FROM identity_applications
 		WHERE client_id = ?`,
 		clientID,
@@ -195,6 +199,7 @@ func (s *Store) ApplicationByClientID(
 		&updated,
 		&deleteCallback,
 		&allowPublicSignup,
+		&internal,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return applications.Application{},
@@ -211,6 +216,8 @@ func (s *Store) ApplicationByClientID(
 	app.ClientSecretHash = secret.String
 	app.DeleteCallbackURI = deleteCallback.String
 	app.AllowPublicSignup = allowPublicSignup == 1
+	app.Internal = internal == 1
+	app.NeedsDeleteCallback = !app.Internal && app.DeleteCallbackURI == ""
 	app.Enabled = enabled == 1
 	app.CreatedAt = time.Unix(created, 0).UTC()
 	app.UpdatedAt = time.Unix(updated, 0).UTC()

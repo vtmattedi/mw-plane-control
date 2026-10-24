@@ -60,6 +60,16 @@ const configs: Record<string, ResourcePageConfig> = {
       { key: 'application_type', label: 'Tipo' },
       { key: 'authentication_policy', label: 'Política' },
       { key: 'access_policy', label: 'Acesso' },
+      {
+        key: 'needs_delete_callback',
+        label: 'Exclusão',
+        badge: (row) =>
+          row.internal === true
+            ? { label: 'Interna', tone: 'neutral' }
+            : row.needs_delete_callback === true || !row.delete_callback_uri
+              ? { label: 'Callback pendente', tone: 'danger' }
+              : { label: 'Callback ativo', tone: 'positive' },
+      },
       { key: 'enabled', label: 'Status' },
     ],
     action: 'Nova aplicação',

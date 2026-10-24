@@ -39,7 +39,7 @@ STAMP="$(date +%s)"
 CLIENT_ID="mw_admin_step03_${STAMP}"
 
 CREATED="$(
-  docker compose --env-file "$ENV_FILE" exec -T mw-identity     /app/create-application     --name "MW Admin Step 03"     --client-id "$CLIENT_ID"     --type confidential     --redirect-uri "https://admin.mattediworks.com/api/auth/callback"     --scope openid     --scope profile     --scope email     --audience mw-admin     --json
+  docker compose --env-file "$ENV_FILE" exec -T mw-identity     /app/create-application     --name "MW Admin Step 03"     --client-id "$CLIENT_ID"     --type confidential     --internal     --redirect-uri "https://admin.mattediworks.com/api/auth/callback"     --scope openid     --scope profile     --scope email     --audience mw-admin     --json
 )"
 
 printf '%s' "$CREATED" | grep -Fq ""client_id":"${CLIENT_ID}""

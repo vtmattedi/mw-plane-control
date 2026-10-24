@@ -144,6 +144,7 @@ docker compose exec mw-identity `
   --name "MattediWorks Admin" `
   --client-id mw_admin `
   --type confidential `
+  --internal `
   --redirect-uri "https://admin.mattediworks.com/api/auth/callback" `
   --scope openid `
   --scope profile `

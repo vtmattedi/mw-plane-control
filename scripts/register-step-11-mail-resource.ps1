@@ -33,6 +33,7 @@ try {
         --name "MW Mail Resource Server" `
         --client-id "mw-mail" `
         --type confidential `
+        --internal `
         --redirect-uri "https://mailgo.mattediworks.com/_identity-unused-callback" `
         --scope openid `
         --scope mail.projects.read `

@@ -89,7 +89,7 @@ done
 
 docker exec -it "$IDENTITY_CONTAINER" /app/create-application \
   --name 'MattediWorks Admin' --client-id "$BFF_CLIENT_ID" \
-  --type confidential --auth-policy strong \
+  --type confidential --internal --auth-policy strong \
   --redirect-uri https://admin.mattediworks.com/api/auth/callback \
   --post-logout-redirect-uri https://admin.mattediworks.com/ \
   --scope openid --scope profile --scope email --scope identity.admin \

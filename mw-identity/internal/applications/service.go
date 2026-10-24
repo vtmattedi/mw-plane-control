@@ -30,6 +30,7 @@ type CreateRequest struct {
 	PostLogoutRedirectURIs []string
 	DeleteCallbackURI      string
 	AllowPublicSignup      bool
+	Internal               bool
 	Scopes                 []string
 	Claims                 []string
 	Audiences              []string
@@ -109,6 +110,9 @@ func (s *Service) Create(
 	if err != nil {
 		return CreateResult{}, ErrInvalidApplication
 	}
+	if err := CheckLifecycle(request.Internal, request.AllowPublicSignup, deleteCallback); err != nil {
+		return CreateResult{}, err
+	}
 
 	scopes := normalizeValues(request.Scopes)
 	if len(scopes) == 0 {
@@ -156,6 +160,7 @@ func (s *Service) Create(
 		PostLogoutRedirectURIs: postLogout,
 		DeleteCallbackURI:      deleteCallback,
 		AllowPublicSignup:      request.AllowPublicSignup,
+		Internal:               request.Internal,
 		Scopes:                 scopes,
 		Claims:                 claims,
 		Audiences:              audiences,
@@ -182,6 +187,7 @@ func (s *Service) Create(
 		PostLogoutRedirectURIs: append([]string(nil), input.PostLogoutRedirectURIs...),
 		DeleteCallbackURI:      input.DeleteCallbackURI,
 		AllowPublicSignup:      input.AllowPublicSignup,
+		Internal:               input.Internal,
 		Scopes:                 append([]string(nil), input.Scopes...),
 		Claims:                 append([]string(nil), input.Claims...),
 		Audiences:              append([]string(nil), input.Audiences...),
