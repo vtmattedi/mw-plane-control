@@ -264,6 +264,12 @@
             >
               Use authenticator code
             </button>{{end}}
+            {{if and .RegistrationURL (eq .RequiredAuth "strong")}}
+            <p class="step-up-signup">
+              No MattediWorks account yet?
+              <a href="{{.RegistrationURL}}">Create account</a>
+            </p>
+            {{end}}
           </div>
 
           <div class="screen" data-screen="consent">

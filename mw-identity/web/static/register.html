@@ -30,7 +30,13 @@
           <div>
             <span class="eyebrow dark"><i></i> MW Identity</span>
             <h1>Criar conta</h1>
+            {{if .AppName}}
             <p>Crie sua identidade para continuar em {{.AppName}}.</p>
+            {{else}}
+            <p>
+              Uma conta MattediWorks para entrar nos aplicativos do ecossistema.
+            </p>
+            {{end}}
           </div>
         </div>
         {{if .Error}}
@@ -40,6 +46,12 @@
           <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
           <input type="hidden" name="client_id" value="{{.ClientID}}" />
           <input type="hidden" name="return_to" value="{{.ReturnTo}}" />
+          <input type="hidden" name="language" value="pt" />
+          <div class="hp-field" aria-hidden="true">
+            <label
+              >Website<input name="website" tabindex="-1" autocomplete="off"
+            /></label>
+          </div>
           <label
             >Nome de usuário<input
               name="username"
@@ -65,13 +77,12 @@
               autocomplete="new-password"
           /></label>
           <p class="inline-status">
-            O e-mail pode ser verificado posteriormente nas configurações da
-            conta.
+            Depois de criar a conta, adicione uma passkey na página da conta.
           </p>
           <button class="primary-button" type="submit">Criar conta</button>
           <a
             class="secondary-button"
-            href="/login?return_to={{urlquery .ReturnTo}}"
+            href="{{if .ReturnTo}}/login?return_to={{urlquery .ReturnTo}}{{else}}/login{{end}}"
             >Já tenho uma conta</a
           >
         </form>

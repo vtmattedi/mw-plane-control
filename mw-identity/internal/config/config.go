@@ -34,6 +34,9 @@ type Config struct {
 	TOTPIssuer                         string
 	StrongAuthMaxAge                   time.Duration
 	RecoveryTTL                        time.Duration
+	// PublicSignupEnabled allows /register without an application. Sign-up
+	// started from an application with allow_public_signup is unaffected.
+	PublicSignupEnabled bool
 }
 
 func Load() (Config, error) {
@@ -132,6 +135,10 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	publicSignup, err := boolean("IDENTITY_PUBLIC_SIGNUP_ENABLED", true)
+	if err != nil {
+		return Config{}, err
+	}
 
 	databasePath := strings.TrimSpace(
 		getenv("DATABASE_PATH", "./data/identity.db"),
@@ -190,7 +197,16 @@ func Load() (Config, error) {
 		TOTPIssuer:                         strings.TrimSpace(getenv("IDENTITY_TOTP_ISSUER", "MW Identity")),
 		StrongAuthMaxAge:                   time.Duration(strongMinutes) * time.Minute,
 		RecoveryTTL:                        time.Duration(recoveryMinutes) * time.Minute,
+		PublicSignupEnabled:                publicSignup,
 	}, nil
+}
+
+func boolean(key string, fallback bool) (bool, error) {
+	value, err := strconv.ParseBool(getenv(key, strconv.FormatBool(fallback)))
+	if err != nil {
+		return false, fmt.Errorf("%s must be true or false", key)
+	}
+	return value, nil
 }
 
 func positiveInt(key string, fallback int) (int, error) {

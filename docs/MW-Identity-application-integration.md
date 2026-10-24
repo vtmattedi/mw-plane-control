@@ -28,6 +28,8 @@ Start authorization with `response_type=code`, an exact registered `redirect_uri
 
 Validate at least `iss`, `aud`, `exp`, `nonce`, and the RS256 signature. A code and PKCE verifier are one-time values.
 
+To choose the portal language, send the standard `ui_locales` parameter (for example `ui_locales=en`). Without it, Identity follows the browser's preferred language and falls back to Portuguese. The sign-in and sign-up pages, and the hand-off back to your application, all keep that language.
+
 ## 3. Identity payload
 
 With `openid profile email`, the ID token and `/oauth/userinfo` expose the following user identity data:
@@ -63,7 +65,12 @@ application_users
 
 ## 4. Public enrollment
 
-When `allow_public_signup` is enabled, the Identity login screen offers account creation only while processing an authorization request for that application. Registration creates an enabled `public` user and a `user` assignment to the requesting application in one transaction.
+There are two ways to create a `public` account. Neither can create a `workforce` account or a superadmin.
+
+- **From an application.** When `allow_public_signup` is enabled, the Identity login screen offers account creation while processing an authorization request for that application. Registration creates an enabled `public` user and a `user` assignment to the requesting application in one transaction, then continues the authorization.
+- **Stand-alone.** When `IDENTITY_PUBLIC_SIGNUP_ENABLED` is true (the default), `/register` and `/register/en` create an enabled `public` user with no assignment and sign them in to `/account`. A plain visit to the login page links to it; a login that returns to an application or asks for step-up does not. The account can then use any application whose access policy admits it (`default_allow`, or an explicit assignment).
+
+Both forms share a per-IP registration rate limit that is separate from the login limit, and carry a hidden honeypot field; a submission that fills it is rejected.
 
 Email verification does not currently block registration or login. Applications must treat an unverified email as user-supplied data and use the `email_verified` claim when a trusted mailbox is required. The account page displays the verification state.
 

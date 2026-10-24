@@ -26,13 +26,22 @@ type IdentityAuthConfig struct {
 	LoginRateLimitAttempts int
 	LoginRateLimitWindow   time.Duration
 	StrongAuthMaxAge       time.Duration
+	// PublicSignupEnabled allows /register without an application.
+	PublicSignupEnabled bool
 }
 
+// Sign-up has its own budget so it can neither exhaust nor reset the login one.
+const (
+	registrationRateAttempts = 10
+	registrationRateWindow   = time.Hour
+)
+
 type identityAuthHandlers struct {
-	service *auth.Service
-	config  IdentityAuthConfig
-	limiter *loginLimiter
-	secure  bool
+	service             *auth.Service
+	config              IdentityAuthConfig
+	limiter             *loginLimiter
+	registrationLimiter *loginLimiter
+	secure              bool
 }
 
 func newIdentityAuthHandlers(
@@ -46,7 +55,8 @@ func newIdentityAuthHandlers(
 			config.LoginRateLimitAttempts,
 			config.LoginRateLimitWindow,
 		),
-		secure: secureCookies(config.AppEnv),
+		registrationLimiter: newLoginLimiter(registrationRateAttempts, registrationRateWindow),
+		secure:              secureCookies(config.AppEnv),
 	}
 }
 
@@ -107,6 +117,17 @@ func (h *identityAuthHandlers) loginPage(
 
 	returnTo := safeReturnTo(r.URL.Query().Get("return_to"))
 	registrationURL := h.registrationURL(r, returnTo)
+	if loginPageEnglish(r) {
+		registrationURL = strings.Replace(registrationURL, "/register?", "/register/en?", 1)
+	}
+	// A plain visit to the login page offers stand-alone sign-up; a login
+	// that returns somewhere else (an app, step-up) only offers the app's.
+	if registrationURL == "" && returnTo == "" && requestedAuth == "" && h.config.PublicSignupEnabled {
+		registrationURL = "/register"
+		if loginPageEnglish(r) {
+			registrationURL = "/register/en"
+		}
+	}
 	if err := webstatic.RenderLogin(
 		w,
 		loginPageEnglish(r),
@@ -145,12 +166,25 @@ func (h *identityAuthHandlers) registrationURL(r *http.Request, returnTo string)
 	return "/register?" + values.Encode()
 }
 
-func (h *identityAuthHandlers) registerPage(w http.ResponseWriter, r *http.Request) {
-	clientID := strings.TrimSpace(r.URL.Query().Get("client_id"))
-	returnTo := safeReturnTo(r.URL.Query().Get("return_to"))
+// registrationTarget validates where a sign-up came from. With a client_id it
+// must be an authorization request for an application that allows public
+// sign-up; without one it is a stand-alone sign-up, allowed only when enabled.
+func (h *identityAuthHandlers) registrationTarget(r *http.Request, clientID, returnTo string) (webstatic.RegistrationData, bool) {
+	if clientID == "" {
+		return webstatic.RegistrationData{}, h.config.PublicSignupEnabled
+	}
 	parsedReturn, _ := url.Parse(returnTo)
 	app, err := h.service.PublicSignupApplication(r.Context(), clientID)
 	if err != nil || parsedReturn.Query().Get("client_id") != clientID || h.registrationURL(r, returnTo) == "" {
+		return webstatic.RegistrationData{}, false
+	}
+	return webstatic.RegistrationData{ReturnTo: returnTo, ClientID: clientID, AppName: app.Name}, true
+}
+
+func (h *identityAuthHandlers) registerPage(w http.ResponseWriter, r *http.Request) {
+	clientID := strings.TrimSpace(r.URL.Query().Get("client_id"))
+	data, ok := h.registrationTarget(r, clientID, safeReturnTo(r.URL.Query().Get("return_to")))
+	if !ok {
 		http.NotFound(w, r)
 		return
 	}
@@ -160,15 +194,15 @@ func (h *identityAuthHandlers) registerPage(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	h.setLoginCSRFCookie(w, token)
+	data.CSRFToken = token
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	_ = webstatic.RenderRegistration(w, webstatic.RegistrationData{
-		CSRFToken: token, ReturnTo: returnTo, ClientID: clientID, AppName: app.Name,
-	})
+	_ = webstatic.RenderRegistration(w, r.URL.Path == "/register/en", data)
 }
 
 func (h *identityAuthHandlers) register(w http.ResponseWriter, r *http.Request) {
-	if !h.limiter.Allow(remoteIP(r)) {
+	if !h.registrationLimiter.Allow(remoteIP(r)) {
+		w.Header().Set("Retry-After", strconv.Itoa(int(registrationRateWindow.Seconds())))
 		writePlainError(w, http.StatusTooManyRequests, "too many registration attempts")
 		return
 	}
@@ -177,13 +211,21 @@ func (h *identityAuthHandlers) register(w http.ResponseWriter, r *http.Request) 
 		writePlainError(w, http.StatusForbidden, "invalid registration request")
 		return
 	}
+	// The "website" field is invisible to people; only bots fill it in.
+	if r.FormValue("website") != "" {
+		writePlainError(w, http.StatusBadRequest, "registration failed")
+		return
+	}
+	english := r.FormValue("language") == "en"
 	clientID := strings.TrimSpace(r.FormValue("client_id"))
-	returnTo := safeReturnTo(r.FormValue("return_to"))
-	parsedReturn, _ := url.Parse(returnTo)
-	app, appErr := h.service.PublicSignupApplication(r.Context(), clientID)
-	if appErr != nil || parsedReturn.Query().Get("client_id") != clientID || h.registrationURL(r, returnTo) == "" {
+	data, ok := h.registrationTarget(r, clientID, safeReturnTo(r.FormValue("return_to")))
+	if !ok {
 		writePlainError(w, http.StatusForbidden, "registration is not allowed")
 		return
+	}
+	returnTo := data.ReturnTo
+	if clientID == "" {
+		returnTo = "/account"
 	}
 	password := []byte(r.FormValue("password"))
 	defer auth.ZeroBytes(password)
@@ -197,15 +239,12 @@ func (h *identityAuthHandlers) register(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 		h.setLoginCSRFCookie(w, token)
-		message := "Não foi possível criar a conta. Confira os dados informados."
-		if errors.Is(err, auth.ErrEmailExists) || errors.Is(err, auth.ErrUsernameExists) {
-			message = "O e-mail ou nome de usuário já está em uso."
-		}
+		taken := errors.Is(err, auth.ErrEmailExists) || errors.Is(err, auth.ErrUsernameExists)
+		data.CSRFToken = token
+		data.Error = registrationError(english, taken)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusBadRequest)
-		_ = webstatic.RenderRegistration(w, webstatic.RegistrationData{
-			CSRFToken: token, Error: message, ReturnTo: returnTo, ClientID: clientID, AppName: app.Name,
-		})
+		_ = webstatic.RenderRegistration(w, english, data)
 		return
 	}
 	session, err := h.service.CreateSessionForUser(r.Context(), user.ID, remoteIP(r), "password")
@@ -216,8 +255,47 @@ func (h *identityAuthHandlers) register(w http.ResponseWriter, r *http.Request) 
 	setSessionCookie(w, sessionCookieName, session.SessionToken, session.ExpiresAt, h.secure, true)
 	setSessionCookie(w, csrfCookieName, session.CSRFToken, session.ExpiresAt, h.secure, false)
 	clearCookie(w, loginCSRFCookieName, h.secure, false)
-	h.limiter.Reset(remoteIP(r))
-	http.Redirect(w, r, returnTo, http.StatusSeeOther)
+	redirectAfterForm(w, r, returnTo, english)
+}
+
+// redirectAfterForm finishes a successful form POST. The CSP's form-action
+// 'self' also covers the redirects that follow a form submission, so a POST
+// that continues to /oauth/authorize (and from there to the application's
+// callback) would be blocked by the browser. Such POSTs hand off through
+// /continue, which starts a fresh navigation the policy allows.
+func redirectAfterForm(w http.ResponseWriter, r *http.Request, returnTo string, english bool) {
+	if !strings.HasPrefix(returnTo, "/oauth/authorize") {
+		http.Redirect(w, r, returnTo, http.StatusSeeOther)
+		return
+	}
+	target := "/continue?to=" + url.QueryEscape(returnTo)
+	if english {
+		target += "&lang=en"
+	}
+	http.Redirect(w, r, target, http.StatusSeeOther)
+}
+
+func (h *identityAuthHandlers) continuePage(w http.ResponseWriter, r *http.Request) {
+	target := safeReturnTo(r.URL.Query().Get("to"))
+	if target == "" {
+		target = "/account"
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	_ = webstatic.RenderContinue(w, webstatic.ContinueData{Target: target, English: r.URL.Query().Get("lang") == "en"})
+}
+
+func registrationError(english, taken bool) string {
+	switch {
+	case english && taken:
+		return "That email or username is already in use."
+	case english:
+		return "The account could not be created. Check the details you entered."
+	case taken:
+		return "O e-mail ou nome de usuário já está em uso."
+	default:
+		return "Não foi possível criar a conta. Confira os dados informados."
+	}
 }
 
 func (h *identityAuthHandlers) setLoginCSRFCookie(w http.ResponseWriter, token string) {
@@ -332,11 +410,11 @@ func (h *identityAuthHandlers) login(
 		returnTo = "/account"
 	}
 
-	http.Redirect(
+	redirectAfterForm(
 		w,
 		r,
 		returnTo,
-		http.StatusSeeOther,
+		strings.EqualFold(strings.TrimSpace(r.FormValue("language")), "en"),
 	)
 }
 
@@ -398,18 +476,32 @@ func (h *identityAuthHandlers) account(
 	_ = webstatic.RenderAccount(
 		w,
 		webstatic.AccountData{
-			Email:           result.User.Email,
-			DisplayName:     result.User.DisplayName,
-			IsSuperadmin:    result.User.IsSuperadmin,
-			CSRFToken:       csrfToken,
-			AuthMethod:      result.Session.AuthMethod,
-			Username:        result.User.Username,
-			AccountType:     result.User.AccountType,
-			EmailVerifiedAt: result.User.EmailVerifiedAt,
-			Applications:    applications,
-			Notice:          r.URL.Query().Get("notice"),
+			Email:               result.User.Email,
+			DisplayName:         result.User.DisplayName,
+			IsSuperadmin:        result.User.IsSuperadmin,
+			CSRFToken:           csrfToken,
+			AuthMethod:          result.Session.AuthMethod,
+			Username:            result.User.Username,
+			AccountType:         result.User.AccountType,
+			EmailVerifiedAt:     result.User.EmailVerifiedAt,
+			Applications:        applications,
+			Notice:              r.URL.Query().Get("notice"),
+			StrongSetupContinue: strongSetupContinue(r),
 		},
 	)
+}
+
+// strongSetupContinue returns the authorization to resume after the user
+// enrolls a strong credential, or "" when no application asked for one.
+func strongSetupContinue(r *http.Request) string {
+	if r.URL.Query().Get("strong_setup_required") != "1" {
+		return ""
+	}
+	continueTo := safeReturnTo(r.URL.Query().Get("continue_to"))
+	if !strings.HasPrefix(continueTo, "/oauth/authorize") {
+		return ""
+	}
+	return continueTo
 }
 
 func (h *identityAuthHandlers) removeApplication(w http.ResponseWriter, r *http.Request) {
@@ -670,6 +762,24 @@ func (h *identityAuthHandlers) renderLoginFailure(
 			ReturnTo:  returnTo,
 		},
 	)
+}
+
+// loginPath picks the portal language for a sign-in an application started.
+// The OIDC ui_locales parameter wins; otherwise the browser's first preferred
+// language decides. Portuguese stays the default.
+func loginPath(r *http.Request) string {
+	tag := ""
+	if locales := strings.Fields(r.URL.Query().Get("ui_locales")); len(locales) > 0 {
+		tag = locales[0]
+	} else {
+		tag, _, _ = strings.Cut(r.Header.Get("Accept-Language"), ",")
+		tag, _, _ = strings.Cut(tag, ";")
+	}
+	tag = strings.ToLower(strings.TrimSpace(tag))
+	if tag == "en" || strings.HasPrefix(tag, "en-") {
+		return "/login/en"
+	}
+	return "/login"
 }
 
 func loginPageEnglish(r *http.Request) bool {

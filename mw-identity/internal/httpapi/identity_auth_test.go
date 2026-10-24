@@ -16,6 +16,12 @@ import (
 
 func testAuthHTTP(t *testing.T) (*auth.Service, *identityAuthHandlers) {
 	t.Helper()
+	service, handlers, _ := testAuthHTTPWithStore(t)
+	return service, handlers
+}
+
+func testAuthHTTPWithStore(t *testing.T) (*auth.Service, *identityAuthHandlers, *storesqlite.Store) {
+	t.Helper()
 
 	db, err := storesqlite.Open(
 		filepath.Join(t.TempDir(), "identity.db"),
@@ -55,7 +61,7 @@ func testAuthHTTP(t *testing.T) (*auth.Service, *identityAuthHandlers) {
 			LoginRateLimitAttempts: 10,
 			LoginRateLimitWindow:   5 * time.Minute,
 		},
-	)
+	), store
 }
 
 func TestLoginPageCookiePolicy(t *testing.T) {
