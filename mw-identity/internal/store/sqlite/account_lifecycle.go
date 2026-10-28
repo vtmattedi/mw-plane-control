@@ -9,45 +9,32 @@ import (
 )
 
 func (s *Store) ListIdentityUserApplications(ctx context.Context, userID string) ([]auth.ConnectedApplication, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT
-		p.id,
-		p.name,
-		p.client_id,
-		COALESCE((
-			SELECT a.role FROM identity_application_assignments a
-			WHERE a.application_id = p.id AND a.user_id = ?
-		), 'user'),
-		COALESCE(p.delete_callback_uri, ''),
-		COALESCE((
-			SELECT a.created_at_unix FROM identity_application_assignments a
-			WHERE a.application_id = p.id AND a.user_id = ?
-		), (
-			SELECT MIN(t.created_at_unix) FROM identity_access_tokens t
-			WHERE t.client_id = p.client_id AND t.user_id = ?
-		))
-	FROM identity_applications p
-	WHERE EXISTS (
-		SELECT 1 FROM identity_application_assignments a
-		WHERE a.application_id = p.id AND a.user_id = ?
-	) OR EXISTS (
-		SELECT 1 FROM identity_access_tokens t
-		WHERE t.client_id = p.client_id AND t.user_id = ?
-	)
-	ORDER BY p.name ASC, p.id ASC`, userID, userID, userID, userID, userID)
+	return s.listConsentApplications(ctx, userID, true)
+}
+func (s *Store) ListIdentityUserDeletionApplications(ctx context.Context, userID string) ([]auth.ConnectedApplication, error) {
+	return s.listConsentApplications(ctx, userID, false)
+}
+func (s *Store) listConsentApplications(ctx context.Context, userID string, active bool) ([]auth.ConnectedApplication, error) {
+	query := `SELECT p.id,p.name,p.client_id,'user',COALESCE(p.delete_callback_uri,''),c.created_at_unix FROM identity_applications p JOIN identity_application_consents c ON c.application_id=p.id WHERE c.user_id=? AND c.active=1 ORDER BY p.name,p.id`
+	args := []any{userID}
+	if !active {
+		query = `WITH known AS (SELECT application_id,created_at_unix FROM identity_application_consents WHERE user_id=? UNION ALL SELECT application_id,created_at_unix FROM identity_application_assignments WHERE user_id=?) SELECT p.id,p.name,p.client_id,'user',COALESCE(p.delete_callback_uri,''),MIN(k.created_at_unix) FROM identity_applications p JOIN known k ON k.application_id=p.id GROUP BY p.id ORDER BY p.name,p.id`
+		args = append(args, userID)
+	}
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("list connected applications: %w", err)
+		return nil, err
 	}
 	defer rows.Close()
-
 	var result []auth.ConnectedApplication
 	for rows.Next() {
-		var app auth.ConnectedApplication
-		var connectedAt int64
-		if err := rows.Scan(&app.ID, &app.Name, &app.ClientID, &app.Role, &app.DeleteCallbackURI, &connectedAt); err != nil {
-			return nil, fmt.Errorf("scan connected application: %w", err)
+		var a auth.ConnectedApplication
+		var created int64
+		if err := rows.Scan(&a.ID, &a.Name, &a.ClientID, &a.Role, &a.DeleteCallbackURI, &created); err != nil {
+			return nil, err
 		}
-		app.ConnectedAt = time.Unix(connectedAt, 0).UTC()
-		result = append(result, app)
+		a.ConnectedAt = time.Unix(created, 0).UTC()
+		result = append(result, a)
 	}
 	return result, rows.Err()
 }
@@ -92,8 +79,7 @@ func (s *Store) BeginIdentityUserDeletion(ctx context.Context, userID string, no
 }
 
 // RevokeIdentityUserApplicationAccess ends one application's access for a user.
-// Rows are deleted rather than marked revoked so the application stops being
-// listed as connected; the maintenance job would purge revoked rows anyway.
+// Consent history survives token cleanup and remains a whole-account deletion target.
 func (s *Store) RevokeIdentityUserApplicationAccess(ctx context.Context, userID, clientID string) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -101,6 +87,9 @@ func (s *Store) RevokeIdentityUserApplicationAccess(ctx context.Context, userID,
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	if _, err = tx.ExecContext(ctx, `INSERT INTO identity_application_consents (user_id,application_id,active,version,created_at_unix,updated_at_unix) SELECT ?,id,0,1,?,? FROM identity_applications WHERE client_id=? ON CONFLICT(user_id,application_id) DO UPDATE SET active=0,version=CASE WHEN active=1 THEN version+1 ELSE version END,updated_at_unix=excluded.updated_at_unix`, userID, time.Now().Unix(), time.Now().Unix(), clientID); err != nil {
+		return err
+	}
 	if _, err = tx.ExecContext(ctx, `DELETE FROM identity_authorization_codes
 		WHERE user_id = ? AND client_id = ?`, userID, clientID); err != nil {
 		return fmt.Errorf("revoke application authorization codes: %w", err)
@@ -111,17 +100,6 @@ func (s *Store) RevokeIdentityUserApplicationAccess(ctx context.Context, userID,
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit application access revocation: %w", err)
-	}
-	return nil
-}
-
-// RemoveIdentityUserAssignment removes a user's own allow assignment. A deny
-// assignment is kept: on a default_allow application, deleting it would grant
-// the access an administrator took away.
-func (s *Store) RemoveIdentityUserAssignment(ctx context.Context, applicationID, userID string) error {
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM identity_application_assignments
-		WHERE application_id = ? AND user_id = ? AND access_effect = 'allow'`, applicationID, userID); err != nil {
-		return fmt.Errorf("remove identity user assignment: %w", err)
 	}
 	return nil
 }

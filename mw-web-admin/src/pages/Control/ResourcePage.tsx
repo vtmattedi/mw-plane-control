@@ -688,8 +688,8 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
                   className="sm:col-span-2"
                   label={tr(
                     createFields.internal
-                      ? 'Callback de exclusão de conta (opcional)'
-                      : 'Callback de exclusão de conta (obrigatório)',
+                      ? 'Callback de exclusão da conta MW inteira (opcional)'
+                      : 'Callback de exclusão da conta MW inteira (obrigatório)',
                   )}
                 >
                   <Input

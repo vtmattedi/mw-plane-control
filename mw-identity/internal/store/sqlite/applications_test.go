@@ -118,8 +118,16 @@ func TestDenyAssignmentRevokesExistingAccessToken(t *testing.T) {
 		VALUES ('usr_access','access@example.com','access@example.com','Access','hash',1,0,?,?)`, now.Unix(), now.Unix()); err != nil {
 		t.Fatal(err)
 	}
+	if c, e := store.IdentityConsent(ctx, "usr_access", "app_access"); e != nil {
+		t.Fatal(e)
+	} else if c.Version == 0 {
+		if e := store.GrantIdentityConsent(ctx, "usr_access", "app_access", []string{"openid"}, 0, now); e != nil {
+			t.Fatal(e)
+		}
+	}
 	if err := store.CreateAccessToken(ctx, oidc.AccessToken{
-		ID: "token_access", TokenHash: "token-hash", ClientID: "access-client",
+		ConsentVersion: 1,
+		ID:             "token_access", TokenHash: "token-hash", ClientID: "access-client",
 		UserID: "usr_access", Scopes: []string{"openid"}, AuthTime: now,
 		AuthMethod: "password", ExpiresAt: now.Add(time.Hour), CreatedAt: now,
 	}); err != nil {
@@ -137,8 +145,16 @@ func TestDenyAssignmentRevokesExistingAccessToken(t *testing.T) {
 	if err := store.DeleteIdentityAssignment(ctx, "app_access", "usr_access"); err != nil {
 		t.Fatal(err)
 	}
+	if c, e := store.IdentityConsent(ctx, "usr_access", "app_access"); e != nil {
+		t.Fatal(e)
+	} else if c.Version == 0 {
+		if e := store.GrantIdentityConsent(ctx, "usr_access", "app_access", []string{"openid"}, 0, now); e != nil {
+			t.Fatal(e)
+		}
+	}
 	if err := store.CreateAccessToken(ctx, oidc.AccessToken{
-		ID: "token_policy", TokenHash: "policy-token-hash", ClientID: "access-client",
+		ConsentVersion: 1,
+		ID:             "token_policy", TokenHash: "policy-token-hash", ClientID: "access-client",
 		UserID: "usr_access", Scopes: []string{"openid"}, AuthTime: now,
 		AuthMethod: "password", ExpiresAt: now.Add(time.Hour), CreatedAt: now,
 	}); err != nil {

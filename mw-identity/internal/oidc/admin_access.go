@@ -79,7 +79,7 @@ func (s *Service) AuthorizeIdentityUser(
 	authorization ValidatedAuthorization,
 	user auth.User,
 ) *ProtocolError {
-	if !user.Enabled {
+	if !user.Enabled || !authorization.Application.Enabled || authorization.Application.ArchivedAt != nil {
 		return accessDenied()
 	}
 	if user.AccountType == "public" && contains(
@@ -145,7 +145,7 @@ func accessAllowedByApplicationPolicy(
 	if assignment != nil {
 		return assignment.AccessEffect == "allow"
 	}
-	return application.AccessPolicy == "default_allow"
+	return application.AccessPolicy == "default_allow" || (application.AllowPublicSignup && !application.Internal && !contains(application.Audiences, IdentityAdminAudience))
 }
 
 func accessDenied() *ProtocolError {

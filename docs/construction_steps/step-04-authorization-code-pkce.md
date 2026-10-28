@@ -75,3 +75,7 @@ Completion marker:
 ```text
 STEP 04 E2E PASS
 ```
+
+## Subsequent contract revision (2026-10-27)
+
+The historical bootstrap consent omission above is superseded by explicit external-client consent, version-fenced credentials, non-destructive disconnect and normal max_age handling. See ../MW-Identity-application-integration.md and ../dev_docs/federated-signin-rollout.md. Internal clients retain a documented trusted bootstrap; explicit disconnect still revokes it.

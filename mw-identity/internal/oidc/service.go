@@ -133,7 +133,7 @@ func (s *Service) ValidateAuthorization(
 	}
 	if rawMaxAge := strings.TrimSpace(request.MaxAge); rawMaxAge != "" {
 		parsed, err := strconv.ParseInt(rawMaxAge, 10, 64)
-		if err != nil || parsed <= 0 || parsed > 3600 {
+		if err != nil || parsed < 0 || parsed > 3600 {
 			return ValidatedAuthorization{}, invalidRequest("invalid max_age", true)
 		}
 		maxAgeSeconds = parsed
@@ -163,6 +163,7 @@ func (s *Service) ValidateAuthorization(
 		CodeChallenge:   request.CodeChallenge,
 		RequireWebAuthn: requireWebAuthn,
 		MaxAgeSeconds:   maxAgeSeconds,
+		MaxAgeSet:       request.MaxAge != "",
 	}, nil
 }
 
@@ -177,6 +178,10 @@ func (s *Service) IssueAuthorizationCode(
 		return "", fmt.Errorf("cannot authorize disabled identity")
 	}
 
+	consent, err := s.Consent(ctx, authorization, user)
+	if err != nil || !ConsentCovers(consent, authorization.Scopes) || (authorization.ConsentVersion != 0 && authorization.ConsentVersion != consent.Version) {
+		return "", fmt.Errorf("consent required")
+	}
 	rawCode, err := randomToken("mwac_")
 	if err != nil {
 		return "", err
@@ -194,18 +199,19 @@ func (s *Service) IssueAuthorizationCode(
 	err = s.store.CreateAuthorizationCode(
 		ctx,
 		AuthorizationCode{
-			ID:            codeID,
-			CodeHash:      hashOpaque(rawCode),
-			ClientID:      authorization.Application.ClientID,
-			UserID:        user.ID,
-			RedirectURI:   authorization.RedirectURI,
-			Scopes:        authorization.Scopes,
-			CodeChallenge: authorization.CodeChallenge,
-			Nonce:         authorization.Nonce,
-			AuthTime:      authTime.UTC(),
-			AuthMethod:    normalizedAuthMethod(authMethod),
-			ExpiresAt:     now.Add(s.config.AuthorizationCodeTTL),
-			CreatedAt:     now,
+			ID:             codeID,
+			ConsentVersion: consent.Version,
+			CodeHash:       hashOpaque(rawCode),
+			ClientID:       authorization.Application.ClientID,
+			UserID:         user.ID,
+			RedirectURI:    authorization.RedirectURI,
+			Scopes:         authorization.Scopes,
+			CodeChallenge:  authorization.CodeChallenge,
+			Nonce:          authorization.Nonce,
+			AuthTime:       authTime.UTC(),
+			AuthMethod:     normalizedAuthMethod(authMethod),
+			ExpiresAt:      now.Add(s.config.AuthorizationCodeTTL),
+			CreatedAt:      now,
 		},
 	)
 	if err != nil {
@@ -361,17 +367,18 @@ func (s *Service) ExchangeCode(
 	if err := s.store.CreateAccessToken(
 		ctx,
 		AccessToken{
-			ID:            accessID,
-			TokenHash:     hashOpaque(accessToken),
-			ClientID:      app.ClientID,
-			UserID:        user.ID,
-			Audience:      accessAudience,
-			Scopes:        code.Scopes,
-			AuthTime:      code.AuthTime,
-			AuthMethod:    normalizedAuthMethod(code.AuthMethod),
-			ParentTokenID: "",
-			ExpiresAt:     accessExpires,
-			CreatedAt:     now,
+			ID:             accessID,
+			ConsentVersion: code.ConsentVersion,
+			TokenHash:      hashOpaque(accessToken),
+			ClientID:       app.ClientID,
+			UserID:         user.ID,
+			Audience:       accessAudience,
+			Scopes:         code.Scopes,
+			AuthTime:       code.AuthTime,
+			AuthMethod:     normalizedAuthMethod(code.AuthMethod),
+			ParentTokenID:  "",
+			ExpiresAt:      accessExpires,
+			CreatedAt:      now,
 		},
 	); err != nil {
 		slog.Error(

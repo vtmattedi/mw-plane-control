@@ -32,7 +32,7 @@ func TestTFallsBackSafely(t *testing.T) {
 	if got := T("fr", "account.apps_title"); got != catalogs[LangPT]["account.apps_title"] {
 		t.Fatalf("unknown language did not fall back to Portuguese: %q", got)
 	}
-	if got := T(LangEN, "account.remove_confirm", "WOI"); got != "Remove WOI from my account" {
+	if got := T(LangEN, "account.remove_confirm", "WOI"); got != "Disconnect MW sign-in for WOI" {
 		t.Fatalf("formatted message = %q", got)
 	}
 }

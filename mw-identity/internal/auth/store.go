@@ -147,10 +147,10 @@ type Store interface {
 	) error
 
 	ListIdentityUserApplications(context.Context, string) ([]ConnectedApplication, error)
+	ListIdentityUserDeletionApplications(context.Context, string) ([]ConnectedApplication, error)
 	BeginIdentityUserDeletion(context.Context, string, time.Time) error
 	DeleteIdentityUser(context.Context, string) error
 	RevokeIdentityUserApplicationAccess(context.Context, string, string) error
-	RemoveIdentityUserAssignment(context.Context, string, string) error
 	PublicSignupApplication(context.Context, string) (SignupApplication, error)
 	CreatePublicIdentityUser(context.Context, NewUser, string) error
 }

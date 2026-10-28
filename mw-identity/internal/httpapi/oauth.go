@@ -2,17 +2,21 @@ package httpapi
 
 import (
 	"encoding/json"
+
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
+	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/auth"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identitystrong"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identitywebauthn"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/oidc"
+	webstatic "github.com/vtmattedi/mw-plane-control/mw-identity/web/static"
 )
 
 type oauthHandlers struct {
+	requests authorizationRequests
 	oidc     *oidc.Service
 	auth     *identityAuthHandlers
 	webauthn *identitywebauthn.Service
@@ -62,103 +66,108 @@ func (h *oauthHandlers) authorize(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
-	request := oidc.AuthorizationRequest{
-		ResponseType:        r.URL.Query().Get("response_type"),
-		ClientID:            r.URL.Query().Get("client_id"),
-		RedirectURI:         r.URL.Query().Get("redirect_uri"),
-		Scope:               r.URL.Query().Get("scope"),
-		State:               r.URL.Query().Get("state"),
-		Nonce:               r.URL.Query().Get("nonce"),
-		CodeChallenge:       r.URL.Query().Get("code_challenge"),
-		CodeChallengeMethod: r.URL.Query().Get("code_challenge_method"),
-		ACRValues:           r.URL.Query().Get("acr_values"),
-		MaxAge:              r.URL.Query().Get("max_age"),
-	}
-
-	validated, protocolErr := h.oidc.ValidateAuthorization(
-		r.Context(),
-		request,
-	)
-	if protocolErr != nil {
-		h.authorizationError(w, r, request, protocolErr)
-		return
-	}
-
-	_, session, err := h.auth.currentSession(r)
-	if err != nil {
-		mode := ""
-		if validated.RequireWebAuthn {
-			mode = "&auth=webauthn"
-		} else if validated.Application.AuthenticationPolicy == "strong" {
-			mode = "&auth=strong"
-		}
-		loginURL := loginPath(r) + "?return_to=" + url.QueryEscape(r.URL.RequestURI()) + mode
-		http.Redirect(w, r, loginURL, http.StatusSeeOther)
-		return
-	}
-
-	if validated.RequireWebAuthn {
-		maxAge := time.Duration(validated.MaxAgeSeconds) * time.Second
-		if !recentWebAuthnSession(session.Session, maxAge, time.Now()) {
-			if !h.hasStrongCredential(r, session.User.ID) {
-				h.redirectToStrongSetup(w, r)
-				return
-			}
-			loginURL := loginPath(r) + "?return_to=" + url.QueryEscape(r.URL.RequestURI()) + "&auth=webauthn"
-			http.Redirect(w, r, loginURL, http.StatusSeeOther)
+	w.Header().Set("Cache-Control", "no-store")
+	request := oidc.AuthorizationRequest{UILocales: r.URL.Query().Get("ui_locales"), ResponseType: r.URL.Query().Get("response_type"), ClientID: r.URL.Query().Get("client_id"), RedirectURI: r.URL.Query().Get("redirect_uri"), Scope: r.URL.Query().Get("scope"), State: r.URL.Query().Get("state"), Nonce: r.URL.Query().Get("nonce"), CodeChallenge: r.URL.Query().Get("code_challenge"), CodeChallengeMethod: r.URL.Query().Get("code_challenge_method"), ACRValues: r.URL.Query().Get("acr_values"), MaxAge: r.URL.Query().Get("max_age")}
+	var previous pendingAuthorization
+	resumed := false
+	if id := r.URL.Query().Get("request"); id != "" {
+		var ok bool
+		previous, ok = h.loadRequest(id, false)
+		if !ok {
+			writePlainError(w, 400, "sign-in expired; start again")
 			return
 		}
-	} else if validated.Application.AuthenticationPolicy == "strong" && !strongSessionMethod(session.Session.AuthMethod) {
-		if !h.hasStrongCredential(r, session.User.ID) {
+		request = previous.Request
+		resumed = true
+	}
+	q := r.URL.Query()
+	q.Set("ui_locales", request.UILocales)
+	r.URL.RawQuery = q.Encode()
+	validated, e := h.oidc.ValidateAuthorization(r.Context(), request)
+	if e != nil {
+		h.authorizationError(w, r, request, e)
+		return
+	}
+	_, session, err := h.auth.currentSession(r)
+	now := time.Now()
+	needsLogin := err != nil
+	mode := "reauth"
+	if validated.RequireWebAuthn {
+		mode = "webauthn"
+		needsLogin = needsLogin || !recentWebAuthnSession(session.Session, time.Duration(max(int64(1), validated.MaxAgeSeconds))*time.Second, now)
+	} else if validated.Application.AuthenticationPolicy == "strong" {
+		mode = "strong"
+		needsLogin = needsLogin || !strongSessionMethod(session.Session.AuthMethod)
+	}
+	if err == nil && validated.MaxAgeSet {
+		if validated.MaxAgeSeconds == 0 {
+			needsLogin = needsLogin || !resumed || previous.SessionID == session.Session.ID || session.Session.AuthTime.Unix() < previous.Started.Unix()
+		} else {
+			needsLogin = needsLogin || now.Sub(session.Session.AuthTime) > time.Duration(validated.MaxAgeSeconds)*time.Second
+		}
+	}
+	if err != nil && !resumed && !(validated.MaxAgeSet && validated.MaxAgeSeconds == 0) {
+		modeQuery := ""
+		if mode == "webauthn" || mode == "strong" {
+			modeQuery = "&auth=" + mode
+		}
+		http.Redirect(w, r, loginPath(r)+"?return_to="+url.QueryEscape(r.URL.RequestURI())+modeQuery, http.StatusSeeOther)
+		return
+	}
+	if needsLogin {
+		if err == nil && (mode == "webauthn" || mode == "strong") && !h.hasStrongCredential(r, session.User.ID) {
 			h.redirectToStrongSetup(w, r)
 			return
 		}
-		loginURL := loginPath(r) + "?return_to=" + url.QueryEscape(r.URL.RequestURI()) + "&auth=strong"
-		http.Redirect(w, r, loginURL, http.StatusSeeOther)
+		started := now
+		if resumed {
+			started = previous.Started
+		}
+		id, err := h.saveRequest(pendingAuthorization{Request: request, SessionID: session.Session.ID, Started: started})
+		if err != nil {
+			writePlainError(w, 429, "too many sign-in requests")
+			return
+		}
+		http.Redirect(w, r, loginPath(r)+"?return_to="+url.QueryEscape("/oauth/authorize?request="+id)+"&auth="+mode, http.StatusSeeOther)
 		return
 	}
-
-	if protocolErr :=
-		h.oidc.AuthorizeIdentityUser(
-			r.Context(),
-			validated,
-			session.User,
-		); protocolErr != nil {
-		h.authorizationError(
-			w,
-			r,
-			request,
-			protocolErr,
-		)
+	if e := h.oidc.AuthorizeIdentityUser(r.Context(), validated, session.User); e != nil {
+		h.authorizationError(w, r, request, e)
 		return
 	}
-
-	code, err := h.oidc.IssueAuthorizationCode(
-		r.Context(),
-		validated,
-		session.User,
-		session.Session.AuthTime,
-		session.Session.AuthMethod,
-	)
+	c, err := h.oidc.Consent(r.Context(), validated, session.User)
 	if err != nil {
-		writePlainError(w, http.StatusInternalServerError, "authorization failed")
+		writePlainError(w, 500, "could not load consent")
 		return
 	}
-
-	target, err := url.Parse(validated.RedirectURI)
-	if err != nil {
-		writePlainError(w, http.StatusInternalServerError, "authorization failed")
+	if !oidc.ConsentCovers(c, validated.Scopes) {
+		csrf := cookieValue(r, csrfCookieName)
+		if csrf == "" || !auth.TokenMatchesHash(csrf, session.Session.CSRFHash) {
+			writePlainError(w, 403, "session expired; sign in again")
+			return
+		}
+		id, err := h.saveRequest(pendingAuthorization{Request: request, UserID: session.User.ID, SessionID: session.Session.ID, Version: c.Version, Started: now})
+		if err != nil {
+			writePlainError(w, 429, "too many requests")
+			return
+		}
+		data := map[string]string{"Lang": "pt", "Title": "Continuar com MW em", "Body": "Compartilhar os campos de identidade abaixo. O aplicativo gerencia sua conta, dados e sessões.", "Allow": "Continuar", "Cancel": "Cancelar", "Name": validated.Application.Name, "Scopes": strings.Join(validated.Scopes, ", "), "Handle": id, "CSRF": csrf}
+		if loginPath(r) == "/login/en" {
+			data["Lang"] = "en"
+			data["Title"] = "Continue with MW to"
+			data["Body"] = "Share the identity fields below. The application manages your account, data and sessions."
+			data["Allow"] = "Continue"
+			data["Cancel"] = "Cancel"
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_ = consentPage.Execute(w, data)
 		return
 	}
-
-	query := target.Query()
-	query.Set("code", code)
-	query.Set("state", validated.State)
-	target.RawQuery = query.Encode()
-
-	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set("Pragma", "no-cache")
-	http.Redirect(w, r, target.String(), http.StatusFound)
+	validated.ConsentVersion = c.Version
+	if id := r.URL.Query().Get("request"); id != "" {
+		h.loadRequest(id, true)
+	}
+	h.finishAuthorization(w, r, validated, session.User, session.Session.AuthTime, session.Session.AuthMethod)
 }
 
 func (h *oauthHandlers) token(
@@ -314,6 +323,12 @@ func (h *oauthHandlers) authorizationError(
 	}
 	target.RawQuery = query.Encode()
 
+	if r.Method == http.MethodPost {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		_ = webstatic.RenderContinue(w, webstatic.ContinueData{Lang: pageLanguage(r), Target: target.String()})
+		return
+	}
 	http.Redirect(w, r, target.String(), http.StatusFound)
 }
 
