@@ -370,7 +370,7 @@ export function IdentityApplicationDetailPage() {
                   <AlertTriangle className="mt-0.5 size-4 shrink-0" />
                   <span>
                     {tr(
-                      'Esta aplicação não tem callback de exclusão de conta. Ela continua funcionando, mas a próxima edição exige um callback, ou que ela seja marcada como interna.',
+                      'Esta aplicação não tem callback de exclusão da conta MW inteira. Ela continua funcionando, mas a próxima edição exige um callback, ou que ela seja marcada como interna.',
                     )}
                   </span>
                 </div>
@@ -470,8 +470,8 @@ export function IdentityApplicationDetailPage() {
                     className="sm:col-span-2"
                     label={tr(
                       form.internal
-                        ? 'Callback de exclusão de conta (opcional)'
-                        : 'Callback de exclusão de conta (obrigatório)',
+                        ? 'Callback de exclusão da conta MW inteira (opcional)'
+                        : 'Callback de exclusão da conta MW inteira (obrigatório)',
                     )}
                   >
                     <Input

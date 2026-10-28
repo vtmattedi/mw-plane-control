@@ -147,6 +147,8 @@ func (h *identityAuthHandlers) loginPage(
 
 func requestedLoginAuth(value string) string {
 	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "reauth":
+		return "reauth"
 	case "strong":
 		return "strong"
 	case "webauthn":

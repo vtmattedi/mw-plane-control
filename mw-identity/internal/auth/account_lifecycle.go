@@ -15,12 +15,8 @@ import (
 
 var deletionRetryDelays = []time.Duration{250 * time.Millisecond, 750 * time.Millisecond}
 
-// Why an application receives identity.user.deleted. Either way the application
-// must delete or anonymize its local data for the subject.
-const (
-	DeletionReasonAccountDeleted          = "account_deleted"
-	DeletionReasonApplicationDisconnected = "application_disconnected"
-)
+// Only whole-MW-account deletion emits a destructive lifecycle callback.
+const DeletionReasonAccountDeleted = "account_deleted"
 
 func (s *Service) ConnectedApplications(ctx context.Context, userID string) ([]ConnectedApplication, error) {
 	return s.store.ListIdentityUserApplications(ctx, userID)
@@ -35,7 +31,7 @@ func (s *Service) DeleteAccount(ctx context.Context, userID, remoteIP string) (D
 		return DeleteAccountResult{}, ErrAccountDeletionForbidden
 	}
 
-	apps, err := s.store.ListIdentityUserApplications(ctx, userID)
+	apps, err := s.store.ListIdentityUserDeletionApplications(ctx, userID)
 	if err != nil {
 		return DeleteAccountResult{}, err
 	}
@@ -91,59 +87,23 @@ func (s *Service) DeleteAccount(ctx context.Context, userID, remoteIP string) (D
 	return DeleteAccountResult{Deleted: true, Deliveries: deliveries}, nil
 }
 
-// RemoveConnectedApplication disconnects one application from the account. Its
-// codes and tokens stop working at once, the application is asked to delete the
-// user's local data, and the assignment is removed only after it confirms (or
-// when it has no deletion callback). If delivery fails, access stays revoked and
-// the user can retry.
+// RemoveConnectedApplication revokes sign-in consent, preserving app data and assignments.
 func (s *Service) RemoveConnectedApplication(ctx context.Context, userID, applicationID, remoteIP string) (DeletionDelivery, error) {
-	apps, err := s.store.ListIdentityUserApplications(ctx, userID)
+	apps, err := s.store.ListIdentityUserDeletionApplications(ctx, userID)
 	if err != nil {
 		return DeletionDelivery{}, err
 	}
-	var app ConnectedApplication
-	found := false
-	for _, candidate := range apps {
-		if candidate.ID == applicationID {
-			app, found = candidate, true
-			break
+	for _, app := range apps {
+		if app.ID != applicationID {
+			continue
 		}
+		if err := s.store.RevokeIdentityUserApplicationAccess(ctx, userID, app.ClientID); err != nil {
+			return DeletionDelivery{}, err
+		}
+		s.recordAudit(ctx, audit.Event{ID: mustAuditID(), EventType: "identity.application.disconnected", Status: "success", Severity: "info", UserID: &userID, RemoteIP: remoteIP, CreatedAt: s.now().UTC()})
+		return DeletionDelivery{ApplicationID: app.ID, ClientID: app.ClientID, Status: "disconnected"}, nil
 	}
-	if !found {
-		return DeletionDelivery{}, ErrNotFound
-	}
-
-	now := s.now().UTC()
-	if err := s.store.RevokeIdentityUserApplicationAccess(ctx, userID, app.ClientID); err != nil {
-		return DeletionDelivery{}, err
-	}
-	delivery := s.deliverDeletion(ctx, userID, app, now, DeletionReasonApplicationDisconnected)
-	completed := delivery.Status != "failed"
-
-	status := map[bool]string{true: "completed", false: "pending"}[completed]
-	s.recordAudit(ctx, audit.Event{
-		ID:         mustAuditID(),
-		EventType:  "identity.application.disconnect_" + status,
-		Status:     map[bool]string{true: "success", false: "failure"}[completed],
-		Severity:   map[bool]string{true: "info", false: "warning"}[completed],
-		UserID:     &userID,
-		RemoteIP:   remoteIP,
-		ReasonCode: DeletionReasonApplicationDisconnected,
-		Metadata: map[string]any{
-			"application_id": app.ID,
-			"client_id":      app.ClientID,
-			"delivery":       delivery,
-		},
-		CreatedAt: now,
-	})
-
-	if !completed {
-		return delivery, nil
-	}
-	if err := s.store.RemoveIdentityUserAssignment(ctx, app.ID, userID); err != nil {
-		return DeletionDelivery{}, err
-	}
-	return delivery, nil
+	return DeletionDelivery{}, ErrNotFound
 }
 
 func (s *Service) deliverDeletion(ctx context.Context, userID string, app ConnectedApplication, requestedAt time.Time, reason string) DeletionDelivery {
@@ -179,13 +139,14 @@ func (s *Service) deliverDeletion(ctx context.Context, userID string, app Connec
 		return result
 	}
 	assertion, err := s.lifecycleSigner.SignJWT(ctx, map[string]any{
-		"iss":   s.publicIssuer,
-		"sub":   userID,
-		"aud":   app.ClientID,
-		"iat":   requestedAt.Unix(),
-		"exp":   requestedAt.Add(5 * time.Minute).Unix(),
-		"jti":   eventID,
-		"event": "identity.user.deleted",
+		"iss":    s.publicIssuer,
+		"sub":    userID,
+		"aud":    app.ClientID,
+		"iat":    requestedAt.Unix(),
+		"exp":    requestedAt.Add(5 * time.Minute).Unix(),
+		"jti":    eventID,
+		"event":  "identity.user.deleted",
+		"reason": reason,
 	})
 	if err != nil {
 		result.Status = "failed"

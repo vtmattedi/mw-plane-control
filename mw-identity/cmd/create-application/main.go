@@ -48,12 +48,12 @@ func main() {
 	deleteCallbackURI := flag.String(
 		"delete-callback-uri",
 		"",
-		"HTTPS account-deletion callback URI; required unless -internal",
+		"HTTPS whole-MW-account deletion callback URI; required unless -internal",
 	)
 	allowPublicSignup := flag.Bool(
 		"allow-public-signup",
 		false,
-		"allow this application to create public Identity accounts",
+		"allow public enrollment with new or existing MW identities",
 	)
 	internal := flag.Bool(
 		"internal",

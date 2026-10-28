@@ -322,10 +322,11 @@ func (s *Store) PurgeIdentityApplication(
 	err = tx.QueryRowContext(
 		ctx,
 		`SELECT
-			(SELECT COUNT(1) FROM identity_application_assignments WHERE application_id = ?) +
+			(SELECT COUNT(1) FROM identity_application_consents WHERE application_id = ?) +
+ (SELECT COUNT(1) FROM identity_application_assignments WHERE application_id = ?) +
 			(SELECT COUNT(1) FROM identity_authorization_codes WHERE client_id = ?) +
 			(SELECT COUNT(1) FROM identity_access_tokens WHERE client_id = ?)`,
-		id,
+		id, id,
 		clientID,
 		clientID,
 	).Scan(&dependencies)

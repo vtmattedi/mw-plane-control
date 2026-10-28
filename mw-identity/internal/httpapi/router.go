@@ -186,6 +186,7 @@ func New(
 	mux.HandleFunc("GET /privacy", authHandlers.privacy)
 	mux.HandleFunc("GET /security", authHandlers.security)
 	mux.HandleFunc("POST /logout", authHandlers.logout)
+	mux.HandleFunc("POST /oauth/consent", oauthHandlers.consent)
 	mux.HandleFunc("POST /account/delete", authHandlers.deleteAccount)
 	mux.HandleFunc("POST /account/applications/{id}/remove", authHandlers.removeApplication)
 

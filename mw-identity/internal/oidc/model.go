@@ -10,6 +10,7 @@ import (
 )
 
 type AuthorizationRequest struct {
+	UILocales           string
 	ResponseType        string
 	ClientID            string
 	RedirectURI         string
@@ -23,6 +24,7 @@ type AuthorizationRequest struct {
 }
 
 type ValidatedAuthorization struct {
+	ConsentVersion  int64
 	Application     applications.Application
 	RedirectURI     string
 	Scopes          []string
@@ -31,22 +33,24 @@ type ValidatedAuthorization struct {
 	CodeChallenge   string
 	RequireWebAuthn bool
 	MaxAgeSeconds   int64
+	MaxAgeSet       bool
 }
 
 type AuthorizationCode struct {
-	ID            string
-	CodeHash      string
-	ClientID      string
-	UserID        string
-	RedirectURI   string
-	Scopes        []string
-	CodeChallenge string
-	Nonce         string
-	AuthTime      time.Time
-	AuthMethod    string
-	ExpiresAt     time.Time
-	ConsumedAt    *time.Time
-	CreatedAt     time.Time
+	ConsentVersion int64
+	ID             string
+	CodeHash       string
+	ClientID       string
+	UserID         string
+	RedirectURI    string
+	Scopes         []string
+	CodeChallenge  string
+	Nonce          string
+	AuthTime       time.Time
+	AuthMethod     string
+	ExpiresAt      time.Time
+	ConsumedAt     *time.Time
+	CreatedAt      time.Time
 }
 
 type TokenRequest struct {
@@ -68,20 +72,23 @@ type TokenResponse struct {
 }
 
 type AccessToken struct {
-	ID            string
-	TokenHash     string
-	ClientID      string
-	UserID        string
-	Audience      string
-	Scopes        []string
-	AuthTime      time.Time
-	AuthMethod    string
-	ParentTokenID string
-	ExpiresAt     time.Time
-	CreatedAt     time.Time
+	ConsentVersion int64
+	ID             string
+	TokenHash      string
+	ClientID       string
+	UserID         string
+	Audience       string
+	Scopes         []string
+	AuthTime       time.Time
+	AuthMethod     string
+	ParentTokenID  string
+	ExpiresAt      time.Time
+	CreatedAt      time.Time
 }
 
 type Store interface {
+	IdentityConsent(context.Context, string, string) (Consent, error)
+	GrantIdentityConsent(context.Context, string, string, []string, int64, time.Time) error
 	ApplicationByClientID(
 		context.Context,
 		string,

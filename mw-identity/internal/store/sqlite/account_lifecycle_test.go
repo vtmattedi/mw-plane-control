@@ -2,7 +2,6 @@ package sqlite
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -65,12 +64,17 @@ func newRemovalFixture(t *testing.T, callbackURL string) removalFixture {
 		VALUES ('usr_remove','remove@example.com','remove@example.com','Remove','hash',1,0,?,?)`, now.Unix(), now.Unix()); err != nil {
 		t.Fatal(err)
 	}
+	for _, app := range []string{"app_one", "app_two"} {
+		if err := store.GrantIdentityConsent(ctx, "usr_remove", app, []string{"openid"}, 0, now); err != nil {
+			t.Fatal(err)
+		}
+	}
 	for _, token := range []struct{ id, hash, clientID string }{
 		{"token_one", "hash-one", "one-client"},
 		{"token_two", "hash-two", "two-client"},
 	} {
 		if err := store.CreateAccessToken(ctx, oidc.AccessToken{
-			ID: token.id, TokenHash: token.hash, ClientID: token.clientID,
+			ConsentVersion: 1, ID: token.id, TokenHash: token.hash, ClientID: token.clientID,
 			UserID: "usr_remove", Scopes: []string{"openid"}, AuthTime: now,
 			AuthMethod: "password", ExpiresAt: now.Add(time.Hour), CreatedAt: now,
 		}); err != nil {
@@ -106,11 +110,9 @@ func connectedIDs(t *testing.T, store *Store) []string {
 }
 
 func TestRemoveConnectedApplicationRevokesOnlyThatApplication(t *testing.T) {
-	var event map[string]any
+	var called bool
 	callback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
-			t.Error(err)
-		}
+		called = true
 		w.WriteHeader(http.StatusNoContent)
 	}))
 	defer callback.Close()
@@ -118,11 +120,11 @@ func TestRemoveConnectedApplicationRevokesOnlyThatApplication(t *testing.T) {
 	ctx := context.Background()
 
 	delivery, err := f.service.RemoveConnectedApplication(ctx, "usr_remove", "app_one", "127.0.0.1")
-	if err != nil || delivery.Status != "delivered" {
+	if err != nil || delivery.Status != "disconnected" {
 		t.Fatalf("RemoveConnectedApplication() = %#v, %v", delivery, err)
 	}
-	if event["type"] != "identity.user.deleted" || event["reason"] != auth.DeletionReasonApplicationDisconnected || event["client_id"] != "one-client" {
-		t.Fatalf("unexpected lifecycle event: %#v", event)
+	if called {
+		t.Fatal("disconnect sent a destructive callback")
 	}
 	if _, err := f.store.AccessTokenByHash(ctx, "hash-one", f.now); err == nil {
 		t.Fatal("removed application's token is still valid")
@@ -130,7 +132,7 @@ func TestRemoveConnectedApplicationRevokesOnlyThatApplication(t *testing.T) {
 	if _, err := f.store.AccessTokenByHash(ctx, "hash-two", f.now); err != nil {
 		t.Fatalf("other application's token was revoked: %v", err)
 	}
-	if _, err := f.store.IdentityAssignment(ctx, "app_one", "usr_remove"); !errors.Is(err, identityadmin.ErrNotFound) {
+	if _, err := f.store.IdentityAssignment(ctx, "app_one", "usr_remove"); err != nil {
 		t.Fatalf("assignment still present: %v", err)
 	}
 	if ids := connectedIDs(t, f.store); len(ids) != 1 || ids[0] != "app_two" {
@@ -138,7 +140,7 @@ func TestRemoveConnectedApplicationRevokesOnlyThatApplication(t *testing.T) {
 	}
 }
 
-func TestRemoveConnectedApplicationKeepsAssignmentWhenDeliveryFails(t *testing.T) {
+func TestDisconnectDoesNotDependOnCallbackAvailability(t *testing.T) {
 	callback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusBadGateway)
 	}))
@@ -147,14 +149,14 @@ func TestRemoveConnectedApplicationKeepsAssignmentWhenDeliveryFails(t *testing.T
 	ctx := context.Background()
 
 	delivery, err := f.service.RemoveConnectedApplication(ctx, "usr_remove", "app_one", "127.0.0.1")
-	if err != nil || delivery.Status != "failed" {
+	if err != nil || delivery.Status != "disconnected" {
 		t.Fatalf("RemoveConnectedApplication() = %#v, %v", delivery, err)
 	}
 	if _, err := f.store.AccessTokenByHash(ctx, "hash-one", f.now); err == nil {
-		t.Fatal("access must be revoked even when the application does not confirm")
+		t.Fatal("provider credentials must be revoked without callback delivery")
 	}
 	if _, err := f.store.IdentityAssignment(ctx, "app_one", "usr_remove"); err != nil {
-		t.Fatalf("assignment must stay so the user can retry: %v", err)
+		t.Fatalf("administrator assignment must survive disconnect: %v", err)
 	}
 }
 
@@ -169,7 +171,7 @@ func TestRemoveConnectedApplicationNeverDeletesDenyAssignment(t *testing.T) {
 	}
 
 	delivery, err := f.service.RemoveConnectedApplication(ctx, "usr_remove", "app_one", "127.0.0.1")
-	if err != nil || delivery.Status != "skipped" {
+	if err != nil || delivery.Status != "disconnected" {
 		t.Fatalf("RemoveConnectedApplication() = %#v, %v", delivery, err)
 	}
 	assignment, err := f.store.IdentityAssignment(ctx, "app_one", "usr_remove")
