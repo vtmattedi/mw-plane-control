@@ -76,12 +76,14 @@ type Session struct {
 }
 
 type ConnectedApplication struct {
-	ID                string    `json:"id"`
-	Name              string    `json:"name"`
-	ClientID          string    `json:"client_id"`
-	Role              string    `json:"role"`
-	DeleteCallbackURI string    `json:"-"`
-	ConnectedAt       time.Time `json:"connected_at"`
+	AccountManagementURI string    `json:"account_management_uri,omitempty"`
+	AccountDeletionURI   string    `json:"account_deletion_uri,omitempty"`
+	ID                   string    `json:"id"`
+	Name                 string    `json:"name"`
+	ClientID             string    `json:"client_id"`
+	Role                 string    `json:"role"`
+	DeleteCallbackURI    string    `json:"-"`
+	ConnectedAt          time.Time `json:"connected_at"`
 }
 
 type DeletionDelivery struct {

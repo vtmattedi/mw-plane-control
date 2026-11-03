@@ -248,9 +248,11 @@
             <li>
               <div class="connected-app-row">
                 <div><strong>{{.Name}}</strong><span>{{.ClientID}}</span></div>
-                <span class="role-badge">{{value $.Lang .Role}}</span>
+
               </div>
-              <details class="app-remove">
+              {{if .AccountManagementURI}}<a href="{{.AccountManagementURI}}" rel="noreferrer noopener">{{t $.Lang "account.manage_app"}}</a>{{end}}
+ {{if .AccountDeletionURI}}<a href="{{.AccountDeletionURI}}" rel="noreferrer noopener">{{t $.Lang "account.delete_in_app"}}</a>{{end}}
+ <details class="app-remove">
                 <summary>{{t $.Lang "account.remove"}}</summary>
                 <form method="post" action="/account/applications/{{.ID}}/remove">
                   <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}" />

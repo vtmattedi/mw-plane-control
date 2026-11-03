@@ -39,3 +39,11 @@ Signed ID tokens now carry achieved ACR, actual methods and original authenticat
 Validation: real SQLite/PKCE/signing round-trip test verifies RSA signature, signed ACR/AMR/nonce and unchanged auth_time for password, MFA and passkey, rejects replay, unsupported ACR, password/TOTP-only Strong and stale proof. Identity/BFF tests and vet pass. BFF tests reject wrong-subject, stale and weaker step-up. Hardware/browser and other consumer adaptation remain unverified.
 
 Rollout: deploy provider proof/schema and portal together, then BFF with migration 006; expire unfinished legacy authorizations. Audit Strong consumers before individual gate retirement. Rollback retains proof columns, invalidates unfinished transactions and preserves TOTP-only rejection; do not return consumers to a provider that cannot satisfy required ACR. No external consumer repository was changed.
+
+## PR-05
+
+Authorized applications now explicitly represent active consent, not known app accounts or app roles. Bilingual revocation wording preserves app data, mappings and independent sessions. Registered management/deletion navigation is shown without appended subjects/tokens; those links confer no action authority. Consent fencing and historical deletion discovery are retained; no app-local unlink/delete API or logout notification was added.
+
+Validation: existing real-provider HTTP re-consent, store revocation/fencing and both-language rendering/catalog tests pass. Local profile preservation and safe app-local unlink remain consumer-owned integration checkpoints, unverified here.
+
+Rollout: rebuild provider portal and verify registered static navigation URLs. Rollback: revert wording/navigation display with additive URL fields retained; retain non-destructive revocation and signed-reason validation in every receiver. No schema migration in this increment.
