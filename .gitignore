@@ -20,3 +20,5 @@ Thumbs.db
 .initscripts
 backups/
 *.age
+
+.local/*
