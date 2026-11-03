@@ -18,7 +18,7 @@ Identity
 
 OAuth
 ├── Projects
-├── Google provider configuration
+│   └── Project detail: Overview / Credentials / Providers / Activity
 ├── Audit
 └── Metrics
 
@@ -31,6 +31,32 @@ Mail
 ```
 
 StackPort is intentionally not a module.
+
+### OAuth project navigation
+
+OAuth provider policies belong to individual projects. Open a project from
+`/oauth/projects` to access its overview, integration credentials, provider
+settings and recent activity. The project list includes each project's Google
+provider status; unavailable status is shown explicitly rather than as disabled.
+
+- `/oauth/projects/:projectID`: overview, project status and deletion.
+- `/oauth/projects/:projectID/credentials`: API-key and callback-secret rotation.
+- `/oauth/projects/:projectID/providers/google`: Google scopes, callback/return
+  URLs, enabled state and rate limits for that project.
+- `/oauth/projects/:projectID/activity`: the latest 50 audit events, requested
+  with the service's existing `project_id` filter.
+
+The project name and project navigation remain visible while editing. Missing
+or unknown project IDs never select the first project. The old
+`/oauth/providers?project=ID` URL redirects to that project's provider settings;
+without a project it returns to the project list. The old project
+`/configuration` URL redirects to its Credentials tab.
+
+Step-up authentication returns to the originating project/tab. Pending provider
+saves and credential operations resume only in that project context. Provider
+fields stay disabled if their policy could not be loaded. Shared Google client
+credentials remain server-managed; the browser edits project policies through
+the existing BFF endpoints.
 
 ## Runtime model
 

@@ -15,7 +15,6 @@ import {
   Mail,
   Menu,
   Moon,
-  Network,
   Radio,
   ArrowRightToLine,
   ArrowLeftToLine,
@@ -57,7 +56,6 @@ const groups: Group[] = [
     label: 'OAuth',
     items: [
       { label: 'Projetos', to: '/oauth/projects', icon: FolderKanban },
-      { label: 'Provedores', to: '/oauth/providers', icon: Network },
       { label: 'Métricas', to: '/oauth/metrics', icon: ChartNoAxesCombined },
       { label: 'Auditoria', to: '/oauth/audit', icon: FileClock },
       { label: 'Servidor', to: '/oauth/server', icon: ServerCog },

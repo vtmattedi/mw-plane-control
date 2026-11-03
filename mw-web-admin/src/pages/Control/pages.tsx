@@ -14,6 +14,7 @@ import {
   Users,
 } from 'lucide-react'
 import { ResourcePage, type ResourcePageConfig } from './ResourcePage'
+import { OAuthGoogleStatus } from './OAuthGoogleStatus'
 
 const security =
   'Operações sensíveis exigem autenticação forte recente. Tokens e segredos permanecem no BFF e nunca são expostos ao navegador.'
@@ -146,6 +147,11 @@ const configs: Record<string, ResourcePageConfig> = {
       { key: 'name', label: 'Projeto' },
       { key: 'id', label: 'ID' },
       { key: 'enabled', label: 'Status' },
+      {
+        key: 'google',
+        label: 'Google OAuth',
+        render: (row) => <OAuthGoogleStatus projectID={String(row.id)} />,
+      },
       { key: 'created_at', label: 'Criado em' },
     ],
     action: 'Novo projeto',
@@ -155,7 +161,7 @@ const configs: Record<string, ResourcePageConfig> = {
     projectActions: 'oauth',
     rowHref: (row) =>
       row.id != null
-        ? `/oauth/projects/${String(row.id)}/configuration`
+        ? `/oauth/projects/${encodeURIComponent(String(row.id))}`
         : undefined,
   },
   oauthAudit: {

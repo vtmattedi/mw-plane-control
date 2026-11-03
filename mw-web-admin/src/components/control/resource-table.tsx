@@ -41,6 +41,7 @@ type BadgeTone = 'positive' | 'warning' | 'danger' | 'info' | 'neutral'
 export type ResourceColumn = {
   key: string
   label: string
+  render?: (row: Record<string, unknown>) => ReactNode
   /** Derives a badge from the whole row; the label is translated. */
   badge?: (row: Record<string, unknown>) => { label: string; tone: BadgeTone }
 }
@@ -66,7 +67,10 @@ export function ResourceTable({
       <div className="grid min-h-56 place-items-center p-8 text-center">
         <div>
           <div className="bg-muted mx-auto mb-4 grid size-11 place-items-center rounded-2xl">
-            <Inbox aria-hidden="true" className="text-muted-foreground size-5" />
+            <Inbox
+              aria-hidden="true"
+              className="text-muted-foreground size-5"
+            />
           </div>
           <h3 className="text-sm font-semibold">{emptyTitle}</h3>
           <p className="text-muted-foreground mx-auto mt-1 max-w-sm text-sm">
@@ -103,7 +107,9 @@ export function ResourceTable({
                   'severity',
                 ].includes(column.key)
                 const badge = column.badge?.(row)
-                const content = badge ? (
+                const content = column.render ? (
+                  column.render(row)
+                ) : badge ? (
                   <StatusBadge tone={badge.tone}>{tr(badge.label)}</StatusBadge>
                 ) : isStatus ? (
                   <StatusBadge

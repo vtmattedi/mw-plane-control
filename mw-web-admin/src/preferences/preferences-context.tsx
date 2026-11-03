@@ -40,6 +40,40 @@ const defaults: Preferences = {
 }
 
 const english: Record<string, string> = {
+  Credenciais: 'Credentials',
+  Atividade: 'Activity',
+  'Carregando…': 'Loading…',
+  'Tentar novamente': 'Try again',
+  'Configuração e atividade deste projeto OAuth.':
+    'Configuration and activity for this OAuth project.',
+  'Navegação do projeto': 'Project navigation',
+  Localização: 'Location',
+  'Não foi possível carregar o projeto.': 'Could not load the project.',
+  'Projeto não encontrado': 'Project not found',
+  'Escolha um projeto para configurar seus provedores.':
+    'Choose a project to configure its providers.',
+  'Voltar aos projetos': 'Back to projects',
+  'Google ativo': 'Google enabled',
+  'Google inativo': 'Google disabled',
+  'Estado indisponível': 'Status unavailable',
+  'Atividade recente': 'Recent activity',
+  'Últimos 50 eventos deste projeto.': 'Latest 50 events for this project.',
+  'Não foi possível carregar a atividade.': 'Could not load activity.',
+  'As operações deste projeto aparecerão aqui.':
+    'Operations for this project will appear here.',
+  'Políticas de autorização deste projeto.':
+    'Authorization policies for this project.',
+  'Gerencie as credenciais de integração deste projeto. Novos segredos são exibidos apenas uma vez.':
+    'Manage integration credentials for this project. New secrets are shown only once.',
+  'Chave de API': 'API key',
+  'Autentica as chamadas deste projeto ao serviço OAuth.':
+    'Authenticates this project’s calls to the OAuth service.',
+  'Segredo de callback': 'Callback secret',
+  'Valida os callbacks assinados enviados a este projeto.':
+    'Validates signed callbacks sent to this project.',
+  'Políticas do Google OAuth para {project}.':
+    'Google OAuth policies for {project}.',
+  'Salvar alterações para {project}': 'Save changes for {project}',
   'Funções de acesso': 'Access roles',
   'Nova função': 'New role',
   'Gerenciar funções': 'Manage roles',

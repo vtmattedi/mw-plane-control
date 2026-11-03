@@ -10,6 +10,9 @@ import { Button } from '@/components/ui/button'
 import { useAuth } from '@/auth/auth-context'
 import { beginIdentitySetup } from '@/lib/control-api'
 import AppShell from '@/pages/AppShell'
+import OAuthProjectLayout, {
+  OAuthProvidersRedirect,
+} from '@/pages/Control/OAuthProjectLayout'
 import Home from '@/pages/Home/Home'
 import Profile from '@/pages/Profile/Profile'
 import { PreferencesProvider } from '@/preferences/preferences-context'
@@ -39,6 +42,9 @@ const OAuthProjectConfigurationPage = lazy(
 )
 const OAuthProvidersPage = lazy(
   () => import('@/pages/Control/OAuthProvidersPage'),
+)
+const OAuthProjectActivityPage = lazy(
+  () => import('@/pages/Control/OAuthProjectActivityPage'),
 )
 const MailConfigurationPage = lazy(
   () => import('@/pages/Control/MailConfigurationPage'),
@@ -154,21 +160,54 @@ function AppRoutes() {
           <Route path="identity/audit" element={<IdentityAuditPage />} />
           <Route path="oauth/projects" element={<OAuthProjectsPage />} />
           <Route
-            path="oauth/projects/:projectID/configuration"
-            element={
-              <DeferredPage>
-                <OAuthProjectConfigurationPage />
-              </DeferredPage>
-            }
-          />
-          <Route
-            path="oauth/providers"
-            element={
-              <DeferredPage>
-                <OAuthProvidersPage />
-              </DeferredPage>
-            }
-          />
+            path="oauth/projects/:projectID"
+            element={<OAuthProjectLayout />}
+          >
+            <Route
+              index
+              element={
+                <DeferredPage>
+                  <OAuthProjectConfigurationPage key="overview" />
+                </DeferredPage>
+              }
+            />
+            <Route
+              path="credentials"
+              element={
+                <DeferredPage>
+                  <OAuthProjectConfigurationPage
+                    key="credentials"
+                    section="credentials"
+                  />
+                </DeferredPage>
+              }
+            />
+            <Route
+              path="providers"
+              element={<Navigate replace to="google" />}
+            />
+            <Route
+              path="providers/google"
+              element={
+                <DeferredPage>
+                  <OAuthProvidersPage />
+                </DeferredPage>
+              }
+            />
+            <Route
+              path="activity"
+              element={
+                <DeferredPage>
+                  <OAuthProjectActivityPage />
+                </DeferredPage>
+              }
+            />
+            <Route
+              path="configuration"
+              element={<Navigate replace to="../credentials" />}
+            />
+          </Route>
+          <Route path="oauth/providers" element={<OAuthProvidersRedirect />} />
           <Route path="oauth/audit" element={<OAuthAuditPage />} />
           <Route path="oauth/metrics" element={<OAuthMetricsPage />} />
           <Route path="oauth/server" element={<OAuthServerPage />} />
