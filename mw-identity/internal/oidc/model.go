@@ -24,6 +24,7 @@ type AuthorizationRequest struct {
 }
 
 type ValidatedAuthorization struct {
+	RequestedACR    string
 	ConsentVersion  int64
 	Application     applications.Application
 	RedirectURI     string
@@ -37,6 +38,9 @@ type ValidatedAuthorization struct {
 }
 
 type AuthorizationCode struct {
+	Proof          string
+	RequestedACR   string
+	MaxAgeSeconds  int64
 	ConsentVersion int64
 	ID             string
 	CodeHash       string
@@ -72,6 +76,7 @@ type TokenResponse struct {
 }
 
 type AccessToken struct {
+	Proof          string
 	ConsentVersion int64
 	ID             string
 	TokenHash      string

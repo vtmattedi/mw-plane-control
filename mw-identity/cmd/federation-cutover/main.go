@@ -16,6 +16,7 @@ func main() {
 	client := flag.String("client-id", "", "reviewed registered client")
 	access := flag.String("access", "", "explicit intended public or private access")
 	reviewed := flag.Bool("reviewed", false, "confirm backup, owner review and explicit private assignments")
+	retireStrong := flag.Bool("retire-app-strong-reviewed", false, "confirm protected consumer now requests and verifies per-action assurance")
 	flag.Parse()
 	if !*reviewed || *client == "" {
 		fail(fmt.Errorf("--client-id, --access and --reviewed are required"))
@@ -34,9 +35,19 @@ func main() {
 	if err = storesqlite.ApplyMigrations(ctx, db, migrations.FS); err != nil {
 		fail(err)
 	}
-	if err = storesqlite.NewStore(db).CutoverFederationAccess(ctx, *client, *access); err != nil {
-		fail(err)
+	if *retireStrong {
+		if err = storesqlite.NewStore(db).RetireApplicationStrong(ctx, *client); err != nil {
+			fail(err)
+		}
 	}
-	fmt.Println("Reviewed access cutover complete; existing client codes/tokens revoked.")
+	if *access != "" {
+		if err = storesqlite.NewStore(db).CutoverFederationAccess(ctx, *client, *access); err != nil {
+			fail(err)
+		}
+	}
+	if *access == "" && !*retireStrong {
+		fail(fmt.Errorf("explicit cutover operation required"))
+	}
+	fmt.Println("Reviewed cutover complete.")
 }
 func fail(err error) { fmt.Fprintln(os.Stderr, err); os.Exit(1) }

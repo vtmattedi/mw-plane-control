@@ -3,6 +3,7 @@ package oidc
 import (
 	"context"
 	"errors"
+	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/auth"
 	"strings"
 	"time"
 
@@ -163,6 +164,7 @@ func (s *Service) ExchangeToken(
 			Audience:       audience,
 			Scopes:         scopes,
 			AuthTime:       subject.AuthTime,
+			Proof:          subject.Proof,
 			AuthMethod:     authMethod,
 			ParentTokenID:  subject.ID,
 			ConsentVersion: subject.ConsentVersion,
@@ -259,7 +261,12 @@ func (s *Service) Introspect(
 		response.AuthTime = token.AuthTime.Unix()
 	}
 	if method := strings.TrimSpace(token.AuthMethod); method != "" {
-		response.AuthMethod = []string{method}
+		_, methods := auth.Assurance(token.Proof)
+		if len(methods) > 0 {
+			response.AuthMethod = methods
+		} else {
+			response.AuthMethod = []string{method}
+		}
 	}
 	return response, nil
 }

@@ -85,7 +85,7 @@ func (h *authHandlers) stepUp(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = record
 	returnTo := safeReturnTo(r.URL.Query().Get("return_to"))
-	target, err := h.identity.StartStepUp(r.Context(), returnTo)
+	target, err := h.identity.StartStepUp(r.Context(), returnTo, record.IdentitySubject)
 	if err != nil {
 		writeJSONError(w, 500, "step_up_start_failed")
 		return

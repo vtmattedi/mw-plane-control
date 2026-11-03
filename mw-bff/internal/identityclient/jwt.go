@@ -23,6 +23,7 @@ type idTokenHeader struct {
 }
 
 type idTokenClaims struct {
+	ACR         string          `json:"acr"`
 	Issuer      string          `json:"iss"`
 	Subject     string          `json:"sub"`
 	Audience    json.RawMessage `json:"aud"`
@@ -50,6 +51,7 @@ type publicJWK struct {
 }
 
 type validatedClaims struct {
+	ACR         string
 	Issuer      string
 	Subject     string
 	AuthTime    int64
@@ -229,6 +231,7 @@ func (c *Client) validateIDToken(
 		authMethod = strings.TrimSpace(claims.AMR[0])
 	}
 	return validatedClaims{
+		ACR:         claims.ACR,
 		Issuer:      claims.Issuer,
 		Subject:     claims.Subject,
 		AuthTime:    claims.AuthTime,

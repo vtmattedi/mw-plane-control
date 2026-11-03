@@ -26,8 +26,8 @@ func (s *Store) CreateAuthorizationCode(
 		`INSERT INTO identity_authorization_codes (
 			id, code_hash, client_id, user_id, redirect_uri, scope_json,
 			code_challenge, nonce, auth_time_unix, auth_method, expires_at_unix,
-			consumed_at_unix, created_at_unix, consent_version
-		) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ? WHERE `+credentialConsentPredicate,
+			consumed_at_unix, created_at_unix, consent_version, auth_proof, requested_acr, max_age_seconds
+		) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ? WHERE `+credentialConsentPredicate,
 		code.ID,
 		code.CodeHash,
 		code.ClientID,
@@ -39,7 +39,7 @@ func (s *Store) CreateAuthorizationCode(
 		code.AuthTime.Unix(),
 		code.AuthMethod,
 		code.ExpiresAt.Unix(),
-		code.CreatedAt.Unix(), code.ConsentVersion, code.UserID, code.ClientID, code.ConsentVersion, code.ConsentVersion,
+		code.CreatedAt.Unix(), code.ConsentVersion, code.Proof, code.RequestedACR, code.MaxAgeSeconds, code.UserID, code.ClientID, code.ConsentVersion, code.ConsentVersion,
 	)
 	if err != nil {
 		return fmt.Errorf("create authorization code: %w", err)
@@ -61,7 +61,7 @@ func (s *Store) AuthorizationCodeByHash(
 		`SELECT
 			id, code_hash, client_id, user_id, redirect_uri, scope_json,
 			code_challenge, nonce, auth_time_unix, auth_method, expires_at_unix,
-			consumed_at_unix, created_at_unix, consent_version
+			consumed_at_unix, created_at_unix, consent_version, auth_proof, requested_acr, max_age_seconds
 		FROM identity_authorization_codes AS artifact
 		WHERE code_hash = ?
 		  AND consumed_at_unix IS NULL
@@ -93,7 +93,7 @@ func (s *Store) AuthorizationCodeByHash(
 		&code.AuthMethod,
 		&expires,
 		&consumed,
-		&created, &code.ConsentVersion,
+		&created, &code.ConsentVersion, &code.Proof, &code.RequestedACR, &code.MaxAgeSeconds,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return oidc.AuthorizationCode{}, oidc.ErrStoreNotFound
@@ -164,8 +164,8 @@ func (s *Store) CreateAccessToken(
 		`INSERT INTO identity_access_tokens (
 			id, token_hash, client_id, user_id, scope_json,
 			expires_at_unix, created_at_unix, revoked_at_unix,
-			audience, auth_time_unix, auth_method, parent_token_id, consent_version
-		) SELECT ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ? WHERE `+credentialConsentPredicate,
+			audience, auth_time_unix, auth_method, parent_token_id, consent_version, auth_proof
+		) SELECT ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ? WHERE `+credentialConsentPredicate,
 		token.ID,
 		token.TokenHash,
 		token.ClientID,
@@ -176,7 +176,7 @@ func (s *Store) CreateAccessToken(
 		token.Audience,
 		token.AuthTime.Unix(),
 		token.AuthMethod,
-		nullableOIDCString(token.ParentTokenID), token.ConsentVersion, token.UserID, token.ClientID, token.ConsentVersion, token.ConsentVersion,
+		nullableOIDCString(token.ParentTokenID), token.ConsentVersion, token.Proof, token.UserID, token.ClientID, token.ConsentVersion, token.ConsentVersion,
 	)
 	if err != nil {
 		return fmt.Errorf("create access token: %w", err)
@@ -198,7 +198,7 @@ func (s *Store) AccessTokenByHash(
 		`SELECT
 			id, token_hash, client_id, user_id, audience, scope_json,
 			auth_time_unix, auth_method, parent_token_id,
-			expires_at_unix, created_at_unix, consent_version
+			expires_at_unix, created_at_unix, consent_version, auth_proof
 		FROM identity_access_tokens AS artifact
 		WHERE token_hash = ?
 		  AND revoked_at_unix IS NULL
@@ -227,7 +227,7 @@ func (s *Store) AccessTokenByHash(
 		&token.AuthMethod,
 		&parentID,
 		&expires,
-		&created, &token.ConsentVersion,
+		&created, &token.ConsentVersion, &token.Proof,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return oidc.AccessToken{}, oidc.ErrStoreNotFound

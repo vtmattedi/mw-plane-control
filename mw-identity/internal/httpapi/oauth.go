@@ -54,6 +54,9 @@ func (h *oauthHandlers) redirectToStrongSetup(w http.ResponseWriter, r *http.Req
 // authenticator). Users with neither can never complete a step-up prompt, so
 // callers must route them to enroll one instead of showing that prompt.
 func (h *oauthHandlers) hasStrongCredential(r *http.Request, userID string) bool {
+	if h.webauthn == nil || h.strong == nil {
+		return false
+	}
 	credentials, err := h.webauthn.ListCredentials(r.Context(), userID)
 	if err == nil && len(credentials) > 0 {
 		return true
@@ -90,12 +93,12 @@ func (h *oauthHandlers) authorize(
 	}
 	_, session, err := h.auth.currentSession(r)
 	now := time.Now()
-	needsLogin := err != nil
+	needsLogin := err != nil || !auth.Satisfies(session.Session.Proof, validated.RequestedACR) || session.Session.AuthTime.After(now)
 	mode := "reauth"
 	if validated.RequireWebAuthn {
 		mode = "webauthn"
 		needsLogin = needsLogin || !recentWebAuthnSession(session.Session, time.Duration(max(int64(1), validated.MaxAgeSeconds))*time.Second, now)
-	} else if validated.Application.AuthenticationPolicy == "strong" {
+	} else if validated.RequestedACR == auth.ACRStrong {
 		mode = "strong"
 		needsLogin = needsLogin || !strongSessionMethod(session.Session.AuthMethod)
 	}
@@ -167,7 +170,7 @@ func (h *oauthHandlers) authorize(
 	if id := r.URL.Query().Get("request"); id != "" {
 		h.loadRequest(id, true)
 	}
-	h.finishAuthorization(w, r, validated, session.User, session.Session.AuthTime, session.Session.AuthMethod)
+	h.finishAuthorization(w, r, validated, session.User, session.Session.AuthTime, session.Session.AuthMethod, session.Session.Proof)
 }
 
 func (h *oauthHandlers) token(

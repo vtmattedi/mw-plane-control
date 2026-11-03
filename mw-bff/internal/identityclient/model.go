@@ -16,6 +16,8 @@ var (
 )
 
 type Transaction struct {
+	ExpectedSubject        string
+	RequiredACR            string
 	ID                     string
 	StateHash              string
 	NonceHash              string

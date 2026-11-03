@@ -540,7 +540,7 @@ func proofFromReason(reason string) string {
 		return ProofPasskey
 	case "password_totp":
 		return ProofMFA
-	case "public_registration":
+	case "public_registration", "password":
 		return ProofPassword
 	}
 	return ""
