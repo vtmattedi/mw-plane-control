@@ -1,5 +1,7 @@
 # Integrating an application with MW Identity
 
+This guide describes the existing implementation. The normative target is the frozen [Federation Contract v1.0](MW-Identity-Federation-Contract-v1.0.md); implementation and deployment compliance are tracked in the [conformance map](dev_docs/MW-Identity-Federation-v1-Compliance.md). Existing signup-based eligibility, application-wide Strong policy and request-bound deletion below are legacy behavior, not v1 guarantees. Follow the [sequential implementation plan](dev_docs/MW-Identity-Federation-v1-Implementation-Plan.md) and its compatibility gates before cutover.
+
 MW Identity is the authoritative identity provider. A consuming application keeps its own business profile and links it to the immutable Identity `sub`; it must not use email as its permanent key.
 
 ## 1. Register the application
