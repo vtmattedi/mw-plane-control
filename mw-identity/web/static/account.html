@@ -54,7 +54,7 @@
             <use href="/static/icons.svg#shield" /></svg
         ></span>
         <p>
-          <strong>{{t .Lang "account.strong_title"}}</strong>{{t .Lang "account.strong_body"}}
+          <strong>{{t .Lang "account.strong_title"}}</strong>{{if .PasskeyRequired}}{{t .Lang "account.passkey_required"}}{{else}}{{t .Lang "account.strong_body"}}{{end}}
           <a id="strong-setup-continue" href="{{.StrongSetupContinue}}"
             >{{t .Lang "account.strong_link"}}</a
           >.

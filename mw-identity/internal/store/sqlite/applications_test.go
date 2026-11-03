@@ -45,6 +45,8 @@ func TestApplicationRegistryRoundTrip(t *testing.T) {
 			ApplicationType:      "confidential",
 			AuthenticationPolicy: "standard",
 			DeleteCallbackURI:    "https://app.example.com/account-deleted",
+			AccountManagementURI: "https://app.example.com/account",
+			AccountDeletionURI:   "https://app.example.com/account?intent=delete",
 			AllowPublicSignup:    true,
 			Enabled:              true,
 			RedirectURIs: []string{
@@ -89,6 +91,9 @@ func TestApplicationRegistryRoundTrip(t *testing.T) {
 	}
 	if app.DeleteCallbackURI != "https://app.example.com/account-deleted" || !app.AllowPublicSignup {
 		t.Fatalf("lifecycle settings = callback %q, signup %v", app.DeleteCallbackURI, app.AllowPublicSignup)
+	}
+	if app.AccountManagementURI != "https://app.example.com/account" || app.AccountDeletionURI != "https://app.example.com/account?intent=delete" {
+		t.Fatal("navigation metadata lost in registry round trip")
 	}
 }
 
@@ -281,6 +286,11 @@ func TestLegacyApplicationWithoutDeleteCallback(t *testing.T) {
 	}
 
 	edit.DeleteCallbackURI, edit.Internal = "", true
+	for _, request := range []identityadmin.CreateApplicationRequest{{Scopes: []string{" identity.admin "}}, {Audiences: []string{" mw-identity-admin "}}} {
+		if _, err = admin.CreateApplication(ctx, auth.User{ID: "usr_admin"}, "", request); !errors.Is(err, identityadmin.ErrRoleForbidden) {
+			t.Fatalf("reserved registration bypassed normalization: %v", err)
+		}
+	}
 	if _, err = admin.UpdateApplication(ctx, auth.User{ID: "usr_admin"}, "", "app_legacy", edit); !errors.Is(err, identityadmin.ErrRoleForbidden) {
 		t.Fatalf("ordinary API promoted infrastructure: %v", err)
 	}

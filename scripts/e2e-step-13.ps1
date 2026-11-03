@@ -94,7 +94,7 @@ try {
 
     Write-Host ""
     Write-Host "STEP 13 API/OPS PASS"
-    Write-Host "Final production gate still requires the controlled manual rehearsals in docs/step-13-hardening-operational-readiness.md:"
+    Write-Host "Final production gate still requires the controlled manual rehearsals in docs/construction_steps/step-13-hardening-operational-readiness.md:"
     Write-Host "  client-secret rotation/cutover; token revocation; destructive restore in staging; operator Identity recovery."
     Write-Host "After those are recorded: STEP 13 E2E PASS"
 }

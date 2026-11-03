@@ -99,9 +99,8 @@ func (s *Service) AuthorizeIdentityUser(
 		) {
 		return nil
 	}
-	// Global superadmins cannot be blocked by an application's default policy
-	// or a per-user exception. The Identity Admin audience remains protected by
-	// the identity.admin scope check above.
+	// Preserve the explicitly unmigrated legacy exception only. Ordinary v1
+	// clients require their own access assignment even for a global superadmin.
 	if !authorization.Application.AccessPolicyV1 && user.IsSuperadmin && !contains(
 		authorization.Application.Audiences,
 		IdentityAdminAudience,

@@ -178,9 +178,8 @@ func (h *identityAuthHandlers) registrationURL(r *http.Request, returnTo string)
 	return "/register?" + values.Encode()
 }
 
-// registrationTarget validates where a sign-up came from. With a client_id it
-// must be an authorization request for an application that allows public
-// sign-up; without one it is a stand-alone sign-up, allowed only when enabled.
+// Registration uses the global switch. A client binding is only a validated
+// return destination and never grants eligibility or consent.
 func (h *identityAuthHandlers) registrationTarget(r *http.Request, clientID, returnTo string) (webstatic.RegistrationData, bool) {
 	if !h.config.PublicSignupEnabled {
 		return webstatic.RegistrationData{}, false
@@ -522,6 +521,7 @@ func (h *identityAuthHandlers) account(
 			Applications:        applications,
 			Notice:              r.URL.Query().Get("notice"),
 			StrongSetupContinue: strongSetupContinue(r),
+			PasskeyRequired:     r.URL.Query().Get("passkey_required") == "1",
 		},
 	)
 }

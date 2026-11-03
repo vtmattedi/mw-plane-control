@@ -14,3 +14,15 @@ func TestNavigationURIBoundaries(t *testing.T) {
 		}
 	}
 }
+
+func TestProductionClosesLocalhostHTTPException(t *testing.T) {
+	if _, err := ValidateNavigationURI("http://localhost:5173/account"); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateProductionURIs("http://localhost:5173/account"); err == nil {
+		t.Fatal("development exception accepted in production")
+	}
+	if err := ValidateProductionURIs("https://app.example/account", ""); err != nil {
+		t.Fatal(err)
+	}
+}

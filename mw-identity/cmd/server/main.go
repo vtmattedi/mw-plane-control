@@ -126,6 +126,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	identityAdminService.RequireHTTPS(cfg.AppEnv == "production")
 	identityStrongService, err := identitystrong.NewService(store, identitystrong.Options{
 		SecretKeys: cfg.TOTPSecretKeys, ActiveKeyVersion: cfg.TOTPSecretActiveKeyVersion,
 		Issuer: cfg.TOTPIssuer, RecoveryTTL: cfg.RecoveryTTL,

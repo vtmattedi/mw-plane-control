@@ -99,6 +99,9 @@ func TestSignedAssuranceRoundTripAndNoMintTimeUpgrade(t *testing.T) {
 	if _, err = provider.IssueAuthorizationCode(ctx, v, user, time.Now(), "totp", ""); err == nil {
 		t.Fatal("legacy TOTP proof promoted")
 	}
+	if _, err = provider.IssueAuthorizationCode(ctx, v, user, time.Now(), "webauthn", auth.ProofMFA); err == nil {
+		t.Fatal("proof/method mismatch admitted as passkey provenance")
+	}
 	v.MaxAgeSet = true
 	v.MaxAgeSeconds = 1
 	if _, err = provider.IssueAuthorizationCode(ctx, v, user, time.Now().Add(-time.Minute), "webauthn", auth.ProofPasskey); err == nil {

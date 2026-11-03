@@ -183,7 +183,7 @@ func (s *Service) IssueAuthorizationCode(
 		return "", fmt.Errorf("cannot authorize disabled identity")
 	}
 
-	if !auth.Satisfies(proof, authorization.RequestedACR) || authTime.IsZero() || authTime.After(s.now().UTC()) {
+	if authMethod != auth.MethodForProof(proof) || !auth.Satisfies(proof, authorization.RequestedACR) || authTime.IsZero() || authTime.After(s.now().UTC()) {
 		return "", fmt.Errorf("authentication evidence required")
 	}
 	if authorization.MaxAgeSet && authorization.MaxAgeSeconds > 0 && s.now().Sub(authTime) > time.Duration(authorization.MaxAgeSeconds)*time.Second {
@@ -290,7 +290,7 @@ func (s *Service) ExchangeCode(
 			invalidGrant("authorization code is invalid or expired")
 	}
 
-	if !auth.Satisfies(code.Proof, code.RequestedACR) || code.AuthTime.After(now) || code.AuthTime.Unix() <= 0 || (code.MaxAgeSeconds > 0 && now.Sub(code.AuthTime) > time.Duration(code.MaxAgeSeconds)*time.Second) {
+	if code.AuthMethod != auth.MethodForProof(code.Proof) || !auth.Satisfies(code.Proof, code.RequestedACR) || code.AuthTime.After(now) || code.AuthTime.Unix() <= 0 || (code.MaxAgeSeconds > 0 && now.Sub(code.AuthTime) > time.Duration(code.MaxAgeSeconds)*time.Second) {
 		return TokenResponse{}, invalidGrant("authentication evidence invalid or expired")
 	}
 	if app.AuthenticationPolicy == "strong" && !auth.Satisfies(code.Proof, auth.ACRStrong) {

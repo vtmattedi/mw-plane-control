@@ -27,8 +27,8 @@ try {
         '.\mw-bff\internal\httpapi\readiness.go',
         '.\scripts\backup-control-plane.ps1',
         '.\scripts\restore-control-plane.ps1',
-        '.\docs\runbook-disaster-recovery.md',
-        '.\docs\runbook-identity-recovery.md'
+        '.\docs\dev_docs\runbook-disaster-recovery.md',
+        '.\docs\dev_docs\runbook-identity-recovery.md'
     )) { if (-not (Test-Path $Path)) { throw "Step 13 artifact missing: $Path" } }
 
     Write-Host "STEP 13 STATIC PASS"

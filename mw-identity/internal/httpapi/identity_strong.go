@@ -167,7 +167,8 @@ func (h *identityStrongHandlers) loginTOTP(w http.ResponseWriter, r *http.Reques
 		writeJSONError(w, 401, "totp_login_failed")
 		return
 	}
-	if _, err = h.service.AuthenticateTOTP(r.Context(), user.Email, req.Code); err != nil {
+	verifiedUser, err := h.service.AuthenticateTOTP(r.Context(), user.Email, req.Code)
+	if err != nil || verifiedUser.ID != challenge.UserID {
 		writeJSONError(w, 401, "totp_login_failed")
 		return
 	}

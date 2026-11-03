@@ -348,3 +348,82 @@ func TestQueuedCallbackAndChangedRegistrationRemainPending(t *testing.T) {
 		}
 	}
 }
+
+func TestDeletionRedirectIsNotFollowedOrAcknowledged(t *testing.T) {
+	called := false
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { called = true; w.WriteHeader(204) }))
+	defer target.Close()
+	source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, target.URL, 307) }))
+	defer source.Close()
+	f := newRemovalFixture(t, source.URL)
+	service, _ := deletionService(t, f.store)
+	ctx := context.Background()
+	result, err := service.DeleteAccount(ctx, "usr_remove", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = service.ProcessDeletionDelivery(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if called {
+		t.Fatal("lifecycle proof sent to redirected target")
+	}
+	op, err := f.store.DeletionOperation(ctx, result.OperationID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, delivery := range op.Deliveries {
+		if delivery.ApplicationID == "app_one" && (delivery.Status != "unresolved" || delivery.ErrorCode != "callback_redirect") {
+			t.Fatalf("redirect falsely completed/retried: %+v", delivery)
+		}
+	}
+}
+
+func TestOperatorRetryRenewsHorizonWithoutChangingEvent(t *testing.T) {
+	callback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(204) }))
+	defer callback.Close()
+	f := newRemovalFixture(t, callback.URL)
+	ctx := context.Background()
+	service, _ := deletionService(t, f.store)
+	if _, err := f.store.db.ExecContext(ctx, `UPDATE identity_applications SET internal=1 WHERE id='app_two'`); err != nil {
+		t.Fatal(err)
+	}
+	result, err := service.DeleteAccount(ctx, "usr_remove", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.store.db.ExecContext(ctx, `UPDATE identity_deletion_deliveries SET attempts=1,next_attempt_at_unix=0,retry_started_at_unix=? WHERE status='pending'`, time.Now().Add(-8*24*time.Hour).Unix()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = service.ProcessDeletionDelivery(ctx); err != nil {
+		t.Fatal(err)
+	}
+	op, err := f.store.DeletionOperation(ctx, result.OperationID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var event string
+	for _, d := range op.Deliveries {
+		if d.ApplicationID == "app_one" {
+			event = d.EventID
+			if d.Status != "failed" || d.ErrorCode != "retry_horizon" {
+				t.Fatal("exhausted delivery did not require recovery")
+			}
+		}
+	}
+	if err = f.store.RetryDeletionDelivery(ctx, event, false, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = service.ProcessDeletionDelivery(ctx); err != nil {
+		t.Fatal(err)
+	}
+	op, err = f.store.DeletionOperation(ctx, result.OperationID)
+	if err != nil || op.Status != "completed" {
+		t.Fatal("operator retry could not recover after horizon")
+	}
+	for _, d := range op.Deliveries {
+		if d.ApplicationID == "app_one" && d.EventID != event {
+			t.Fatal("operator retry changed idempotency key")
+		}
+	}
+}

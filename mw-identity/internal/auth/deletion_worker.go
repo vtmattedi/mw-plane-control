@@ -138,6 +138,9 @@ func (s *Service) deliverDurableDeletion(ctx context.Context, d DurableDelivery,
 	request.Header.Set("User-Agent", "mw-identity-account-lifecycle/1.0")
 	response, err := s.httpClient.Do(request)
 	if err != nil {
+		if response != nil && response.StatusCode >= 300 && response.StatusCode < 400 {
+			return "unresolved", "callback_redirect"
+		}
 		return "pending", "callback_unavailable"
 	}
 	defer response.Body.Close()

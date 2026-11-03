@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -40,7 +41,8 @@ func (s *Store) CutoverFederationAccess(ctx context.Context, clientID, policy st
 	if err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO identity_audit_events(id,event_type,status,severity,reason_code,metadata_json,created_at_unix) VALUES (?,'identity.application.access_v1','success','warning','operator_review','{}',?)`, id, time.Now().Unix())
+	metadata, _ := json.Marshal(map[string]string{"client_id": clientID, "access_policy": policy})
+	_, err = tx.ExecContext(ctx, `INSERT INTO identity_audit_events(id,event_type,status,severity,reason_code,metadata_json,created_at_unix) VALUES (?,'identity.application.access_v1','success','warning','operator_review',?,?)`, id, string(metadata), time.Now().Unix())
 	if err != nil {
 		return err
 	}
@@ -69,7 +71,8 @@ func (s *Store) RetireApplicationStrong(ctx context.Context, client string) erro
 	if err != nil {
 		return err
 	}
-	if _, err = tx.ExecContext(ctx, `INSERT INTO identity_audit_events(id,event_type,status,severity,reason_code,metadata_json,created_at_unix) VALUES (?,'identity.application.action_assurance_cutover','success','warning','consumer_review','{}',?)`, id, time.Now().Unix()); err != nil {
+	metadata, _ := json.Marshal(map[string]string{"client_id": client})
+	if _, err = tx.ExecContext(ctx, `INSERT INTO identity_audit_events(id,event_type,status,severity,reason_code,metadata_json,created_at_unix) VALUES (?,'identity.application.action_assurance_cutover','success','warning','consumer_review',?,?)`, id, string(metadata), time.Now().Unix()); err != nil {
 		return err
 	}
 	return tx.Commit()

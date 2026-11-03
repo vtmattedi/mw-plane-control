@@ -3,8 +3,10 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/auth"
 	"strings"
 	"time"
 
@@ -139,6 +141,16 @@ func (s *Store) CreateApplication(
 		return err
 	}
 
+	if input.Internal {
+		id, err := auth.NewOpaqueToken("aud_")
+		if err != nil {
+			return err
+		}
+		metadata, _ := json.Marshal(map[string]any{"client_id": input.ClientID, "internal": true})
+		if _, err = tx.ExecContext(ctx, `INSERT INTO identity_audit_events(id,event_type,status,severity,reason_code,metadata_json,created_at_unix) VALUES (?,'identity.infrastructure.provisioned','success','warning','operator_workflow',?,?)`, id, string(metadata), input.CreatedAt.Unix()); err != nil {
+			return err
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf(
 			"commit create application: %w",

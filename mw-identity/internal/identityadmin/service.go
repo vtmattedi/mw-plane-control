@@ -17,6 +17,7 @@ import (
 )
 
 type Service struct {
+	production   bool
 	store        Store
 	applications *applications.Service
 	now          func() time.Time
@@ -162,7 +163,7 @@ func (s *Service) CreateApplication(
 	if request.Internal || privilegedRegistration(request.Scopes, request.Audiences) {
 		return CreateApplicationResult{}, ErrRoleForbidden
 	}
-	if request.AuthenticationPolicy == "strong" || request.AllowPublicSignup {
+	if (strings.TrimSpace(request.AuthenticationPolicy) != "" && strings.TrimSpace(request.AuthenticationPolicy) != "standard") || request.AllowPublicSignup {
 		return CreateApplicationResult{}, ErrInvalid
 	}
 	result, err := s.applications.Create(
@@ -290,6 +291,13 @@ func (s *Service) UpdateApplication(
 		return applications.Application{}, err
 	}
 
+	if s.production {
+		uris := append(append([]string{}, normalized.RedirectURIs...), normalized.PostLogoutRedirectURIs...)
+		uris = append(uris, normalized.DeleteCallbackURI, normalized.AccountManagementURI, normalized.AccountDeletionURI)
+		if err = applications.ValidateProductionURIs(uris...); err != nil {
+			return applications.Application{}, ErrInvalid
+		}
+	}
 	now := s.now().UTC()
 	if err := s.store.UpdateIdentityApplication(
 		ctx,
@@ -762,15 +770,13 @@ func normalizeURIs(
 		parsed, err := url.Parse(value)
 		if err != nil ||
 			parsed.Scheme == "" ||
-			parsed.Host == "" ||
+			parsed.Host == "" || len(value) > 2048 ||
 			parsed.User != nil ||
 			parsed.Fragment != "" {
 			return nil, ErrInvalid
 		}
 
-		if requireHTTPS &&
-			parsed.Scheme != "https" &&
-			parsed.Hostname() != "localhost" {
+		if parsed.Scheme != "https" && !(parsed.Scheme == "http" && parsed.Hostname() == "localhost") {
 			return nil, ErrInvalid
 		}
 
@@ -842,14 +848,19 @@ func randomID(prefix string) (string, error) {
 
 func privilegedRegistration(scopes, audiences []string) bool {
 	for _, v := range scopes {
-		if strings.HasPrefix(v, "identity.") {
+		if strings.HasPrefix(strings.TrimSpace(v), "identity.") {
 			return true
 		}
 	}
 	for _, v := range audiences {
-		if v == "mw-identity-admin" {
+		if strings.TrimSpace(v) == "mw-identity-admin" {
 			return true
 		}
 	}
 	return false
+}
+
+func (s *Service) RequireHTTPS(production bool) {
+	s.production = production
+	s.applications.RequireHTTPS(production)
 }

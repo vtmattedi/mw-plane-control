@@ -1,5 +1,7 @@
 # MW Identity — Manual administrator recovery runbook
 
+A deleting identity must remain disabled; credential recovery cannot reopen it. Use the [deletion operator workflow](federation-durable-deletion.md) to inspect outstanding cleanup.
+
 Manual recovery is the catastrophic trust anchor from Step 12. It is operator-controlled and does not use email recovery.
 
 ## Preconditions

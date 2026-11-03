@@ -16,8 +16,9 @@ import (
 )
 
 type Service struct {
-	store Store
-	now   func() time.Time
+	production bool
+	store      Store
+	now        func() time.Time
 }
 
 type CreateRequest struct {
@@ -119,6 +120,13 @@ func (s *Service) Create(
 	deletion, err := ValidateNavigationURI(request.AccountDeletionURI)
 	if err != nil {
 		return CreateResult{}, ErrInvalidApplication
+	}
+	if s.production {
+		uris := append(append([]string{}, redirectURIs...), postLogout...)
+		uris = append(uris, deleteCallback, management, deletion)
+		if err = ValidateProductionURIs(uris...); err != nil {
+			return CreateResult{}, ErrInvalidApplication
+		}
 	}
 	if err := CheckLifecycle(request.Internal, request.AllowPublicSignup, deleteCallback); err != nil {
 		return CreateResult{}, err
@@ -295,9 +303,7 @@ func normalizeURIs(
 			return nil, fmt.Errorf("invalid URI")
 		}
 
-		if requiredHTTPS &&
-			parsed.Scheme != "https" &&
-			parsed.Hostname() != "localhost" {
+		if parsed.Scheme != "https" && !(parsed.Scheme == "http" && parsed.Hostname() == "localhost") {
 			return nil, fmt.Errorf(
 				"redirect URI must use https outside localhost",
 			)
@@ -361,3 +367,5 @@ func randomID(prefix string) (string, error) {
 	return prefix +
 		base64.RawURLEncoding.EncodeToString(raw), nil
 }
+
+func (s *Service) RequireHTTPS(production bool) { s.production = production }

@@ -35,8 +35,8 @@ type Config struct {
 	TOTPIssuer                         string
 	StrongAuthMaxAge                   time.Duration
 	RecoveryTTL                        time.Duration
-	// PublicSignupEnabled allows /register without an application. Sign-up
-	// started from an application with allow_public_signup is unaffected.
+	// PublicSignupEnabled is the global emergency registration switch for both
+	// standalone and application-initiated identity creation.
 	PublicSignupEnabled bool
 }
 
@@ -167,7 +167,7 @@ func Load() (Config, error) {
 
 	return Config{
 		DurableDeletionEnabled:  durableDeletion,
-		AppEnv:                  getenv("APP_ENV", "development"),
+		AppEnv:                  strings.ToLower(strings.TrimSpace(getenv("APP_ENV", "development"))),
 		Port:                    port,
 		DatabasePath:            databasePath,
 		PublicIssuer:            publicIssuer,

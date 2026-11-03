@@ -29,3 +29,17 @@ func ValidateNavigationURI(value string) (string, error) {
 	}
 	return value, nil
 }
+
+// ValidateProductionURIs closes the development localhost exception at runtime.
+func ValidateProductionURIs(values ...string) error {
+	for _, value := range values {
+		if value == "" {
+			continue
+		}
+		u, err := url.Parse(value)
+		if err != nil || len(value) > 2048 || u.Scheme != "https" || u.Host == "" || u.User != nil || u.Fragment != "" {
+			return fmt.Errorf("production URI requires HTTPS")
+		}
+	}
+	return nil
+}

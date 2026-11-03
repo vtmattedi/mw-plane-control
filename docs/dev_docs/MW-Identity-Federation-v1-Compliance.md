@@ -85,3 +85,44 @@ Retain results in an access-controlled operator record; never export secret hash
 See the complete [baseline dependency inventory](MW-Identity-Federation-v1-Inventory.md) for exact matching files/lines across Go, SQL, CLI, TypeScript, scripts and docs. Update Go eligibility and SQL credential predicates together. Keep deprecated registry columns for rollback; do not silently remove a Strong gate. No app-owned lifecycle API, central association registry or session notification belongs to v1.
 
 PR-00 changes only documentation. Rollout: review these docs against the preserved contract. Rollback: revert this increment's documentation commit. Database, runtime authentication and registered clients are unaffected. No production compliance is claimed.
+
+## Current implementation evidence after PR-00 through PR-07
+
+The baseline table above is historical and is not overwritten. Identity now embeds migrations 001-019; BFF embeds 001-006. The frozen contract is unchanged. `pass` below is scoped to the provider evidence stated; external/production coverage stays unverified where noted. Release remains gated, not declared compliant.
+
+| ID | Current scenario status | Evidence and remaining gate |
+| --- | --- | --- |
+| A01 | pass | Global standalone registration HTTP tests and no-connected-app account test |
+| A02 | unverified | Public v1 eligibility and PKCE/consent flow implemented/tested; real consumer onboarding and production inventory remain |
+| A03 | unverified | Strict Private code path tested against Go and SQL; legacy clients require reviewed cutover |
+| A04 | unverified | Explicit Private allow supported; app-local role preservation needs consumer proof |
+| A05 | unverified | Explicit deny fences credentials for v1, including superadmins; existing legacy population not audited |
+| A06 | unverified | V1 superadmin bypass removed/tested; legacy migration inventory remains a release gate |
+| A07 | unverified | Stable Identity subject preserved; local profile/data/role assertions require consumer tests |
+| A08 | unverified | Provider has no association registry and UI explicitly describes consent; cancelled app onboarding needs consumer e2e |
+| A09 | pass | Revoke preserves identity/assignments, removes only MW client credentials and emits no destructive callback |
+| A10 | unverified | Re-consent tested with real provider/PKCE; same app-local profile is consumer-owned |
+| A11 | unverified | App-owned alternative-login/unlink safeguard; no provider API invents this authority |
+| A12 | unverified | App-owned unlink and independent profile survival require consumer evidence |
+| A13 | unverified | Navigation metadata validates and round trips; app-owned reauthentication/final confirmation still require consumer tests |
+| A14 | pass | Actual password login evidence plus RSA-signed token round trip, truthful pwd method and unchanged auth_time |
+| A15 | pass | Shared evaluator and issuance reject password for Strong; authorization routes to qualifying step-up |
+| A16 | pass | Real password/HMAC-TOTP HTTP ceremony creates MFA proof; signed proof pipeline preserves both methods; browser rehearsal remains |
+| A17 | pass | Passwordless OTP request rejected; legacy TOTP-only sessions invalidated and never upgraded |
+| A18 | unverified | UV policy plus proof/token matrix pass; actual hardware ceremony not performed |
+| A19 | unverified | Fresh-auth transaction and same-second regression pass; hardware and consumer action binding require rehearsal |
+| A20 | unverified | BFF wrong-subject/stale/weaker step-up rejection tested; other consumer action-intent checks unverified |
+| A21 | pass | Consent-version form/code/token fencing retained and tested |
+| A22 | unverified | Private allow removal fences code read, consume and token insertion; live legacy cutover not performed |
+| A23 | unverified | Durable outage/lost-ack/restart/lease/backup tests pass when enabled; real consumer callback compatibility and production activation remain |
+| A24 | unverified | Stable event/signature retries and differentiated outcomes tested; detached local profiles require consumer proof |
+| A25 | unverified | Atomic freeze rejects new central sessions/credentials; app-local onboarding/handoff races require consumer tests |
+| A26 | pass | Public secret omission, required PKCE and real public-client exchange covered |
+| A27 | unverified | Confidential creation/hash/rotation support retained; fresh-WebAuthn live secret cutover remains a release gate |
+| A28 | pass | Ordinary create/promotion/reserved-scope attempts rejected; host infrastructure provisioning is audited atomically |
+
+Final automated verification: Identity `go test ./...` and `go vet ./...`; BFF equivalents; frontend `npm run typecheck`, `npm run lint`, `npm run test:run` (142/142, 26 files) and `npm run build` all pass. Baseline dependency advisories, the Projects hook warning and large-chunk warning remain outside this federation change.
+
+The existing Step 13 moved-document references were repaired. An isolated Docker project `mw-federation-v1-review`, using generated disposable keyrings and fresh named volumes, passed `STEP 13 STATIC PASS` and `STEP 13 API/OPS PASS`: readiness/WAL/FK/timeout, request IDs, query-safe logging, private metrics, signing-key/JWKS rotation, maintenance, online snapshots/integrity/restore validation and runtime hardening. No production database/configuration was used. This is not the final `STEP 13 E2E PASS`; hardware WebAuthn, real secret cutover, destructive deployment restoration and operator recovery remain unverified.
+
+See the [full diff review](MW-Identity-Federation-v1-Review.md) for findings corrected before the final commit. Consumer repositories and production services were not changed. Durable deletion is disabled by default; compatibility fields remain until audited rollout and rollback windows finish.

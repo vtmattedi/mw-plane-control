@@ -10,7 +10,7 @@ import (
 
 const deletionStatusCookie = "mw_deletion_status"
 
-var deletionProgressPage = template.Must(template.New("deletion").Funcs(template.FuncMap{"deletionLabel": deletionLabel}).Parse(`<!doctype html><html lang="{{.Lang}}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="refresh" content="10"><title>{{.Title}}</title><link rel="stylesheet" href="/static/portal.css"></head><body class="identity-page"><main class="account-shell narrow-shell"><section class="settings-card"><h1>{{.Title}}</h1><p>{{.Explanation}}</p><p>{{deletionLabel .Lang .Operation.Status}}</p><ul>{{range .Operation.Deliveries}}<li><strong>{{.Name}}</strong>: {{deletionLabel $.Lang .Status}}</li>{{end}}</ul><p>{{.Limit}}</p></section></main></body></html>`))
+var deletionProgressPage = template.Must(template.New("deletion").Funcs(template.FuncMap{"deletionLabel": deletionLabel}).Parse(`<!doctype html><html lang="{{.Lang}}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">{{if ne .Operation.Status "completed"}}<meta http-equiv="refresh" content="10">{{end}}<title>{{.Title}}</title><link rel="stylesheet" href="/static/portal.css"></head><body class="identity-page"><main class="account-shell narrow-shell"><section class="settings-card"><h1>{{.Title}}</h1><p>{{.Explanation}}</p><p>{{deletionLabel .Lang .Operation.Status}}</p><ul>{{range .Operation.Deliveries}}<li><strong>{{.Name}}</strong>: {{deletionLabel $.Lang .Status}}</li>{{end}}</ul><p>{{.Limit}}</p></section></main></body></html>`))
 
 func (h *identityAdminHandlers) listDeletions(w http.ResponseWriter, r *http.Request) {
 	_, pErr, err := h.principal(r, identityadmin.PermissionUsersRead)
@@ -94,6 +94,13 @@ func (h *identityAuthHandlers) deletionProgress(w http.ResponseWriter, r *http.R
 	if pageLanguage(r) == "en" {
 		title, explanation, limit, lang = "MW identity deletion", "The identity is disabled. Final deletion depends on each application's required outcome.", "This screen does not confirm removal of external copies or application backups.", "en"
 	}
+	if op.Status == "completed" {
+		if lang == "en" {
+			explanation = "The MW identity has been deleted. Required application outcomes are shown below."
+		} else {
+			explanation = "A identidade MW foi excluída. Os resultados exigidos de cada aplicativo aparecem abaixo."
+		}
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_ = deletionProgressPage.Execute(w, map[string]any{"Title": title, "Explanation": explanation, "Limit": limit, "Lang": lang, "Operation": op})
 }
@@ -144,7 +151,7 @@ func (h *identityAdminHandlers) retryDeletion(w http.ResponseWriter, r *http.Req
 
 func deletionLabel(lang, status string) string {
 	en := map[string]string{"pending": "Pending application cleanup", "delivering": "Contacting application", "confirmed_cleanup": "Required cleanup confirmed", "no_current_mapping": "No current linked profile", "exempt": "Infrastructure: no application profile", "failed": "Needs operator recovery", "unresolved": "Needs operator review", "legacy_review_required": "Needs review of an earlier deletion request", "completed": "MW identity deletion completed"}
-	pt := map[string]string{"pending": "Aguardando limpeza nos aplicativos", "delivering": "Contatando aplicativo", "confirmed_cleanup": "Limpeza exigida confirmada", "no_current_mapping": "Nenhum perfil vinculado atualmente", "exempt": "Infraestrutura: sem perfil de aplicativo", "failed": "Requer recuperacao pelo operador", "unresolved": "Requer revisao pelo operador", "legacy_review_required": "Requer revisao de uma solicitacao anterior", "completed": "Exclusao da identidade MW concluida"}
+	pt := map[string]string{"pending": "Aguardando limpeza nos aplicativos", "delivering": "Contatando aplicativo", "confirmed_cleanup": "Limpeza exigida confirmada", "no_current_mapping": "Nenhum perfil vinculado atualmente", "exempt": "Infraestrutura: sem perfil de aplicativo", "failed": "Requer recuperação pelo operador", "unresolved": "Requer revisão pelo operador", "legacy_review_required": "Requer revisão de uma solicitação anterior", "completed": "Exclusão da identidade MW concluída"}
 	labels := pt
 	if lang == "en" {
 		labels = en

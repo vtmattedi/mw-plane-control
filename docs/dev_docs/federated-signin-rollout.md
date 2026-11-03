@@ -1,5 +1,7 @@
 # Federated sign-in rollout (2026-10-27)
 
+The current target is [Federation v1](../MW-Identity-Federation-Contract-v1.0.md). Follow the [delivery record](MW-Identity-Federation-v1-Delivery.md) for migrations 014 onward. The earlier rollout below is historical context and does not authorize a v1 downgrade.
+
 Disconnect now revokes consent without deleting application data. Applications
 own account deletion; whole-MW deletion remains a separate notification flow.
 

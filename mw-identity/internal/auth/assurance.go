@@ -34,3 +34,15 @@ func Satisfies(proof, requested string) bool {
 		return false
 	}
 }
+
+func MethodForProof(proof string) string {
+	switch proof {
+	case ProofPassword:
+		return "password"
+	case ProofMFA:
+		return "password_totp"
+	case ProofPasskey:
+		return "webauthn"
+	}
+	return ""
+}

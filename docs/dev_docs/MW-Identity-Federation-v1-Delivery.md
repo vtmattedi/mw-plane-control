@@ -55,3 +55,223 @@ Migration 018 adds durable deletion operations/deliveries and prevents re-enabli
 Validation: Identity tests/vet pass. Real-signature callback tests cover lost acknowledgement, restarted service, rotated signing key, stable IDs, atomic credential freeze, forbidden re-enable, stale session insertion, duplicate requests and user-cascade independence. Further tests cover expired leases/stale workers, crash before finalization, 202, changed callback plus explicit refresh, no-current-mapping, missing legacy callbacks, atomic rollback, outbox backup/restore, maintenance retention and legacy reconciliation without replay. Public status tests verify cookie scope, no URL secret, post-session access and unauthorized denial. Production/hardware/cross-consumer gates remain unverified.
 
 Rollout: deploy additive schema with `IDENTITY_DURABLE_DELETION_ENABLED=false`; verify actual receiver acknowledgement/idempotency behavior and backup/recovery; then enable per deployment and observe private queue metrics. The flag is mapped by all Compose variants. Pending operations never fall back to synchronous processing when the worker is disabled. Rollback: disable dispatch, preserve schema/outbox and disabled identities; never run an old binary against outstanding operations. See the durable deletion runbook for exact retry/legacy-reconciliation steps and retention.
+
+## PR-07
+
+Aligned the integration guide and recovery/rollout references with actual staged behavior and appended current A01-A28 evidence. The requested full-diff review covered all increments against the original baseline and corrected normalization, timestamp precision, production URI enforcement, method/proof consistency, redirect categorization, audit atomicity, inconsistent finalization guards and misleading migration/setup UI. Migration 019 preserves authentication instant precision; BFF migration remains 006. Normal operation does not infer app accounts or roles, and no consumer repository was changed.
+
+Validation: full Identity/BFF tests and vet, frontend typecheck/lint/142 tests/build pass. Existing Step 13 sanity/e2e scripts were repaired and an isolated Docker API/operations rehearsal passed with disposable keyrings/volumes. Frozen contract digest remains the baseline digest. See the separate review and compliance records for exact evidence and unverified gates; no production compliance or hardware certification is claimed.
+
+Rollout: review the client inventory, require consumer ACR/freshness/subject/action checks, verify receivers and backup/recovery, then perform individual access/assurance cutovers and explicitly enable durable dispatch. TOTP credential management retains its existing passkey requirement. Old WOI lifecycle receipts are a consumer retirement checkpoint without replay. Do not retire compatibility columns until the reviewed rollback window ends.
+
+Rollback: keep added schema and queued operations; disable worker dispatch before service rollback, retain identity freeze and receiver non-destructive disconnect safeguards, invalidate unsupported in-progress authentication state and preserve the verified passkey gates. Full live migration, browser/hardware, cross-app erasure/ownership, destructive deployment restoration and production sign-off remain explicit release blockers.
+
+## Exact changed paths by increment
+
+Paths are recorded for review; migrations and validation/rollback details are in each increment above.
+
+<details>
+<summary>docs(identity): record federation v1 contract baseline (PR-00) (8867166)</summary>
+
+- `docs/MW-Identity-application-integration.md`
+- `docs/dev_docs/MW-Identity-Federation-v1-Compliance.md`
+- `docs/dev_docs/MW-Identity-Federation-v1-Implementation-Plan.md`
+- `docs/dev_docs/MW-Identity-Federation-v1-Inventory.md`
+
+</details>
+
+<details>
+<summary>feat(identity): stage v1 access policy and global registration (PR-01) (abbba6a)</summary>
+
+- `docs/dev_docs/MW-Identity-Federation-v1-Delivery.md`
+- `mw-identity/Dockerfile`
+- `mw-identity/cmd/federation-cutover/main.go`
+- `mw-identity/internal/applications/model.go`
+- `mw-identity/internal/applications/service.go`
+- `mw-identity/internal/auth/registration.go`
+- `mw-identity/internal/auth/store.go`
+- `mw-identity/internal/httpapi/identity_auth.go`
+- `mw-identity/internal/httpapi/registration_test.go`
+- `mw-identity/internal/oidc/admin_access.go`
+- `mw-identity/internal/store/sqlite/applications.go`
+- `mw-identity/internal/store/sqlite/consent.go`
+- `mw-identity/internal/store/sqlite/federation.go`
+- `mw-identity/internal/store/sqlite/federation_test.go`
+- `mw-identity/internal/store/sqlite/oidc.go`
+- `mw-identity/internal/store/sqlite/registration.go`
+- `mw-identity/migrations/014_federation_access.sql`
+- `mw-identity/web/static/index.html`
+- `mw-identity/web/static/indexEN.html`
+- `mw-identity/web/static/render.go`
+
+</details>
+
+<details>
+<summary>feat(identity): simplify registry and isolate infrastructure provisioning (PR-02) (5ddb69d)</summary>
+
+- `docs/dev_docs/MW-Identity-Federation-v1-Delivery.md`
+- `mw-identity/cmd/create-application/main.go`
+- `mw-identity/internal/applications/model.go`
+- `mw-identity/internal/applications/navigation.go`
+- `mw-identity/internal/applications/navigation_test.go`
+- `mw-identity/internal/applications/service.go`
+- `mw-identity/internal/httpapi/identity_admin.go`
+- `mw-identity/internal/identityadmin/model.go`
+- `mw-identity/internal/identityadmin/service.go`
+- `mw-identity/internal/store/sqlite/applications.go`
+- `mw-identity/internal/store/sqlite/applications_test.go`
+- `mw-identity/internal/store/sqlite/identity_admin.go`
+- `mw-identity/migrations/015_application_navigation.sql`
+- `mw-web-admin/src/pages/Control/IdentityDetailPages.tsx`
+- `mw-web-admin/src/pages/Control/ResourcePage.tsx`
+
+</details>
+
+<details>
+<summary>feat(identity): authenticate with bound password and TOTP proof (PR-03) (1575ed6)</summary>
+
+- `docs/dev_docs/MW-Identity-Federation-v1-Delivery.md`
+- `docs/dev_docs/federation-authentication-evidence.md`
+- `mw-identity/internal/auth/assurance.go`
+- `mw-identity/internal/auth/assurance_test.go`
+- `mw-identity/internal/auth/mfa.go`
+- `mw-identity/internal/auth/service.go`
+- `mw-identity/internal/auth/store.go`
+- `mw-identity/internal/httpapi/identity_strong.go`
+- `mw-identity/internal/httpapi/mfa_test.go`
+- `mw-identity/internal/httpapi/strong_assurance.go`
+- `mw-identity/internal/store/sqlite/identity_auth.go`
+- `mw-identity/internal/store/sqlite/mfa.go`
+- `mw-identity/internal/store/sqlite/mfa_test.go`
+- `mw-identity/internal/store/sqlite/operations.go`
+- `mw-identity/migrations/016_authentication_proof.sql`
+- `mw-identity/web/static/index.html`
+- `mw-identity/web/static/indexEN.html`
+- `mw-identity/web/static/portal.js`
+
+</details>
+
+<details>
+<summary>feat(identity): issue signed per-action assurance and bind BFF step-up (PR-04) (bac27a3)</summary>
+
+- `docs/dev_docs/MW-Identity-Federation-v1-Delivery.md`
+- `docs/dev_docs/federation-authentication-evidence.md`
+- `mw-bff/internal/httpapi/auth.go`
+- `mw-bff/internal/identityclient/assurance_test.go`
+- `mw-bff/internal/identityclient/client.go`
+- `mw-bff/internal/identityclient/jwt.go`
+- `mw-bff/internal/identityclient/model.go`
+- `mw-bff/internal/store/sqlite/admin_auth.go`
+- `mw-bff/migrations/006_step_up_binding.sql`
+- `mw-identity/cmd/federation-cutover/main.go`
+- `mw-identity/internal/auth/service.go`
+- `mw-identity/internal/httpapi/consent.go`
+- `mw-identity/internal/httpapi/oauth.go`
+- `mw-identity/internal/oidc/delegation.go`
+- `mw-identity/internal/oidc/discovery.go`
+- `mw-identity/internal/oidc/model.go`
+- `mw-identity/internal/oidc/service.go`
+- `mw-identity/internal/store/sqlite/assurance_test.go`
+- `mw-identity/internal/store/sqlite/federation.go`
+- `mw-identity/internal/store/sqlite/oidc.go`
+- `mw-identity/migrations/017_authorization_assurance.sql`
+
+</details>
+
+<details>
+<summary>feat(identity): clarify authorized apps and account navigation (PR-05) (d2a069e)</summary>
+
+- `docs/dev_docs/MW-Identity-Federation-v1-Delivery.md`
+- `mw-identity/internal/auth/store.go`
+- `mw-identity/internal/store/sqlite/account_lifecycle.go`
+- `mw-identity/web/static/account.html`
+- `mw-identity/web/static/messages.go`
+- `mw-identity/web/static/messages_test.go`
+
+</details>
+
+<details>
+<summary>feat(identity): persist and recover whole-account deletion (PR-06) (d5ebf2a)</summary>
+
+- `.env.example`
+- `docker-compose-dev.yml`
+- `docker-compose.stackport.yml`
+- `docker-compose.yml`
+- `docs/dev_docs/MW-Identity-Federation-v1-Delivery.md`
+- `docs/dev_docs/federation-durable-deletion.md`
+- `infra/gateway/nginx.conf`
+- `mw-identity/cmd/server/main.go`
+- `mw-identity/cmd/verify-db/main.go`
+- `mw-identity/internal/auth/account_lifecycle.go`
+- `mw-identity/internal/auth/deletion_model.go`
+- `mw-identity/internal/auth/deletion_transport.go`
+- `mw-identity/internal/auth/deletion_transport_test.go`
+- `mw-identity/internal/auth/deletion_worker.go`
+- `mw-identity/internal/auth/service.go`
+- `mw-identity/internal/auth/store.go`
+- `mw-identity/internal/config/config.go`
+- `mw-identity/internal/httpapi/deletion.go`
+- `mw-identity/internal/httpapi/deletion_test.go`
+- `mw-identity/internal/httpapi/identity_auth.go`
+- `mw-identity/internal/httpapi/router.go`
+- `mw-identity/internal/oidc/admin_access.go`
+- `mw-identity/internal/recovery/database.go`
+- `mw-identity/internal/store/sqlite/deletion.go`
+- `mw-identity/internal/store/sqlite/deletion_test.go`
+- `mw-identity/internal/store/sqlite/operations.go`
+- `mw-identity/migrations/018_durable_deletion.sql`
+
+</details>
+
+<details>
+<summary>PR-07: compatibility, integration validation and full diff review</summary>
+
+- `.env.example`
+- `docs/MW-Identity-Implementation-guide.md`
+- `docs/MW-Identity-application-integration.md`
+- `docs/dev_docs/MW-Identity-Federation-v1-Compliance.md`
+- `docs/dev_docs/MW-Identity-Federation-v1-Delivery.md`
+- `docs/dev_docs/MW-Identity-Federation-v1-Review.md`
+- `docs/dev_docs/federated-signin-rollout.md`
+- `docs/dev_docs/federation-authentication-evidence.md`
+- `docs/dev_docs/runbook-disaster-recovery.md`
+- `docs/dev_docs/runbook-identity-recovery.md`
+- `mw-bff/internal/store/sqlite/step_up_migration_test.go`
+- `mw-bff/migrations/006_step_up_binding.sql`
+- `mw-identity/cmd/create-application/main.go`
+- `mw-identity/cmd/federation-cutover/main.go`
+- `mw-identity/cmd/server/main.go`
+- `mw-identity/internal/applications/navigation.go`
+- `mw-identity/internal/applications/navigation_test.go`
+- `mw-identity/internal/applications/service.go`
+- `mw-identity/internal/auth/assurance.go`
+- `mw-identity/internal/auth/deletion_transport.go`
+- `mw-identity/internal/auth/deletion_transport_test.go`
+- `mw-identity/internal/auth/deletion_worker.go`
+- `mw-identity/internal/config/config.go`
+- `mw-identity/internal/config/config_test.go`
+- `mw-identity/internal/httpapi/deletion.go`
+- `mw-identity/internal/httpapi/freshness_test.go`
+- `mw-identity/internal/httpapi/identity_auth.go`
+- `mw-identity/internal/httpapi/identity_strong.go`
+- `mw-identity/internal/httpapi/oauth.go`
+- `mw-identity/internal/identityadmin/service.go`
+- `mw-identity/internal/oidc/admin_access.go`
+- `mw-identity/internal/oidc/service.go`
+- `mw-identity/internal/store/sqlite/applications.go`
+- `mw-identity/internal/store/sqlite/applications_test.go`
+- `mw-identity/internal/store/sqlite/assurance_test.go`
+- `mw-identity/internal/store/sqlite/deletion.go`
+- `mw-identity/internal/store/sqlite/deletion_test.go`
+- `mw-identity/internal/store/sqlite/federation.go`
+- `mw-identity/internal/store/sqlite/federation_test.go`
+- `mw-identity/internal/store/sqlite/identity_auth.go`
+- `mw-identity/migrations/019_authentication_instant.sql`
+- `mw-identity/web/static/account.html`
+- `mw-identity/web/static/messages.go`
+- `mw-identity/web/static/render.go`
+- `mw-web-admin/src/pages/Control/IdentityDetailPages.tsx`
+- `scripts/e2e-step-13.ps1`
+- `scripts/sanity-step-13.ps1`
+
+</details>

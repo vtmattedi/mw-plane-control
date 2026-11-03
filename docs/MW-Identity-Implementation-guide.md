@@ -1,5 +1,7 @@
 # MW Identity — Implementation Guide
 
+Federation v1 now follows [the integration guide](MW-Identity-application-integration.md) and [evidence record](dev_docs/MW-Identity-Federation-v1-Compliance.md). Legacy app-wide Strong and signup-based access below remain only for reviewed migration; TOTP-only is no longer Strong.
+
 **Component:** `mw-identity`  
 **Role:** central human identity, authentication, application registry, authorization issuer, token exchange, introspection, revocation, and recovery  
 **Version baseline:** MW Control Plane v1.0

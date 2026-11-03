@@ -5,6 +5,17 @@ import (
 	"time"
 )
 
+func TestProductionModeNormalization(t *testing.T) {
+	t.Setenv("APP_ENV", " Production ")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.AppEnv != "production" {
+		t.Fatal("production URI/transport policy could be skipped by environment spelling")
+	}
+}
+
 func TestLoadDefaults(t *testing.T) {
 	for _, key := range []string{
 		"PORT",

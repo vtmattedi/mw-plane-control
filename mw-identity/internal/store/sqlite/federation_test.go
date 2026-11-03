@@ -59,3 +59,30 @@ func TestFederationAccessFencesCredentialsAndSuperadmins(t *testing.T) {
 		t.Fatal("Go admitted explicitly denied superadmin")
 	}
 }
+
+func TestPrivateAssignmentRemovalFencesBothExchangeStages(t *testing.T) {
+	f := newRemovalFixture(t, "")
+	ctx := context.Background()
+	if _, err := f.store.db.ExecContext(ctx, `UPDATE identity_applications SET access_policy_v1=1,access_policy='default_deny',allow_public_signup=1 WHERE id='app_one'; UPDATE identity_users SET is_superadmin=1 WHERE id='usr_remove'`); err != nil {
+		t.Fatal(err)
+	}
+	code := oidc.AuthorizationCode{ID: "before-removal", CodeHash: "before-removal", UserID: "usr_remove", ClientID: "one-client", ConsentVersion: 1, AuthTime: f.now, CreatedAt: f.now, ExpiresAt: f.now.Add(time.Hour)}
+	if err := f.store.CreateAuthorizationCode(ctx, code); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.store.AuthorizationCodeByHash(ctx, code.CodeHash, f.now); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.store.DeleteIdentityAssignment(ctx, "app_one", "usr_remove"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.store.AuthorizationCodeByHash(ctx, code.CodeHash, f.now); err == nil {
+		t.Fatal("assignment removal did not fence code read")
+	}
+	if err := f.store.ConsumeAuthorizationCode(ctx, code.CodeHash, f.now); err == nil {
+		t.Fatal("assignment removal did not fence consume")
+	}
+	if err := f.store.CreateAccessToken(ctx, oidc.AccessToken{ID: "already-read", TokenHash: "already-read", UserID: code.UserID, ClientID: code.ClientID, ConsentVersion: 1, CreatedAt: f.now, ExpiresAt: code.ExpiresAt}); err == nil {
+		t.Fatal("in-flight exchange bypassed removed assignment")
+	}
+}

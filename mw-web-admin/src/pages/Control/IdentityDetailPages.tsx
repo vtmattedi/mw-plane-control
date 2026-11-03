@@ -36,6 +36,7 @@ type Application = {
   application_type: string
   authentication_policy: string
   access_policy: string
+  access_policy_v1?: boolean
   enabled: boolean
   archived_at?: string
   redirect_uris: string[]
@@ -375,15 +376,17 @@ export function IdentityApplicationDetailPage() {
                 >
                   <AlertTriangle className="mt-0.5 size-4 shrink-0" />
                   <span>
-                    {tr(
-                      'Esta aplicação não tem callback de exclusão da conta MW inteira. Ela continua funcionando, mas a próxima edição exige um callback, ou que ela seja marcada como interna.',
-                    )}
+                    {language === 'en'
+                      ? 'This legacy application needs a whole-identity deletion callback before it can be edited.'
+                      : 'Esta aplicação precisa de um callback de exclusão da identidade MW antes de ser editada.'}
                   </span>
                 </div>
               )}
               <fieldset
                 className="contents"
-                disabled={Boolean(query.data.archived_at)}
+                disabled={
+                  Boolean(query.data.archived_at) || query.data.internal
+                }
               >
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field label={tr('Nome')}>
@@ -407,6 +410,20 @@ export function IdentityApplicationDetailPage() {
                     />
                   </Field>
 
+                  {query.data.access_policy_v1 === false && (
+                    <p role="status">
+                      {language === 'en'
+                        ? 'Legacy access rules are active. An operator must review and migrate this client before Public/Private rules are enforced.'
+                        : 'Regras antigas de acesso ativas. Um operador precisa revisar e migrar este cliente antes de aplicar as regras de acesso.'}
+                    </p>
+                  )}
+                  {query.data.internal && (
+                    <p role="status">
+                      {language === 'en'
+                        ? 'Infrastructure configuration is managed through the operator workflow.'
+                        : 'A configuração de infraestrutura é gerenciada pelo operador.'}
+                    </p>
+                  )}
                   <Field label={tr('Política de acesso')}>
                     <Select
                       onChange={(event) =>

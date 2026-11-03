@@ -55,7 +55,7 @@ func main() {
 	allowPublicSignup := flag.Bool(
 		"allow-public-signup",
 		false,
-		"allow public enrollment with new or existing MW identities",
+		"deprecated compatibility metadata; use an explicit public access policy instead",
 	)
 	internal := flag.Bool(
 		"internal",
@@ -159,6 +159,7 @@ func main() {
 		fatal(err.Error())
 	}
 
+	service.RequireHTTPS(cfg.AppEnv == "production")
 	result, err := service.Create(
 		ctx,
 		applications.CreateRequest{
