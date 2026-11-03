@@ -149,6 +149,7 @@ func (s *Service) Create(
 
 	input := CreateInput{
 		ID:                     appID,
+		AccessPolicyV1:         true,
 		Name:                   name,
 		ClientID:               clientID,
 		ClientSecretHash:       secretHash,
@@ -176,6 +177,7 @@ func (s *Service) Create(
 
 	app := Application{
 		ID:                     input.ID,
+		AccessPolicyV1:         input.AccessPolicyV1,
 		Name:                   input.Name,
 		ClientID:               input.ClientID,
 		ClientSecretHash:       input.ClientSecretHash,

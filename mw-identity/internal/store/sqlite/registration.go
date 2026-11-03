@@ -14,9 +14,9 @@ func (s *Store) PublicSignupApplication(ctx context.Context, clientID string) (a
 	var app auth.SignupApplication
 	var enabled, signup int
 	var archived sql.NullInt64
-	err := s.db.QueryRowContext(ctx, `SELECT id, name, client_id, enabled, allow_public_signup, archived_at_unix
+	err := s.db.QueryRowContext(ctx, `SELECT id, name, client_id, enabled, allow_public_signup, archived_at_unix, access_policy
 		FROM identity_applications WHERE client_id = ?`, clientID).Scan(
-		&app.ID, &app.Name, &app.ClientID, &enabled, &signup, &archived,
+		&app.ID, &app.Name, &app.ClientID, &enabled, &signup, &archived, &app.AccessPolicy,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return auth.SignupApplication{}, auth.ErrNotFound

@@ -65,7 +65,7 @@ func (s *Store) AuthorizationCodeByHash(
 		FROM identity_authorization_codes AS artifact
 		WHERE code_hash = ?
 		  AND consumed_at_unix IS NULL
-		  AND expires_at_unix > ? AND EXISTS (SELECT 1 FROM identity_applications p JOIN identity_users u ON u.id=artifact.user_id WHERE p.client_id=artifact.client_id AND u.enabled=1 AND p.enabled=1 AND p.archived_at_unix IS NULL  AND (u.is_superadmin=1 OR EXISTS (SELECT 1 FROM identity_application_assignments a WHERE a.user_id=u.id AND a.application_id=p.id AND a.access_effect='allow') OR (NOT EXISTS (SELECT 1 FROM identity_application_assignments a WHERE a.user_id=u.id AND a.application_id=p.id) AND (p.access_policy='default_allow' OR (p.allow_public_signup=1 AND p.internal=0 AND NOT EXISTS (SELECT 1 FROM identity_application_audiences aa WHERE aa.application_id=p.id AND aa.audience='mw-identity-admin'))))) AND (u.account_type!='public' OR NOT EXISTS (SELECT 1 FROM identity_application_audiences aa WHERE aa.application_id=p.id AND aa.audience='mw-identity-admin')) AND (artifact.consent_version>0 AND EXISTS (SELECT 1 FROM identity_application_consents c WHERE c.user_id=u.id AND c.application_id=p.id AND c.active=1 AND c.version=artifact.consent_version)))`,
+		  AND expires_at_unix > ? AND EXISTS (SELECT 1 FROM identity_applications p JOIN identity_users u ON u.id=artifact.user_id WHERE p.client_id=artifact.client_id AND u.enabled=1 AND p.enabled=1 AND p.archived_at_unix IS NULL  AND `+credentialEligibility+` AND (artifact.consent_version>0 AND EXISTS (SELECT 1 FROM identity_application_consents c WHERE c.user_id=u.id AND c.application_id=p.id AND c.active=1 AND c.version=artifact.consent_version)))`,
 		codeHash,
 		now.Unix(),
 	)
@@ -131,7 +131,7 @@ func (s *Store) ConsumeAuthorizationCode(
 		 SET consumed_at_unix = ?
 		 WHERE code_hash = ?
 		   AND consumed_at_unix IS NULL
-		   AND expires_at_unix > ? AND EXISTS (SELECT 1 FROM identity_applications p JOIN identity_users u ON u.id=identity_authorization_codes.user_id WHERE p.client_id=identity_authorization_codes.client_id AND u.enabled=1 AND p.enabled=1 AND p.archived_at_unix IS NULL  AND (u.is_superadmin=1 OR EXISTS (SELECT 1 FROM identity_application_assignments a WHERE a.user_id=u.id AND a.application_id=p.id AND a.access_effect='allow') OR (NOT EXISTS (SELECT 1 FROM identity_application_assignments a WHERE a.user_id=u.id AND a.application_id=p.id) AND (p.access_policy='default_allow' OR (p.allow_public_signup=1 AND p.internal=0 AND NOT EXISTS (SELECT 1 FROM identity_application_audiences aa WHERE aa.application_id=p.id AND aa.audience='mw-identity-admin'))))) AND (u.account_type!='public' OR NOT EXISTS (SELECT 1 FROM identity_application_audiences aa WHERE aa.application_id=p.id AND aa.audience='mw-identity-admin')) AND (identity_authorization_codes.consent_version>0 AND EXISTS (SELECT 1 FROM identity_application_consents c WHERE c.user_id=u.id AND c.application_id=p.id AND c.active=1 AND c.version=identity_authorization_codes.consent_version)))`,
+		   AND expires_at_unix > ? AND EXISTS (SELECT 1 FROM identity_applications p JOIN identity_users u ON u.id=identity_authorization_codes.user_id WHERE p.client_id=identity_authorization_codes.client_id AND u.enabled=1 AND p.enabled=1 AND p.archived_at_unix IS NULL  AND `+credentialEligibility+` AND (identity_authorization_codes.consent_version>0 AND EXISTS (SELECT 1 FROM identity_application_consents c WHERE c.user_id=u.id AND c.application_id=p.id AND c.active=1 AND c.version=identity_authorization_codes.consent_version)))`,
 		now.Unix(),
 		codeHash,
 		now.Unix(),
@@ -202,7 +202,7 @@ func (s *Store) AccessTokenByHash(
 		FROM identity_access_tokens AS artifact
 		WHERE token_hash = ?
 		  AND revoked_at_unix IS NULL
-		  AND expires_at_unix > ? AND EXISTS (SELECT 1 FROM identity_applications p JOIN identity_users u ON u.id=artifact.user_id WHERE p.client_id=artifact.client_id AND u.enabled=1 AND p.enabled=1 AND p.archived_at_unix IS NULL  AND (u.is_superadmin=1 OR EXISTS (SELECT 1 FROM identity_application_assignments a WHERE a.user_id=u.id AND a.application_id=p.id AND a.access_effect='allow') OR (NOT EXISTS (SELECT 1 FROM identity_application_assignments a WHERE a.user_id=u.id AND a.application_id=p.id) AND (p.access_policy='default_allow' OR (p.allow_public_signup=1 AND p.internal=0 AND NOT EXISTS (SELECT 1 FROM identity_application_audiences aa WHERE aa.application_id=p.id AND aa.audience='mw-identity-admin'))))) AND (u.account_type!='public' OR NOT EXISTS (SELECT 1 FROM identity_application_audiences aa WHERE aa.application_id=p.id AND aa.audience='mw-identity-admin')) AND (artifact.consent_version>0 AND EXISTS (SELECT 1 FROM identity_application_consents c WHERE c.user_id=u.id AND c.application_id=p.id AND c.active=1 AND c.version=artifact.consent_version)))`,
+		  AND expires_at_unix > ? AND EXISTS (SELECT 1 FROM identity_applications p JOIN identity_users u ON u.id=artifact.user_id WHERE p.client_id=artifact.client_id AND u.enabled=1 AND p.enabled=1 AND p.archived_at_unix IS NULL  AND `+credentialEligibility+` AND (artifact.consent_version>0 AND EXISTS (SELECT 1 FROM identity_application_consents c WHERE c.user_id=u.id AND c.application_id=p.id AND c.active=1 AND c.version=artifact.consent_version)))`,
 		tokenHash,
 		now.Unix(),
 	)

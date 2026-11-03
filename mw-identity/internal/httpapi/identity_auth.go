@@ -131,14 +131,21 @@ func (h *identityAuthHandlers) loginPage(
 			registrationURL = "/register/en"
 		}
 	}
+	restricted := false
+	if target, e := url.Parse(returnTo); e == nil && target.Path == "/oauth/authorize" {
+		if app, e := h.service.PublicSignupApplication(r.Context(), target.Query().Get("client_id")); e == nil {
+			restricted = app.AccessPolicy == "default_deny"
+		}
+	}
 	if err := webstatic.RenderLogin(
 		w,
 		loginPageEnglish(r),
 		webstatic.LoginData{
-			CSRFToken:       token,
-			ReturnTo:        returnTo,
-			RegistrationURL: registrationURL,
-			RequiredAuth:    requestedAuth,
+			RestrictedApplication: restricted,
+			CSRFToken:             token,
+			ReturnTo:              returnTo,
+			RegistrationURL:       registrationURL,
+			RequiredAuth:          requestedAuth,
 		},
 	); err != nil {
 		return
@@ -164,7 +171,7 @@ func (h *identityAuthHandlers) registrationURL(r *http.Request, returnTo string)
 		return ""
 	}
 	clientID := parsed.Query().Get("client_id")
-	if _, err := h.service.PublicSignupApplication(r.Context(), clientID); err != nil {
+	if app, err := h.service.PublicSignupApplication(r.Context(), clientID); err != nil || app.AccessPolicy != "default_allow" || !h.config.PublicSignupEnabled {
 		return ""
 	}
 	values := url.Values{"client_id": {clientID}, "return_to": {returnTo}}
@@ -175,12 +182,15 @@ func (h *identityAuthHandlers) registrationURL(r *http.Request, returnTo string)
 // must be an authorization request for an application that allows public
 // sign-up; without one it is a stand-alone sign-up, allowed only when enabled.
 func (h *identityAuthHandlers) registrationTarget(r *http.Request, clientID, returnTo string) (webstatic.RegistrationData, bool) {
+	if !h.config.PublicSignupEnabled {
+		return webstatic.RegistrationData{}, false
+	}
 	if clientID == "" {
-		return webstatic.RegistrationData{}, h.config.PublicSignupEnabled
+		return webstatic.RegistrationData{}, true
 	}
 	parsedReturn, _ := url.Parse(returnTo)
 	app, err := h.service.PublicSignupApplication(r.Context(), clientID)
-	if err != nil || parsedReturn.Query().Get("client_id") != clientID || h.registrationURL(r, returnTo) == "" {
+	if err != nil || parsedReturn == nil || parsedReturn.Path != "/oauth/authorize" || parsedReturn.Query().Get("client_id") != clientID {
 		return webstatic.RegistrationData{}, false
 	}
 	return webstatic.RegistrationData{ReturnTo: returnTo, ClientID: clientID, AppName: app.Name}, true

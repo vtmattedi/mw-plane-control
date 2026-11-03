@@ -95,6 +95,7 @@ type DeleteAccountResult struct {
 }
 
 type SignupApplication struct {
+	AccessPolicy      string
 	ID                string
 	Name              string
 	ClientID          string

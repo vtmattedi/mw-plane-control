@@ -50,8 +50,8 @@ func (s *Store) CreateApplication(
 			updated_at_unix,
 			delete_callback_uri,
 			allow_public_signup,
-			internal
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
+			internal, access_policy_v1
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)`,
 		input.ID,
 		input.Name,
 		input.ClientID,
@@ -64,7 +64,7 @@ func (s *Store) CreateApplication(
 		input.CreatedAt.Unix(),
 		nullableString(input.DeleteCallbackURI),
 		boolInt(input.AllowPublicSignup),
-		boolInt(input.Internal),
+		boolInt(input.Internal), boolInt(input.AccessPolicyV1),
 	)
 	if err != nil {
 		if strings.Contains(
@@ -181,7 +181,7 @@ func (s *Store) ApplicationByClientID(
 			updated_at_unix,
 			delete_callback_uri,
 			allow_public_signup,
-			internal
+			internal, access_policy_v1
 		FROM identity_applications
 		WHERE client_id = ?`,
 		clientID,
@@ -199,7 +199,7 @@ func (s *Store) ApplicationByClientID(
 		&updated,
 		&deleteCallback,
 		&allowPublicSignup,
-		&internal,
+		&internal, &app.AccessPolicyV1,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return applications.Application{},

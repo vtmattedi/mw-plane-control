@@ -30,6 +30,7 @@ func CheckLifecycle(internal, allowPublicSignup bool, deleteCallbackURI string) 
 }
 
 type Application struct {
+	AccessPolicyV1         bool       `json:"access_policy_v1"`
 	ID                     string     `json:"id"`
 	Name                   string     `json:"name"`
 	ClientID               string     `json:"client_id"`
@@ -55,6 +56,7 @@ type Application struct {
 }
 
 type CreateInput struct {
+	AccessPolicyV1         bool
 	ID                     string
 	Name                   string
 	ClientID               string

@@ -18,6 +18,7 @@
     <script src="/static/portal.js" defer></script>
   </head>
   <body data-required-auth="{{.RequiredAuth}}">
+ {{if .RestrictedApplication}}<p role="status">Access to this application is restricted. An administrator must grant access; creating an MW identity does not grant access.</p>{{end}}
     <div class="ambient ambient-one"></div>
     <div class="ambient ambient-two"></div>
 

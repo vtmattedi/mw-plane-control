@@ -55,6 +55,9 @@ func (s *Store) GrantIdentityConsent(ctx context.Context, user, app string, scop
 const credentialConsentPredicate = `EXISTS (SELECT 1 FROM identity_applications p
  JOIN identity_users u ON u.id=?
  WHERE p.client_id=? AND p.enabled=1 AND p.archived_at_unix IS NULL AND u.enabled=1
- AND (u.is_superadmin=1 OR EXISTS (SELECT 1 FROM identity_application_assignments a WHERE a.user_id=u.id AND a.application_id=p.id AND a.access_effect='allow') OR (NOT EXISTS (SELECT 1 FROM identity_application_assignments a WHERE a.user_id=u.id AND a.application_id=p.id) AND (p.access_policy='default_allow' OR (p.allow_public_signup=1 AND p.internal=0 AND NOT EXISTS (SELECT 1 FROM identity_application_audiences aa WHERE aa.application_id=p.id AND aa.audience='mw-identity-admin'))))) AND (u.account_type!='public' OR NOT EXISTS (SELECT 1 FROM identity_application_audiences aa WHERE aa.application_id=p.id AND aa.audience='mw-identity-admin'))
+ AND ` + credentialEligibility + `
  AND (? > 0 AND EXISTS (SELECT 1 FROM identity_application_consents c
  WHERE c.user_id=u.id AND c.application_id=p.id AND c.active=1 AND c.version=?)))`
+
+// Mirrors AuthorizeIdentityUser; exercised against the same policy matrix.
+const credentialEligibility = `((u.is_superadmin=1 AND (p.access_policy_v1=0 OR EXISTS (SELECT 1 FROM identity_application_audiences aa WHERE aa.application_id=p.id AND aa.audience='mw-identity-admin'))) OR EXISTS (SELECT 1 FROM identity_application_assignments a WHERE a.user_id=u.id AND a.application_id=p.id AND a.access_effect='allow') OR (NOT EXISTS (SELECT 1 FROM identity_application_assignments a WHERE a.user_id=u.id AND a.application_id=p.id) AND (p.access_policy='default_allow' OR (p.access_policy_v1=0 AND p.allow_public_signup=1 AND p.internal=0 AND NOT EXISTS (SELECT 1 FROM identity_application_audiences aa WHERE aa.application_id=p.id AND aa.audience='mw-identity-admin'))))) AND (u.account_type!='public' OR NOT EXISTS (SELECT 1 FROM identity_application_audiences aa WHERE aa.application_id=p.id AND aa.audience='mw-identity-admin')) AND u.deletion_requested_at_unix IS NULL`
