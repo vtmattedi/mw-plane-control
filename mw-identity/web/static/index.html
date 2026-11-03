@@ -18,7 +18,7 @@
     <script src="/static/portal.js" defer></script>
   </head>
   <body data-required-auth="{{.RequiredAuth}}">
- {{if .RestrictedApplication}}<p role="status">O acesso a este aplicativo � restrito. Um administrador precisa conceder acesso; criar uma identidade MW n�o concede acesso.</p>{{end}}
+ {{if .RestrictedApplication}}<p role="status">O acesso a este aplicativo é restrito. Um administrador precisa conceder acesso; criar uma identidade MW não concede acesso.</p>{{end}}
     <div class="ambient ambient-one"></div>
     <div class="ambient ambient-two"></div>
 
@@ -184,7 +184,8 @@
                 Digite o código de 6 dígitos que aparece no seu app autenticador.
               </p>
             </div>
-            <form action="/api/totp/login" method="post" data-code-form>
+            <form action="/api/totp/login" method="post" data-code-form><label>Email<input name="mfa_email" type="email" autocomplete="username" required /></label>
+<label>Senha<input name="mfa_password" type="password" autocomplete="current-password" required /></label>
               <input type="hidden" name="csrf_token" data-csrf />
               <input
                 type="hidden"

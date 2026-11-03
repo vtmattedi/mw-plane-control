@@ -40,6 +40,7 @@ func RunMaintenance(ctx context.Context, db *sql.DB, now time.Time, auditRetenti
 		out   *int64
 	}{
 		{"DELETE FROM identity_audit_events WHERE created_at_unix < ?", []any{auditCutoff}, &stats.AuditEvents},
+		{"DELETE FROM identity_mfa_challenges WHERE expires_at_unix < ?", []any{nowUnix}, new(int64)},
 		{"DELETE FROM identity_sessions WHERE expires_at_unix < ?", []any{nowUnix}, &stats.Sessions},
 		{"DELETE FROM identity_authorization_codes WHERE expires_at_unix < ?", []any{nowUnix}, &stats.AuthorizationCodes},
 		{"DELETE FROM identity_access_tokens WHERE expires_at_unix < ? OR revoked_at_unix IS NOT NULL", []any{nowUnix}, &stats.AccessTokens},

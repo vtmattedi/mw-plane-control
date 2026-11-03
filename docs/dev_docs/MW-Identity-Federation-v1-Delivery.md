@@ -23,3 +23,11 @@ Migration 015 adds optional account management/deletion navigation URLs. Registr
 Validation: Identity tests and vet pass, including rejected ordinary infrastructure promotion and URL boundary cases. Frontend typecheck passes; full UI suite is recorded after completion. Production callback network restrictions are enforced by the deletion worker increment, in addition to registration URI validation. Live registration/secret cutover is unverified.
 
 Rollout: additive migration, rebuild Identity and admin; verify registered navigation targets and ordinary client creation. Existing IDs/secrets remain. Rollback: revert code and retain unused URL columns. Existing legacy auth/signup fields remain for compatibility; no Strong gate is removed.
+
+## PR-03
+
+Migration 016 stores versioned authentication proof and durable hashed MFA challenges, and invalidates legacy TOTP-only sessions. Combined password/TOTP requires a verified password, browser-CSRF binding, expiry, persistent five-attempt budget, current password fingerprint, replay-resistant OTP and one-use challenge consumption. No session is issued after password verification alone. Session insertion atomically rejects disabled/deleting/recovery-pending users. The portal supplies both factors with the bound server challenge; email+OTP alone fails. Existing app Strong gates stay enabled and now reject TOTP-only.
+
+Validation: Identity tests/vet pass. A real SQLite/HTTP test enrolls encrypted TOTP, generates a real HMAC OTP, rejects passwordless and cross-browser attempts, completes MFA, verifies Strong but not WebAuthn proof, and rejects replay. Store tests cover durable attempt exhaustion, expiry and concurrent one-use consumption. Satisfaction matrix includes recovery, missing proof, unknown ACR, password, MFA and UV passkey. Hardware/browser smoke remains unverified.
+
+Rollout: migrate schema, rebuild provider and portal assets together, require legacy TOTP users to sign in with password+TOTP or passkey. Old proof is never relabeled; v1 assurance requires reauthentication. Rollback must retain the TOTP-only rejection and challenge migration; old binaries would restore the forbidden TOTP-only Strong route. Preserve manual recovery/passkey enrollment. OIDC propagation is delivered in PR-04.

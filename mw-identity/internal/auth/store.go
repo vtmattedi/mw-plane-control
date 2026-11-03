@@ -50,6 +50,7 @@ type NewUser struct {
 }
 
 type SessionRecord struct {
+	Proof      string
 	ID         string
 	UserID     string
 	TokenHash  string
@@ -62,6 +63,7 @@ type SessionRecord struct {
 }
 
 type Session struct {
+	Proof      string
 	ID         string
 	User       User
 	TokenHash  string

@@ -181,7 +181,8 @@
               <h2>Verification code</h2>
               <p>Enter the 6-digit code from your authenticator app.</p>
             </div>
-            <form action="/api/totp/login" method="post" data-code-form>
+            <form action="/api/totp/login" method="post" data-code-form><label>Email<input name="mfa_email" type="email" autocomplete="username" required /></label>
+<label>Password<input name="mfa_password" type="password" autocomplete="current-password" required /></label>
               <input type="hidden" name="csrf_token" data-csrf />
               <input
                 type="hidden"

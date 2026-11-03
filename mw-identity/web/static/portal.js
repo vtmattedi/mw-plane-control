@@ -201,7 +201,8 @@
     .querySelector("[data-code-form]")
     .addEventListener("submit", async function (event) {
       event.preventDefault();
-      var email = document.querySelector('[data-password-form] [name="email"]');
+      var email = event.currentTarget.querySelector('[name="mfa_email"]');
+ var password = event.currentTarget.querySelector('[name="mfa_password"]');
       var code = event.currentTarget.querySelector('[name="code"]');
       try {
         if (!email.value.trim()) {
@@ -211,12 +212,16 @@
               : "Digite seu email antes de usar o código do app autenticador.",
           );
         }
+        var first = await fetch("/api/totp/login", {method:"POST", credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:email.value,password:password.value,csrf_token:csrf,return_to:params.get("return_to")||""})});
+        password.value="";
+        var started=await first.json();
+        if(!first.ok || !started.challenge) throw new Error(english ? "Password verification failed." : "Falha ao verificar a senha.");
         var response = await fetch("/api/totp/login", {
           method: "POST",
           credentials: "same-origin",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            email: email.value,
+            challenge: started.challenge, csrf_token: csrf,
             code: code.value,
             return_to: params.get("return_to") || "",
           }),

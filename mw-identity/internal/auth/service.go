@@ -166,12 +166,7 @@ func (s *Service) CreateSuperadmin(
 	return user, nil
 }
 
-func (s *Service) Login(
-	ctx context.Context,
-	email string,
-	password []byte,
-	remoteIP string,
-) (LoginResult, error) {
+func (s *Service) VerifyPasswordForLogin(ctx context.Context, email string, password []byte, remoteIP string) (User, error) {
 	normalized, normalizeErr := NormalizeEmail(email)
 	if normalizeErr != nil {
 		normalized = strings.ToLower(strings.TrimSpace(email))
@@ -188,14 +183,14 @@ func (s *Service) Login(
 				"invalid_credentials",
 				emailFingerprint(normalized),
 			)
-			return LoginResult{}, ErrInvalidLogin
+			return User{}, ErrInvalidLogin
 		}
-		return LoginResult{}, err
+		return User{}, err
 	}
 
 	ok, verifyErr := VerifyPassword(password, user.PasswordHash)
 	if verifyErr != nil {
-		return LoginResult{}, fmt.Errorf(
+		return User{}, fmt.Errorf(
 			"verify stored password hash: %w",
 			verifyErr,
 		)
@@ -209,10 +204,10 @@ func (s *Service) Login(
 			"invalid_credentials",
 			"",
 		)
-		return LoginResult{}, ErrInvalidLogin
+		return User{}, ErrInvalidLogin
 	}
 
-	if !user.Enabled {
+	if !user.Enabled || user.DeletionRequestedAt != nil {
 		s.recordLoginFailure(
 			ctx,
 			&user.ID,
@@ -220,17 +215,29 @@ func (s *Service) Login(
 			"user_disabled",
 			"",
 		)
-		return LoginResult{}, ErrUserDisabled
+		return User{}, ErrUserDisabled
 	}
 
 	pending, err := s.store.IdentityUserRecoveryPending(ctx, user.ID)
 	if err != nil {
-		return LoginResult{}, err
+		return User{}, err
 	}
 	if pending {
-		return LoginResult{}, ErrRecoveryPending
+		return User{}, ErrRecoveryPending
 	}
 
+	return user, nil
+}
+func (s *Service) Login(
+	ctx context.Context,
+	email string,
+	password []byte,
+	remoteIP string,
+) (LoginResult, error) {
+	user, err := s.VerifyPasswordForLogin(ctx, email, password, remoteIP)
+	if err != nil {
+		return LoginResult{}, err
+	}
 	sessionToken, err := NewOpaqueToken("mwid_")
 	if err != nil {
 		return LoginResult{}, err
@@ -257,6 +264,7 @@ func (s *Service) Login(
 			TokenHash:  HashToken(sessionToken),
 			CSRFHash:   HashToken(csrfToken),
 			AuthMethod: "password",
+			Proof:      ProofPassword,
 			AuthTime:   now,
 			ExpiresAt:  expiresAt,
 			CreatedAt:  now,
@@ -300,7 +308,7 @@ func (s *Service) CreateSessionForUser(
 		}
 		return LoginResult{}, err
 	}
-	if !user.Enabled {
+	if !user.Enabled || user.DeletionRequestedAt != nil {
 		return LoginResult{}, ErrUserDisabled
 	}
 	pending, err := s.store.IdentityUserRecoveryPending(ctx, user.ID)
@@ -334,6 +342,7 @@ func (s *Service) CreateSessionForUser(
 			TokenHash:  HashToken(sessionToken),
 			CSRFHash:   HashToken(csrfToken),
 			AuthMethod: authMethodFromReason(reason),
+			Proof:      proofFromReason(reason),
 			AuthTime:   now,
 			ExpiresAt:  expiresAt,
 			CreatedAt:  now,
@@ -372,6 +381,8 @@ func authMethodFromReason(reason string) string {
 		return "webauthn"
 	case "password":
 		return "password"
+	case "password_totp":
+		return "password_totp"
 	case "totp":
 		return "totp"
 	case "recovery":
@@ -521,4 +532,16 @@ func mustAuditID() string {
 func emailFingerprint(value string) string {
 	sum := sha256.Sum256([]byte(value))
 	return hex.EncodeToString(sum[:8])
+}
+
+func proofFromReason(reason string) string {
+	switch reason {
+	case "webauthn":
+		return ProofPasskey
+	case "password_totp":
+		return ProofMFA
+	case "public_registration":
+		return ProofPassword
+	}
+	return ""
 }

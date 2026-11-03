@@ -1,0 +1,7 @@
+# Authentication evidence and combined MFA
+
+Session proof is a versioned fact written only after verification: `pwd_v1`, `webauthn_uv_v1`, or `pwd_totp_v1`. It records the actual authentication event through the existing `auth_time`; token issuance never resets it. The proof is carried unchanged into authorization codes/access tokens. Passkey proof requires successful library verification with required UV. Password+TOTP proof requires both factors within one five-minute browser-bound challenge. Old sessions have empty proof and must reauthenticate for v1 assurance; TOTP-only sessions are revoked by migration. Recovery capabilities grant no authentication proof.
+
+Password verification creates no session. A successful password check starts a random challenge whose hash, browser-CSRF binding hash, user ID, password fingerprint, fixed return destination, expiry and five-attempt budget are persisted. Completion checks the same browser, current user/recovery/deletion state and unchanged password, consumes a non-replayed TOTP and atomically consumes the challenge before issuing a session. No password, OTP or raw bearer challenge is persisted. Attempts survive restart. Concurrent completions cannot issue two sessions. Failure after consumption requires restarting authentication.
+
+The portal uses a password then code flow in both languages. Direct email+TOTP login is removed. Login rate limiting and CSRF apply to both stages. Existing WebAuthn-only BFF/Identity admin mutation checks remain in place. Hardware/browser evidence is a separate release gate.

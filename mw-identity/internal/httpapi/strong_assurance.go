@@ -28,7 +28,7 @@ func recentWebAuthnAccess(access oidc.AccessContext, maxAge time.Duration, now t
 
 func strongSessionMethod(method string) bool {
 	switch strings.TrimSpace(method) {
-	case "webauthn", "totp":
+	case "webauthn", "password_totp":
 		return true
 	default:
 		return false
