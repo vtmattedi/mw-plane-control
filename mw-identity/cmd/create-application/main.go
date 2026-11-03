@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/applications"
+	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/audit"
+	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/auth"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/config"
 	storesqlite "github.com/vtmattedi/mw-plane-control/mw-identity/internal/store/sqlite"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/migrations"
@@ -199,6 +201,13 @@ func main() {
 		}
 	}
 
+	auditID, auditErr := auth.NewOpaqueToken("aud_")
+	if auditErr != nil {
+		fatal(auditErr.Error())
+	}
+	if err := storesqlite.NewStore(db).RecordAuditEvent(ctx, audit.Event{ID: auditID, EventType: "identity.application.operator_provisioned", Status: "success", Severity: "warning", ReasonCode: "operator_cli", Metadata: map[string]any{"client_id": result.Application.ClientID, "internal": result.Application.Internal}, CreatedAt: time.Now().UTC()}); err != nil {
+		fatal("provisioning audit failed")
+	}
 	if *asJSON {
 		payload := map[string]any{
 			"application": map[string]any{

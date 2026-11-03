@@ -233,6 +233,8 @@ func (h *identityAdminHandlers) createApplication(
 		RedirectURIs           []string `json:"redirect_uris"`
 		PostLogoutRedirectURIs []string `json:"post_logout_redirect_uris"`
 		DeleteCallbackURI      string   `json:"delete_callback_uri"`
+		AccountManagementURI   string   `json:"account_management_uri"`
+		AccountDeletionURI     string   `json:"account_deletion_uri"`
 		AllowPublicSignup      bool     `json:"allow_public_signup"`
 		Internal               bool     `json:"internal"`
 		Scopes                 []string `json:"scopes"`
@@ -257,6 +259,8 @@ func (h *identityAdminHandlers) createApplication(
 			RedirectURIs:           request.RedirectURIs,
 			PostLogoutRedirectURIs: request.PostLogoutRedirectURIs,
 			DeleteCallbackURI:      request.DeleteCallbackURI,
+			AccountManagementURI:   request.AccountManagementURI,
+			AccountDeletionURI:     request.AccountDeletionURI,
 			AllowPublicSignup:      request.AllowPublicSignup,
 			Internal:               request.Internal,
 			Scopes:                 request.Scopes,

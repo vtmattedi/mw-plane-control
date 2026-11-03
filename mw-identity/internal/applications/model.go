@@ -43,6 +43,8 @@ type Application struct {
 	RedirectURIs           []string   `json:"redirect_uris"`
 	PostLogoutRedirectURIs []string   `json:"post_logout_redirect_uris"`
 	DeleteCallbackURI      string     `json:"delete_callback_uri,omitempty"`
+	AccountManagementURI   string     `json:"account_management_uri"`
+	AccountDeletionURI     string     `json:"account_deletion_uri"`
 	AllowPublicSignup      bool       `json:"allow_public_signup"`
 	Internal               bool       `json:"internal"`
 	// NeedsDeleteCallback flags an application registered before the callback
@@ -68,6 +70,8 @@ type CreateInput struct {
 	RedirectURIs           []string
 	PostLogoutRedirectURIs []string
 	DeleteCallbackURI      string
+	AccountManagementURI   string
+	AccountDeletionURI     string
 	AllowPublicSignup      bool
 	Internal               bool
 	Scopes                 []string

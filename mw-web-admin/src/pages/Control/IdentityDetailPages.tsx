@@ -40,6 +40,8 @@ type Application = {
   archived_at?: string
   redirect_uris: string[]
   post_logout_redirect_uris: string[]
+  account_management_uri?: string
+  account_deletion_uri?: string
   delete_callback_uri?: string
   allow_public_signup: boolean
   internal?: boolean
@@ -57,6 +59,8 @@ type ApplicationForm = {
   access_policy: string
   redirect_uris: string
   post_logout_redirect_uris: string
+  account_management_uri: string
+  account_deletion_uri: string
   delete_callback_uri: string
   allow_public_signup: boolean
   internal: boolean
@@ -83,7 +87,7 @@ const pendingApplicationKey = 'mw-identity-application-pending'
 
 export function IdentityApplicationDetailPage() {
   const { applicationID = '' } = useParams()
-  const { tr } = usePreferences()
+  const { tr, language } = usePreferences()
   const confirm = useConfirm()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -145,6 +149,8 @@ export function IdentityApplicationDetailPage() {
       redirect_uris: (redirect_uris ?? []).join(', '),
       post_logout_redirect_uris: (post_logout_redirect_uris ?? []).join(', '),
       delete_callback_uri: delete_callback_uri ?? '',
+      account_management_uri: query.data.account_management_uri ?? '',
+      account_deletion_uri: query.data.account_deletion_uri ?? '',
       allow_public_signup: allow_public_signup === true,
       internal: internal === true,
       scopes: (scopes ?? []).join(', '),
@@ -400,20 +406,7 @@ export function IdentityApplicationDetailPage() {
                       value={query.data.application_type}
                     />
                   </Field>
-                  <Field label={tr('Política')}>
-                    <Select
-                      onChange={(event) =>
-                        setForm({
-                          ...form,
-                          authentication_policy: event.target.value,
-                        })
-                      }
-                      value={form.authentication_policy}
-                    >
-                      <option value="standard">Standard</option>
-                      <option value="strong">Strong</option>
-                    </Select>
-                  </Field>
+
                   <Field label={tr('Política de acesso')}>
                     <Select
                       onChange={(event) =>
@@ -422,10 +415,10 @@ export function IdentityApplicationDetailPage() {
                       value={form.access_policy}
                     >
                       <option value="default_deny">
-                        {tr('Negar por padrão')}
+                        {language === 'en' ? 'Private' : 'Privado'}
                       </option>
                       <option value="default_allow">
-                        {tr('Permitir por padrão')}
+                        {language === 'en' ? 'Public' : 'Público'}
                       </option>
                     </Select>
                   </Field>
@@ -448,24 +441,7 @@ export function IdentityApplicationDetailPage() {
                       value={form.post_logout_redirect_uris}
                     />
                   </Field>
-                  <Field label={tr('Uso')}>
-                    <Select
-                      onChange={(event) =>
-                        setForm({
-                          ...form,
-                          internal: event.target.value === 'internal',
-                          allow_public_signup:
-                            event.target.value === 'internal'
-                              ? false
-                              : form.allow_public_signup,
-                        })
-                      }
-                      value={form.internal ? 'internal' : 'users'}
-                    >
-                      <option value="users">{tr('Para usuários')}</option>
-                      <option value="internal">{tr('Interna (MW BFF)')}</option>
-                    </Select>
-                  </Field>
+
                   <Field
                     className="sm:col-span-2"
                     label={tr(
@@ -482,20 +458,34 @@ export function IdentityApplicationDetailPage() {
                       value={form.delete_callback_uri}
                     />
                   </Field>
-                  <Field label={tr('Cadastro público')}>
-                    <Select
-                      disabled={form.internal}
-                      onChange={(event) =>
-                        setForm({
-                          ...form,
-                          allow_public_signup: event.target.value === 'enabled',
-                        })
+
+                  <Field
+                    label={
+                      language === 'en'
+                        ? 'Manage account URL (optional)'
+                        : 'URL de gestão da conta (opcional)'
+                    }
+                  >
+                    <Input
+                      value={form.account_management_uri}
+                      onChange={(account_management_uri) =>
+                        setForm({ ...form, account_management_uri })
                       }
-                      value={form.allow_public_signup ? 'enabled' : 'disabled'}
-                    >
-                      <option value="disabled">{tr('Desativado')}</option>
-                      <option value="enabled">{tr('Ativado')}</option>
-                    </Select>
+                    />
+                  </Field>
+                  <Field
+                    label={
+                      language === 'en'
+                        ? 'Delete account URL (optional)'
+                        : 'URL de exclusão da conta (opcional)'
+                    }
+                  >
+                    <Input
+                      value={form.account_deletion_uri}
+                      onChange={(account_deletion_uri) =>
+                        setForm({ ...form, account_deletion_uri })
+                      }
+                    />
                   </Field>
                   <Field label="Scopes">
                     <Input
@@ -522,6 +512,7 @@ export function IdentityApplicationDetailPage() {
                   <Button
                     disabled={
                       mutation.isPending ||
+                      query.data.internal ||
                       !form.name.trim() ||
                       !form.redirect_uris.trim()
                     }

@@ -281,11 +281,10 @@ func TestLegacyApplicationWithoutDeleteCallback(t *testing.T) {
 	}
 
 	edit.DeleteCallbackURI, edit.Internal = "", true
-	if updated, err = admin.UpdateApplication(ctx, auth.User{ID: "usr_admin"}, "", "app_legacy", edit); err != nil || !updated.Internal {
-		t.Fatalf("mark internal = internal %v, err %v", updated.Internal, err)
+	if _, err = admin.UpdateApplication(ctx, auth.User{ID: "usr_admin"}, "", "app_legacy", edit); !errors.Is(err, identityadmin.ErrRoleForbidden) {
+		t.Fatalf("ordinary API promoted infrastructure: %v", err)
 	}
-	edit.AllowPublicSignup = true
-	if _, err := admin.UpdateApplication(ctx, auth.User{ID: "usr_admin"}, "", "app_legacy", edit); !errors.Is(err, identityadmin.ErrInvalid) && !errors.Is(err, applications.ErrInvalidApplication) {
-		t.Fatalf("internal app with public sign-up error = %v", err)
+	if _, err = admin.CreateApplication(ctx, auth.User{ID: "usr_admin"}, "", identityadmin.CreateApplicationRequest{Internal: true}); !errors.Is(err, identityadmin.ErrRoleForbidden) {
+		t.Fatalf("ordinary API created infrastructure: %v", err)
 	}
 }

@@ -31,6 +31,8 @@ type CreateApplicationRequest struct {
 	RedirectURIs           []string
 	PostLogoutRedirectURIs []string
 	DeleteCallbackURI      string
+	AccountManagementURI   string
+	AccountDeletionURI     string
 	AllowPublicSignup      bool
 	Internal               bool
 	Scopes                 []string
@@ -157,6 +159,12 @@ func (s *Service) CreateApplication(
 	remoteIP string,
 	request CreateApplicationRequest,
 ) (CreateApplicationResult, error) {
+	if request.Internal || privilegedRegistration(request.Scopes, request.Audiences) {
+		return CreateApplicationResult{}, ErrRoleForbidden
+	}
+	if request.AuthenticationPolicy == "strong" || request.AllowPublicSignup {
+		return CreateApplicationResult{}, ErrInvalid
+	}
 	result, err := s.applications.Create(
 		ctx,
 		applications.CreateRequest{
@@ -168,6 +176,8 @@ func (s *Service) CreateApplication(
 			RedirectURIs:           request.RedirectURIs,
 			PostLogoutRedirectURIs: request.PostLogoutRedirectURIs,
 			DeleteCallbackURI:      request.DeleteCallbackURI,
+			AccountManagementURI:   request.AccountManagementURI,
+			AccountDeletionURI:     request.AccountDeletionURI,
 			AllowPublicSignup:      request.AllowPublicSignup,
 			Internal:               request.Internal,
 			Scopes:                 request.Scopes,
@@ -267,6 +277,14 @@ func (s *Service) UpdateApplication(
 		return applications.Application{}, ErrArchived
 	}
 
+	if current.Internal || request.Internal != current.Internal || privilegedRegistration(request.Scopes, request.Audiences) {
+		return applications.Application{}, ErrRoleForbidden
+	}
+	if request.AuthenticationPolicy != "" && request.AuthenticationPolicy != current.AuthenticationPolicy {
+		return applications.Application{}, ErrInvalid
+	}
+	request.AuthenticationPolicy = current.AuthenticationPolicy
+	request.AllowPublicSignup = current.AllowPublicSignup
 	normalized, err := normalizeUpdate(request)
 	if err != nil {
 		return applications.Application{}, err
@@ -673,6 +691,14 @@ func normalizeUpdate(
 	}
 
 	var err error
+	request.AccountManagementURI, err = applications.ValidateNavigationURI(request.AccountManagementURI)
+	if err != nil {
+		return UpdateApplication{}, ErrInvalid
+	}
+	request.AccountDeletionURI, err = applications.ValidateNavigationURI(request.AccountDeletionURI)
+	if err != nil {
+		return UpdateApplication{}, ErrInvalid
+	}
 	request.RedirectURIs, err = normalizeURIs(
 		request.RedirectURIs,
 		true,
@@ -812,4 +838,18 @@ func randomID(prefix string) (string, error) {
 
 	return prefix +
 		base64.RawURLEncoding.EncodeToString(raw), nil
+}
+
+func privilegedRegistration(scopes, audiences []string) bool {
+	for _, v := range scopes {
+		if strings.HasPrefix(v, "identity.") {
+			return true
+		}
+	}
+	for _, v := range audiences {
+		if v == "mw-identity-admin" {
+			return true
+		}
+	}
+	return false
 }

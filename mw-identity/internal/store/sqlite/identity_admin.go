@@ -122,7 +122,7 @@ func (s *Store) UpdateIdentityApplication(
 		 SET name = ?,
 		     authentication_policy = ?,
 		     access_policy = ?,
-		     delete_callback_uri = ?,
+		     delete_callback_uri = ?, account_management_uri = ?, account_deletion_uri = ?,
 		     allow_public_signup = ?,
 		     internal = ?,
 		     updated_at_unix = ?
@@ -131,7 +131,7 @@ func (s *Store) UpdateIdentityApplication(
 		value.Name,
 		value.AuthenticationPolicy,
 		value.AccessPolicy,
-		nullableString(value.DeleteCallbackURI),
+		nullableString(value.DeleteCallbackURI), value.AccountManagementURI, value.AccountDeletionURI,
 		boolInt(value.AllowPublicSignup),
 		boolInt(value.Internal),
 		now.Unix(),

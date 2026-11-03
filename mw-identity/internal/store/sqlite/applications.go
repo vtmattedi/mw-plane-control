@@ -50,8 +50,8 @@ func (s *Store) CreateApplication(
 			updated_at_unix,
 			delete_callback_uri,
 			allow_public_signup,
-			internal, access_policy_v1
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)`,
+			internal, access_policy_v1, account_management_uri, account_deletion_uri
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		input.ID,
 		input.Name,
 		input.ClientID,
@@ -64,7 +64,7 @@ func (s *Store) CreateApplication(
 		input.CreatedAt.Unix(),
 		nullableString(input.DeleteCallbackURI),
 		boolInt(input.AllowPublicSignup),
-		boolInt(input.Internal), boolInt(input.AccessPolicyV1),
+		boolInt(input.Internal), boolInt(input.AccessPolicyV1), input.AccountManagementURI, input.AccountDeletionURI,
 	)
 	if err != nil {
 		if strings.Contains(
@@ -181,7 +181,7 @@ func (s *Store) ApplicationByClientID(
 			updated_at_unix,
 			delete_callback_uri,
 			allow_public_signup,
-			internal, access_policy_v1
+			internal, access_policy_v1, account_management_uri, account_deletion_uri
 		FROM identity_applications
 		WHERE client_id = ?`,
 		clientID,
@@ -199,7 +199,7 @@ func (s *Store) ApplicationByClientID(
 		&updated,
 		&deleteCallback,
 		&allowPublicSignup,
-		&internal, &app.AccessPolicyV1,
+		&internal, &app.AccessPolicyV1, &app.AccountManagementURI, &app.AccountDeletionURI,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return applications.Application{},

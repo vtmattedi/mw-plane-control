@@ -29,6 +29,8 @@ type CreateRequest struct {
 	RedirectURIs           []string
 	PostLogoutRedirectURIs []string
 	DeleteCallbackURI      string
+	AccountManagementURI   string
+	AccountDeletionURI     string
 	AllowPublicSignup      bool
 	Internal               bool
 	Scopes                 []string
@@ -110,6 +112,14 @@ func (s *Service) Create(
 	if err != nil {
 		return CreateResult{}, ErrInvalidApplication
 	}
+	management, err := ValidateNavigationURI(request.AccountManagementURI)
+	if err != nil {
+		return CreateResult{}, ErrInvalidApplication
+	}
+	deletion, err := ValidateNavigationURI(request.AccountDeletionURI)
+	if err != nil {
+		return CreateResult{}, ErrInvalidApplication
+	}
 	if err := CheckLifecycle(request.Internal, request.AllowPublicSignup, deleteCallback); err != nil {
 		return CreateResult{}, err
 	}
@@ -160,6 +170,8 @@ func (s *Service) Create(
 		RedirectURIs:           redirectURIs,
 		PostLogoutRedirectURIs: postLogout,
 		DeleteCallbackURI:      deleteCallback,
+		AccountManagementURI:   management,
+		AccountDeletionURI:     deletion,
 		AllowPublicSignup:      request.AllowPublicSignup,
 		Internal:               request.Internal,
 		Scopes:                 scopes,
@@ -188,6 +200,8 @@ func (s *Service) Create(
 		RedirectURIs:           append([]string(nil), input.RedirectURIs...),
 		PostLogoutRedirectURIs: append([]string(nil), input.PostLogoutRedirectURIs...),
 		DeleteCallbackURI:      input.DeleteCallbackURI,
+		AccountManagementURI:   input.AccountManagementURI,
+		AccountDeletionURI:     input.AccountDeletionURI,
 		AllowPublicSignup:      input.AllowPublicSignup,
 		Internal:               input.Internal,
 		Scopes:                 append([]string(nil), input.Scopes...),
@@ -276,7 +290,7 @@ func normalizeURIs(
 		parsed, err := url.Parse(value)
 		if err != nil ||
 			parsed.Scheme == "" ||
-			parsed.Host == "" ||
+			parsed.Host == "" || parsed.User != nil || len(value) > 2048 ||
 			parsed.Fragment != "" {
 			return nil, fmt.Errorf("invalid URI")
 		}
