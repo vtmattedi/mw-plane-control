@@ -25,6 +25,7 @@ type LifecycleSigner interface {
 }
 
 type Service struct {
+	durableDeletion bool
 	store           Store
 	audit           audit.Recorder
 	sessionTTL      time.Duration
@@ -413,7 +414,7 @@ func (s *Service) Session(
 		return SessionResult{}, err
 	}
 
-	if !session.User.Enabled {
+	if !session.User.Enabled || session.User.DeletionRequestedAt != nil {
 		return SessionResult{}, ErrInvalidSession
 	}
 

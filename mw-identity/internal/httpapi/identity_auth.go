@@ -618,6 +618,11 @@ func (h *identityAuthHandlers) deleteAccount(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	h.clearAuthCookies(w)
+	if deletion.StatusToken != "" {
+		http.SetCookie(w, &http.Cookie{Name: deletionStatusCookie, Value: deletion.StatusToken, Path: "/account/deletion", MaxAge: 86400, Expires: time.Now().Add(24 * time.Hour), HttpOnly: true, Secure: h.secure, SameSite: http.SameSiteStrictMode})
+		http.Redirect(w, r, "/account/deletion", http.StatusSeeOther)
+		return
+	}
 	if deletion.Deleted {
 		http.Redirect(w, r, "/login?account_deleted=1", http.StatusSeeOther)
 		return

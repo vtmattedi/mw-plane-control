@@ -79,7 +79,7 @@ func (s *Service) AuthorizeIdentityUser(
 	authorization ValidatedAuthorization,
 	user auth.User,
 ) *ProtocolError {
-	if !user.Enabled || !authorization.Application.Enabled || authorization.Application.ArchivedAt != nil {
+	if !user.Enabled || user.DeletionRequestedAt != nil || !authorization.Application.Enabled || authorization.Application.ArchivedAt != nil {
 		return accessDenied()
 	}
 	if user.AccountType == "public" && contains(

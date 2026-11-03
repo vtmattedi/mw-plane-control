@@ -31,6 +31,9 @@ func (s *Service) DeleteAccount(ctx context.Context, userID, remoteIP string) (D
 		return DeleteAccountResult{}, ErrAccountDeletionForbidden
 	}
 
+	if s.durableDeletion || user.DeletionRequestedAt != nil {
+		return s.beginDurableDeletion(ctx, userID)
+	}
 	apps, err := s.store.ListIdentityUserDeletionApplications(ctx, userID)
 	if err != nil {
 		return DeleteAccountResult{}, err

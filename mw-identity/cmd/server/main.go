@@ -97,6 +97,7 @@ func main() {
 		os.Exit(1)
 	}
 	authService.SetLifecycleSigner(signingManager)
+	authService.SetDurableDeletion(cfg.DurableDeletionEnabled, cfg.AppEnv == "production")
 
 	oidcService, err := oidc.NewService(
 		store,
@@ -185,6 +186,8 @@ func main() {
 		syscall.SIGTERM,
 	)
 	defer stop()
+	workerDone := make(chan struct{})
+	go func() { defer close(workerDone); authService.RunDeletionWorker(shutdownCtx) }()
 
 	go func() {
 		<-shutdownCtx.Done()
@@ -212,5 +215,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	stop()
+	<-workerDone
 	slog.Info("server stopped", "service", "mw-identity")
 }

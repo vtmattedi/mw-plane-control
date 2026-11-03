@@ -9,6 +9,7 @@ import (
 )
 
 type Config struct {
+	DurableDeletionEnabled             bool
 	AppEnv                             string
 	Port                               int
 	DatabasePath                       string
@@ -135,6 +136,10 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	durableDeletion, err := boolean("IDENTITY_DURABLE_DELETION_ENABLED", false)
+	if err != nil {
+		return Config{}, err
+	}
 	publicSignup, err := boolean("IDENTITY_PUBLIC_SIGNUP_ENABLED", true)
 	if err != nil {
 		return Config{}, err
@@ -161,6 +166,7 @@ func Load() (Config, error) {
 	}
 
 	return Config{
+		DurableDeletionEnabled:  durableDeletion,
 		AppEnv:                  getenv("APP_ENV", "development"),
 		Port:                    port,
 		DatabasePath:            databasePath,

@@ -94,8 +94,11 @@ type DeletionDelivery struct {
 }
 
 type DeleteAccountResult struct {
-	Deleted    bool               `json:"deleted"`
-	Deliveries []DeletionDelivery `json:"deliveries"`
+	OperationID string             `json:"operation_id,omitempty"`
+	Status      string             `json:"status,omitempty"`
+	StatusToken string             `json:"-"`
+	Deleted     bool               `json:"deleted"`
+	Deliveries  []DeletionDelivery `json:"deliveries"`
 }
 
 type SignupApplication struct {
