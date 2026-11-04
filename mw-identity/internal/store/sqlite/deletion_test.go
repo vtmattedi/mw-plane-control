@@ -427,3 +427,142 @@ func TestOperatorRetryRenewsHorizonWithoutChangingEvent(t *testing.T) {
 		}
 	}
 }
+
+func TestDeletionCallbackRequiresTerminalAcknowledgement(t *testing.T) {
+	for _, tc := range []struct {
+		name, body, outcome string
+		code                int
+	}{
+		{"legacy synchronous empty", "", "confirmed_cleanup", 200},
+		{"no content", "", "confirmed_cleanup", 204},
+		{"legacy terminal cleanup", `{"outcome":"confirmed_cleanup"}`, "confirmed_cleanup", 200},
+		{"legacy no mapping", `{"outcome":"no_current_mapping"}`, "no_current_mapping", 200},
+		{"versioned cleanup", `{"version":1,"outcome":"confirmed_cleanup"}`, "confirmed_cleanup", 200},
+		{"versioned no mapping", `{"version":1,"outcome":"no_current_mapping"}`, "no_current_mapping", 200},
+		{"accepted is pending", `{"version":1,"outcome":"confirmed_cleanup"}`, "pending", 202},
+		{"pending", `{"outcome":"pending"}`, "pending", 200},
+		{"versioned pending", `{"version":1,"outcome":"pending"}`, "pending", 200},
+		{"unknown outcome", `{"outcome":"unknown"}`, "pending", 200},
+		{"unknown version", `{"version":2,"outcome":"confirmed_cleanup"}`, "pending", 200},
+		{"null version", `{"version":null,"outcome":"confirmed_cleanup"}`, "pending", 200},
+		{"missing outcome", `{"version":1}`, "pending", 200},
+		{"empty object", `{}`, "pending", 200},
+		{"whitespace body", " \n\t", "pending", 200},
+		{"malformed", `{"outcome":`, "pending", 200},
+		{"non JSON", `pending`, "pending", 200},
+		{"null envelope", `null`, "pending", 200},
+		{"array envelope", `[]`, "pending", 200},
+		{"wrong outcome type", `{"outcome":true}`, "pending", 200},
+		{"trailing JSON", `{"outcome":"confirmed_cleanup"}{}`, "pending", 200},
+		{"duplicate outcome", `{"outcome":"pending","outcome":"confirmed_cleanup"}`, "pending", 200},
+		{"unknown field", `{"version":1,"outcome":"confirmed_cleanup","pending":true}`, "pending", 200},
+		{"oversized body", strings.Repeat("x", 32*1024+1), "pending", 200},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			callback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tc.code)
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer callback.Close()
+			f := newRemovalFixture(t, callback.URL)
+			ctx := context.Background()
+			if _, err := f.store.db.ExecContext(ctx, `UPDATE identity_applications SET internal=1 WHERE id='app_two'`); err != nil {
+				t.Fatal(err)
+			}
+			f.service.SetDurableDeletion(true, false)
+			result, err := f.service.DeleteAccount(ctx, "usr_remove", "")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if worked, err := f.service.ProcessDeletionDelivery(ctx); err != nil || !worked {
+				t.Fatalf("worker: %v %v", worked, err)
+			}
+			op, err := f.store.DeletionOperation(ctx, result.OperationID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, delivery := range op.Deliveries {
+				if delivery.ApplicationID == "app_one" && delivery.Status != tc.outcome {
+					t.Fatalf("delivery = %+v, want %s", delivery, tc.outcome)
+				}
+			}
+			if tc.outcome == "pending" {
+				user, err := f.store.IdentityUserByID(ctx, "usr_remove")
+				if op.Status != "pending" || err != nil || user.Enabled || user.DeletionRequestedAt == nil {
+					t.Fatalf("nonterminal acknowledgement finalized or reopened user: %+v %+v %v", op, user, err)
+				}
+			} else if op.Status != "completed" {
+				t.Fatalf("terminal acknowledgement did not complete: %+v", op)
+			}
+		})
+	}
+}
+
+func TestDeletionFinalizationFailsClosedDuringRecovery(t *testing.T) {
+	for _, tc := range []struct{ name, damage string }{
+		{"missing subject", `DELETE FROM identity_users WHERE id='usr_remove'`},
+		{"missing marker", `UPDATE identity_users SET deletion_requested_at_unix=NULL WHERE id='usr_remove'`},
+		{"restored active subject", `UPDATE identity_users SET enabled=1,deletion_requested_at_unix=NULL WHERE id='usr_remove'`},
+		{"delete ignored", `CREATE TRIGGER ignore_user_delete BEFORE DELETE ON identity_users BEGIN SELECT RAISE(IGNORE); END`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newRemovalFixture(t, "https://app.example/delete")
+			ctx := context.Background()
+			op, err := f.store.BeginDurableDeletion(ctx, "usr_remove", f.now, "hash", f.now.Add(time.Hour))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err = f.store.db.ExecContext(ctx, `UPDATE identity_deletion_deliveries SET status='confirmed_cleanup' WHERE operation_id=?`, op.ID); err != nil {
+				t.Fatal(err)
+			}
+			if _, err = f.store.db.ExecContext(ctx, tc.damage); err != nil {
+				t.Fatal(err)
+			}
+			if err = f.store.FinalizeDurableDeletion(ctx, op.ID, f.now); err == nil {
+				t.Fatal("inconsistent recovery state finalized")
+			}
+			if err = f.store.FinalizeReadyDeletions(ctx, f.now); err == nil {
+				t.Fatal("restart sweep finalized inconsistent recovery state")
+			}
+			var status string
+			var completed *int64
+			if err = f.store.db.QueryRowContext(ctx, `SELECT status,completed_at_unix FROM identity_deletion_operations WHERE id=?`, op.ID).Scan(&status, &completed); err != nil || status != "pending" || completed != nil {
+				t.Fatalf("false completion persisted: %s %v %v", status, completed, err)
+			}
+		})
+	}
+}
+
+func TestLegacyDeletionAlsoRequiresTerminalAcknowledgement(t *testing.T) {
+	for _, tc := range []struct {
+		name, body string
+		code       int
+		completed  bool
+	}{
+		{"synchronous acknowledgement", "", 200, true},
+		{"versioned terminal", `{"version":1,"outcome":"confirmed_cleanup"}`, 200, true},
+		{"nonterminal", `{"outcome":"pending"}`, 200, false},
+		{"malformed", `{"outcome":`, 200, false},
+		{"queued", "", 202, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			callback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tc.code)
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer callback.Close()
+			f := newRemovalFixture(t, callback.URL)
+			ctx := context.Background()
+			result, err := f.service.DeleteAccount(ctx, "usr_remove", "")
+			if err != nil || result.Deleted != tc.completed {
+				t.Fatalf("legacy completion = %+v, %v; want completed=%v", result, err, tc.completed)
+			}
+			if !tc.completed {
+				user, err := f.store.IdentityUserByID(ctx, "usr_remove")
+				if err != nil || user.Enabled || user.DeletionRequestedAt == nil {
+					t.Fatalf("nonterminal legacy response removed or reopened subject: %+v %v", user, err)
+				}
+			}
+		})
+	}
+}

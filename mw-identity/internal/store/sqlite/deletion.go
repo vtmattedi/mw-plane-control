@@ -188,15 +188,23 @@ func (s *Store) FinalizeDurableDeletion(ctx context.Context, id string, now time
 	if remaining > 0 {
 		return nil
 	}
-	var active int
-	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM identity_users WHERE id=? AND (enabled=1 OR deletion_requested_at_unix IS NULL)`, subject).Scan(&active); err != nil {
+	var eligible int
+	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM identity_users WHERE id=? AND enabled=0 AND deletion_requested_at_unix IS NOT NULL`, subject).Scan(&eligible); err != nil {
 		return err
 	}
-	if active != 0 {
+	if eligible != 1 {
 		return fmt.Errorf("deletion subject state inconsistent")
 	}
-	if _, err = tx.ExecContext(ctx, `DELETE FROM identity_users WHERE id=? AND enabled=0 AND deletion_requested_at_unix IS NOT NULL`, subject); err != nil {
+	deleted, err := tx.ExecContext(ctx, `DELETE FROM identity_users WHERE id=? AND enabled=0 AND deletion_requested_at_unix IS NOT NULL`, subject)
+	if err != nil {
 		return err
+	}
+	count, err := deleted.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count != 1 {
+		return fmt.Errorf("deletion subject was not removed")
 	}
 	if _, err = tx.ExecContext(ctx, `UPDATE identity_deletion_operations SET status='completed',completed_at_unix=? WHERE id=?`, now.Unix(), id); err != nil {
 		return err

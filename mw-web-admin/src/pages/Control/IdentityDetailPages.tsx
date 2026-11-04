@@ -200,6 +200,17 @@ export function IdentityApplicationDetailPage() {
     [users],
   )
   const selectedExceptionUser = usersByID.get(exceptionUserID)
+  const administrationAudience =
+    query.data?.audiences?.includes('mw-identity-admin') === true
+  const selectedAssignment = assignments.find(
+    (assignment) => assignment.user_id === exceptionUserID,
+  )
+  const selectedProtectedAdmin =
+    administrationAudience &&
+    (selectedExceptionUser?.is_superadmin ||
+      exceptionRole !== 'user' ||
+      selectedAssignment?.role === 'admin' ||
+      selectedAssignment?.role === 'superadmin')
 
   function saveAccessException() {
     if (!exceptionUserID) return
@@ -207,10 +218,7 @@ export function IdentityApplicationDetailPage() {
       userID: exceptionUserID,
       method: 'PUT',
       role: exceptionRole,
-      accessEffect:
-        selectedExceptionUser?.is_superadmin || exceptionRole !== 'user'
-          ? 'allow'
-          : exceptionEffect,
+      accessEffect: selectedProtectedAdmin ? 'allow' : exceptionEffect,
     })
   }
 
@@ -592,7 +600,9 @@ export function IdentityApplicationDetailPage() {
           <CardContent className="space-y-5">
             <p className="text-muted-foreground text-sm leading-6">
               {tr(
-                'As exceções substituem a política padrão. Superadmins e administradores não podem ser bloqueados.',
+                administrationAudience
+                  ? 'As exceções substituem a política padrão. Superadmins e administradores não podem ser bloqueados.'
+                  : 'As exceções substituem a política padrão, inclusive para superadmins e administradores.',
               )}
             </p>
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem_10rem_auto]">
@@ -614,7 +624,8 @@ export function IdentityApplicationDetailPage() {
                 onChange={(event) => {
                   const role = event.target.value as Assignment['role']
                   setExceptionRole(role)
-                  if (role !== 'user') setExceptionEffect('allow')
+                  if (administrationAudience && role !== 'user')
+                    setExceptionEffect('allow')
                 }}
                 value={exceptionRole}
               >
@@ -623,22 +634,13 @@ export function IdentityApplicationDetailPage() {
                 <option value="superadmin">Superadmin</option>
               </Select>
               <Select
-                disabled={
-                  accessMutation.isPending ||
-                  selectedExceptionUser?.is_superadmin ||
-                  exceptionRole !== 'user'
-                }
+                disabled={accessMutation.isPending || selectedProtectedAdmin}
                 onChange={(event) =>
                   setExceptionEffect(
                     event.target.value as Assignment['access_effect'],
                   )
                 }
-                value={
-                  selectedExceptionUser?.is_superadmin ||
-                  exceptionRole !== 'user'
-                    ? 'allow'
-                    : exceptionEffect
-                }
+                value={selectedProtectedAdmin ? 'allow' : exceptionEffect}
               >
                 <option value="allow">{tr('Permitir')}</option>
                 <option value="deny">{tr('Bloquear')}</option>
@@ -654,9 +656,10 @@ export function IdentityApplicationDetailPage() {
               {assignments.map((assignment) => {
                 const user = usersByID.get(assignment.user_id)
                 const protectedAdmin =
-                  user?.is_superadmin ||
-                  assignment.role === 'admin' ||
-                  assignment.role === 'superadmin'
+                  administrationAudience &&
+                  (user?.is_superadmin ||
+                    assignment.role === 'admin' ||
+                    assignment.role === 'superadmin')
                 return (
                   <div
                     className="border-border flex flex-wrap items-center gap-3 rounded-xl border p-3 text-sm"
@@ -698,7 +701,7 @@ export function IdentityApplicationDetailPage() {
                         accessMutation.mutate({
                           userID: assignment.user_id,
                           method: 'PUT',
-                          role: 'user',
+                          role: assignment.role,
                           accessEffect: 'deny',
                         })
                       }

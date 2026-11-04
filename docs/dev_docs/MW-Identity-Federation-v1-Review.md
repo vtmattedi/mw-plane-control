@@ -32,3 +32,13 @@ No unresolved code defect was identified after the fixes in this reviewed scope.
 - Full controlled client-secret cutover, destructive deployment restore and manual identity-recovery rehearsals, with production backup/rollback sign-off.
 
 Durable deletion remains off by default. Existing legacy clients stay explicitly outside full v1 access compliance until reviewed cutover. Do not remove compatibility fields or advertise production v1 compliance while these gates remain unverified.
+
+## Follow-up review corrections
+
+The subsequent review identified three additional defects, now corrected:
+
+- Ordinary application assignment management incorrectly rejected explicit denials for global superadmins and application administrators. Denial protections now apply only to the MW administration audience. The authenticated assignment API regression verifies Public access before denial, persisted denial across all assignment roles, federation refusal afterward, and preservation of global/existing MW administrator protections. Matching console restrictions and misleading explanatory text are corrected; UI regressions verify that ordinary denials are submitted without conversion to allow, assignment roles survive blocking, and MW administrator controls remain protected.
+- Arbitrary HTTP 200 callback bodies were accepted as cleanup. Both durable and request-bound delivery now retain only empty legacy synchronous acknowledgements or strict terminal JSON envelopes. Regression cases cover terminal/unversioned responses, 202, pending/unknown outcomes, malformed/oversized bodies, missing outcomes, unsupported versions, duplicate/unknown fields and trailing JSON. Integration documentation defines the exact accepted response shapes and the registered receiver's synchronous-cleanup guarantee.
+- A missing subject or a delete affecting zero rows could falsely complete durable deletion. Finalization now requires exactly one disabled, marked subject and checks the affected-row count before committing completion. Recovery tests cover missing/active/unmarked subjects and an ignored delete, including the restart sweep and absence of a completion timestamp.
+
+The three initial API/worker/recovery regression groups reproduced failures against the previous implementation. The complete Identity suite and vet pass after the fixes. Console typecheck, lint, all 144 tests in 27 files and production build pass; lint/build retain the existing unrelated Projects hook and bundle-size warnings. Final review of this follow-up diff found no further defects in its scope. Production release gates above remain unchanged.

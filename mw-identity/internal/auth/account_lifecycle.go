@@ -166,11 +166,14 @@ func (s *Service) deliverDeletion(ctx context.Context, userID string, app Connec
 			request.Header.Set("Authorization", "Bearer "+assertion)
 			response, doErr := s.httpClient.Do(request)
 			if doErr == nil {
-				_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 32*1024))
+				raw, readErr := io.ReadAll(io.LimitReader(response.Body, 32*1024+1))
 				_ = response.Body.Close()
-				if response.StatusCode >= 200 && response.StatusCode < 300 {
-					result.Status = "delivered"
-					return result
+				if readErr == nil && len(raw) <= 32*1024 {
+					outcome, _ := deletionResponseOutcome(response.StatusCode, raw)
+					if outcome == "confirmed_cleanup" || outcome == "no_current_mapping" {
+						result.Status = "delivered"
+						return result
+					}
 				}
 			}
 		}

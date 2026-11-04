@@ -66,6 +66,12 @@ Rollout: review the client inventory, require consumer ACR/freshness/subject/act
 
 Rollback: keep added schema and queued operations; disable worker dispatch before service rollback, retain identity freeze and receiver non-destructive disconnect safeguards, invalidate unsupported in-progress authentication state and preserve the verified passkey gates. Full live migration, browser/hardware, cross-app erasure/ownership, destructive deployment restoration and production sign-off remain explicit release blockers.
 
+## Follow-up review fixes
+
+Corrected the assignment API and console to permit ordinary-application denials for global/application administrators while keeping MW administration protections. Tightened callback acknowledgements in both delivery paths to require empty legacy synchronous success or explicit terminal JSON outcomes. Durable finalization now requires exactly one eligible subject and verifies the delete count before marking completion. Added authenticated API, worker response, console interaction and inconsistent-recovery regressions; see the follow-up section of the review record and callback semantics in the deletion runbook.
+
+This follow-up requires no schema migration. Receivers returning nonempty HTTP 200 bodies must use the documented terminal envelope; queued work must return HTTP 202. Restore/reconciliation must retain the disabled, marked subject until finalization; missing subjects require operator recovery rather than inferred completion. The frozen contract and existing production release gates remain unchanged.
+
 ## Exact changed paths by increment
 
 Paths are recorded for review; migrations and validation/rollback details are in each increment above.

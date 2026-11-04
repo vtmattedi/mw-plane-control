@@ -536,10 +536,11 @@ func (s *Service) UpsertAssignment(
 		return Assignment{}, ErrInvalid
 	}
 
-	if _, err := s.store.IdentityApplicationByID(
+	app, err := s.store.IdentityApplicationByID(
 		ctx,
 		applicationID,
-	); err != nil {
+	)
+	if err != nil {
 		return Assignment{}, err
 	}
 	user, err := s.store.IdentityUserByID(
@@ -552,7 +553,9 @@ func (s *Service) UpsertAssignment(
 		}
 		return Assignment{}, err
 	}
-	if accessEffect == "deny" {
+	// Ordinary application roles do not override explicit access denials.
+	// Preserve lockout protections only for the MW administration audience.
+	if accessEffect == "deny" && contains(app.Audiences, "mw-identity-admin") {
 		if user.IsSuperadmin || role == "admin" || role == "superadmin" {
 			return Assignment{}, ErrRoleForbidden
 		}
