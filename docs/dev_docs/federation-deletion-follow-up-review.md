@@ -1,5 +1,7 @@
 # Deletion authentication, receiver and recovery review
 
+The subsequent [real-provider/WOI compatibility verification](federation-receiver-compatibility.md) adds four cross-service cases and a separate review inventory. It does not expand this document's original source-review scope or enable production dispatch.
+
 Scope: the provider follow-up against `d6122ab` on `feat/identity-federation-v1` and the WOI receiver follow-up against `89fdb13` on `fix/identity-deletion-receiver`. Reviewed the changed units and their callers, proof/session handling, consent history, callback outcomes, capability persistence, receiver ledger and cleanup ordering. The inventory below covers all 24 changed source/test/template files. Other modules were traced as dependencies but are not independently re-audited here. Generated files, dependencies and WOI's unrelated frontend work are excluded. Documentation changes describe behavior rather than add runtime dependencies.
 
 ## Decisions and verification

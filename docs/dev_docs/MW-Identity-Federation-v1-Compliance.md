@@ -2,7 +2,7 @@
 
 PR-00 baseline: 2026-11-03, `main` and local `origin/main` at `3bf0ca4f53139568f711160a7c269843557708d7`. Remote was not fetched. Working tree was clean. Identity's latest migration is `013_application_consent.sql`; no migration is introduced by PR-00. The frozen contract was already tracked and is preserved byte-for-byte (SHA-256 `df895a4e3084d7988cbdb9e2a08a47a090bdcf259f6bf05b22a6ff760c7fa7ff`).
 
-The user authorized sequential implementation with one commit per PR increment. This overrides the supplied plan's instruction to stop after every increment. Production activation still requires its compatibility and verification gates. No consumer repository is modified.
+The user authorized sequential implementation with one commit per PR increment. This overrides the supplied plan's instruction to stop after every increment. Production activation still requires its compatibility and verification gates. Initial provider increments did not modify consumer repositories; later explicitly authorized WOI receiver changes and local cross-service evidence are recorded below and in the deletion follow-up review.
 
 `pass` means the named scope is demonstrated by the cited evidence; `fail` means existing code contradicts the target; `unimplemented` means required provider behavior is absent; `unverified` means runtime or consumer evidence is missing. Passing existing tests is not full contract conformance.
 
@@ -124,5 +124,11 @@ The baseline table above is historical and is not overwritten. Identity now embe
 Final automated verification: Identity `go test ./...` and `go vet ./...`; BFF equivalents; frontend `npm run typecheck`, `npm run lint`, `npm run test:run` (142/142, 26 files) and `npm run build` all pass. Baseline dependency advisories, the Projects hook warning and large-chunk warning remain outside this federation change.
 
 The existing Step 13 moved-document references were repaired. An isolated Docker project `mw-federation-v1-review`, using generated disposable keyrings and fresh named volumes, passed `STEP 13 STATIC PASS` and `STEP 13 API/OPS PASS`: readiness/WAL/FK/timeout, request IDs, query-safe logging, private metrics, signing-key/JWKS rotation, maintenance, online snapshots/integrity/restore validation and runtime hardening. No production database/configuration was used. This is not the final `STEP 13 E2E PASS`; hardware WebAuthn, real secret cutover, destructive deployment restoration and operator recovery remain unverified.
+
+## Local Identity/WOI receiver compatibility
+
+On 2026-11-04, four cross-service integration cases passed using the actual Identity signer, SQLite store and deletion worker with WOI's real authenticated receiver, PostgreSQL and filesystem. The test-only fixture is `mw-identity/internal/auth/testdata/receiverfixture/main.go`; WOI runs it through `npm --prefix backend run test:identity-provider`, with an explicitly disposable PostgreSQL port and the provider module directory. It reads no deployment configuration and enables durable dispatch only within that isolated process.
+
+The cases demonstrate persisted pending cleanup after a receiver filesystem failure, SQLite/service restart, signing-key rotation/JWKS refresh, stable operation/event/request time, successful terminal retry, differentiated no-current-mapping without removing a detached WOI profile, and refusal to complete on pending/malformed HTTP 200 envelopes. These add local evidence for A23/A24; other receiver populations, browser/hardware, production registration/transport and operator restore gates remain unverified. Durable deletion stays disabled in normal configuration. The existing baseline/current acceptance tables retain their stated historical scopes; no global production compliance is inferred from this consumer fixture.
 
 See the [full diff review](MW-Identity-Federation-v1-Review.md) for findings corrected before the final commit. Consumer repositories and production services were not changed. Durable deletion is disabled by default; compatibility fields remain until audited rollout and rollback windows finish.
