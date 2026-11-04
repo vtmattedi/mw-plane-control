@@ -9,7 +9,7 @@ Decision: 2026-11-04, explicitly replacing the earlier staged consumer-compatibi
 - Registry APIs/models/UI no longer expose or accept `authentication_policy`, `allow_public_signup` or `access_policy_v1`. Old CLI policy/signup flags and the `federation-cutover` executable/store operations are removed. Current scripts request Strong through `acr_values`.
 - OIDC authorization requires a nonblank nonce of at most 1024 bytes. Its opaque value is preserved exactly. Issuance and exchange reject nonce-less artifacts; ID tokens always carry the bound nonce.
 - Every whole-account deletion enters the durable workflow: atomically freeze the identity, revoke central credentials, snapshot candidate applications, persist stable events and issue scoped progress access. There is no request-bound deletion implementation or synchronous fallback.
-- `IDENTITY_DURABLE_DELETION_ENABLED` remains a startup dispatch switch, default false. Pausing dispatch does not change how requests are accepted or persisted. No-obligation operations can finalize; operations requiring receiver outcomes remain pending until acknowledged. Resume dispatch by starting with it enabled after deployment checks.
+- `IDENTITY_DELETION_DISPATCH_ENABLED` is a startup dispatch switch, default true. Production Compose requires an explicit true or false value. Pausing dispatch does not change how requests are accepted or persisted. No-obligation operations can finalize; operations requiring receiver outcomes remain pending until acknowledged. Resume dispatch by starting with it enabled after deployment checks.
 - Every receiver acknowledges with HTTP 200 and exactly `{"version":1,"outcome":"confirmed_cleanup"}` or `{"version":1,"outcome":"no_current_mapping"}` after its required work completes. Empty 200, 204, unversioned bodies and pending/malformed/unknown responses never authorize finalization. There is one parser and one delivery state machine.
 - Consent revocation is non-destructive. `application_disconnected` must never authorize deletion. This security invariant is retained regardless of compatibility policy.
 
@@ -73,8 +73,8 @@ Reviewed 53 changed source/test/build/configuration paths, including removed fil
 | `mw-identity/internal/auth/registration_test.go` | KEEP: username validation tests | Moved out of deletion test file | Existing username edge cases retained | No extra comment needed |
 | `mw-identity/internal/auth/service.go` | KEEP: auth/session owner | Dispatch field renamed; no auth rewrite | State setting is not a workflow mode | Existing proof/login notes retained |
 | `mw-identity/internal/auth/store.go` | KEEP: operation/store contracts | Signup context has no per-client flag | No persistence policy leakage | Existing data semantics retained |
-| `mw-identity/internal/auth/testdata/receiverfixture/main.go` | KEEP: isolated receiver fixture | Uses current registry/dispatch API | Actual worker tests still pass | Explicit disposable opt-in retained |
-| `mw-identity/internal/config/config.go` | KEEP: configuration parsing | Operational setting renamed internally | Environment default remains paused | Environment example explains meaning |
+| `mw-identity/internal/auth/testdata/receiverfixture/main.go` | KEEP: isolated receiver fixture | Uses current registry/dispatch API | Actual worker tests still pass | Explicit disposable fixture setting retained |
+| `mw-identity/internal/config/config.go` | KEEP: configuration parsing | Operational setting renamed internally | Environment default is enabled; production Compose requires an explicit value | Environment example explains meaning |
 | `mw-identity/internal/httpapi/account_deletion_test.go` | KEEP: self-deletion journeys | Paused/enabled cases use one workflow | Password signup and reauth tests retained | No legacy-mode label |
 | `mw-identity/internal/httpapi/consent_test.go` | KEEP: real consent/OIDC journey | Public access represented explicitly | No signup flag access shortcut | Existing consent/replay notes retained |
 | `mw-identity/internal/httpapi/deletion_test.go` | KEEP: scoped progress tests | Use dispatch setting name | Session revocation/public privacy retained | No extra comment needed |
@@ -110,3 +110,28 @@ Reviewed 53 changed source/test/build/configuration paths, including removed fil
 
 
 Final diff review found no further defect in the revised implementation scope. The upgrade review finding for orphaned deletion requests is covered by migration 020 and its fault-injected preservation test.
+
+
+## Dispatch operations follow-up (2026-11-04)
+
+The provider now reads only `IDENTITY_DELETION_DISPATCH_ENABLED`, default true. The retired environment name has no alias. Both production Compose manifests require an explicit value; development defaults to true. The [deletion runbook](federation-durable-deletion.md) documents emergency pause, restart/recreation and private metrics. Consumers must comply before connection; no per-application transition controls were introduced.
+
+Review scope: the complete follow-up diff against `e51080f`, including configuration, tests and operator documentation. All 13 changed source/test/configuration files below were reviewed; no in-scope files remain unreviewed. Unchanged modules were traced only as dependencies; generated output and historical review records are excluded. No blocking findings. KEEP the existing ownership: SQLite computes persisted counts, the auth service combines those counts with its startup setting, and HTTP renders the aggregate. No new abstraction or polling worker is needed. Durability, protocol outcomes, migration transactions, audit, progress credentials and worker leases are unchanged.
+
+| File | Q1 placement | Q2 separation | Q3 maintainability | Q4 comments |
+| --- | --- | --- | --- | --- |
+| `.env.example` | KEEP operator configuration | One global setting | Explicit true and emergency pause | Explains environment recreation |
+| `docker-compose.yml` | KEEP production composition | No workflow branching | Reject missing explicit setting | Environment/runbook explain operation |
+| `docker-compose.stackport.yml` | KEEP managed production composition | No app-level controls | Same required setting; no ports added | Shared runbook is sufficient |
+| `docker-compose-dev.yml` | KEEP development composition | Same provider setting | True fallback matches code | No redundant inline note |
+| `mw-identity/internal/config/config.go` | KEEP environment parser | One boolean, no old alias | Existing invalid-value error retained | Runbook documents default |
+| `mw-identity/internal/config/config_test.go` | KEEP parsing regressions | Focused default/override/error cases | True/false/zero/invalid covered | No narration needed |
+| `mw-identity/internal/auth/service.go` | KEEP service construction | No worker started by constructor | Constructor default matches config | No extra note needed |
+| `mw-identity/internal/auth/deletion_operation.go` | KEEP operation/dispatch owner | Compose metrics here, away from HTTP/SQL | Error propagates; no background side effects | States setter is startup-only |
+| `mw-identity/internal/auth/testdata/receiverfixture/main.go` | KEEP disposable fixture | Explicit test configuration | Independent of deployment environment | Removed obsolete opt-in claim |
+| `mw-identity/internal/httpapi/deletion.go` | KEEP HTTP boundary | Delegates aggregate composition | Storage errors remain HTTP 503 | No extra note needed |
+| `mw-identity/internal/httpapi/deletion_metrics_test.go` | KEEP endpoint regression | Real service/SQLite behind HTTP | Pause before/after request, resume, receipt and finalization; privacy checked | Explains receipt/finalization distinction |
+| `mw-identity/internal/store/sqlite/deletion.go` | KEEP persisted queue statistics | Count operations independently of deliveries | Single SQL snapshot includes zero-delivery recovery work | Test/runbook explain independent count |
+| `mw-identity/internal/store/sqlite/deletion_test.go` | KEEP actual recovery migration test | Assert count at recovery boundary | Review-only operations remain visible without fabricated deliveries | Existing recovery rationale sufficient |
+
+Verification: full Identity `go test ./...` and `go vet ./...` pass, including default/override parsing and private metric transitions. Focused recovery metrics regression passes. Compose rendering passes with true and false for all manifests, rejects missing production values, and defaults development to true, using only the isolated review environment. The frozen contract hash is unchanged; there are no migration changes. No production deployment was performed. Operators must scrape/alert on the private metric; no live administrative pause endpoint was added.

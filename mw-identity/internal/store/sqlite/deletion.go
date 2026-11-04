@@ -283,9 +283,9 @@ func (s *Store) ListDeletionOperations(ctx context.Context) ([]auth.DeletionOper
 	return ops, rows.Err()
 }
 func (s *Store) DeletionQueueStats(ctx context.Context, now time.Time) (map[string]int64, error) {
-	var pending, failed, oldest int64
-	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*),COALESCE(SUM(CASE WHEN d.status IN ('failed','unresolved') THEN 1 ELSE 0 END),0),COALESCE(MIN(o.requested_at_unix),?) FROM identity_deletion_deliveries d JOIN identity_deletion_operations o ON o.id=d.operation_id WHERE d.status IN ('pending','delivering','failed','unresolved')`, now.Unix()).Scan(&pending, &failed, &oldest)
-	return map[string]int64{"outstanding": pending, "failed_or_unresolved": failed, "oldest_age_seconds": max(int64(0), now.Unix()-oldest)}, err
+	var pending, failed, oldest, operations int64
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*),COALESCE(SUM(CASE WHEN d.status IN ('failed','unresolved') THEN 1 ELSE 0 END),0),COALESCE(MIN(o.requested_at_unix),?), (SELECT COUNT(*) FROM identity_deletion_operations WHERE status!='completed') FROM identity_deletion_deliveries d JOIN identity_deletion_operations o ON o.id=d.operation_id WHERE d.status IN ('pending','delivering','failed','unresolved')`, now.Unix()).Scan(&pending, &failed, &oldest, &operations)
+	return map[string]int64{"outstanding": pending, "failed_or_unresolved": failed, "oldest_age_seconds": max(int64(0), now.Unix()-oldest), "pending_operations": operations}, err
 }
 func (s *Store) ReconcileLegacyDeletion(ctx context.Context, id string, outcomes map[string]string, reference string, now time.Time) error {
 	if reference == "" || len(reference) > 500 {

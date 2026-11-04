@@ -63,12 +63,7 @@ func (h *identityAdminHandlers) reconcileLegacyDeletion(w http.ResponseWriter, r
 	writeJSON(w, 200, map[string]string{"status": "reconciled"})
 }
 func (h *identityAuthHandlers) deletionMetrics(w http.ResponseWriter, r *http.Request) {
-	store, err := h.service.DurableDeletionStore()
-	if err != nil {
-		writeJSONError(w, 503, "deletion_unavailable")
-		return
-	}
-	stats, err := store.DeletionQueueStats(r.Context(), time.Now().UTC())
+	stats, err := h.service.DeletionMetrics(r.Context())
 	if err != nil {
 		writeJSONError(w, 503, "deletion_metrics_unavailable")
 		return

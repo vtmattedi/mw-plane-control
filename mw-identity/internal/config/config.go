@@ -136,7 +136,7 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	deletionDispatchEnabled, err := boolean("IDENTITY_DURABLE_DELETION_ENABLED", false)
+	deletionDispatchEnabled, err := boolean("IDENTITY_DELETION_DISPATCH_ENABLED", true)
 	if err != nil {
 		return Config{}, err
 	}

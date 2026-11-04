@@ -157,7 +157,7 @@ func (f *fixture) open(ctx context.Context) error {
 		return err
 	}
 	service.SetLifecycleSigner(manager)
-	service.SetDeletionDispatch(true, false) // This disposable test explicitly opts in.
+	service.SetDeletionDispatch(true, false) // Keep the fixture independent of deployment settings.
 	f.db, f.store, f.signer, f.service = db, store, manager, service
 	return nil
 }

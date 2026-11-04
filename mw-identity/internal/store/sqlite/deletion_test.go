@@ -60,6 +60,10 @@ func TestLegacyDeletionMigrationRequiresExplicitReconciliation(t *testing.T) {
 	if _, err = store.ClaimDeletionDelivery(ctx, time.Now(), "worker"); err == nil {
 		t.Fatal("migration fabricated a delivery")
 	}
+	stats, err := store.DeletionQueueStats(ctx, time.Now())
+	if err != nil || stats["pending_operations"] != 1 || stats["outstanding"] != 0 {
+		t.Fatalf("operator-review work missing from metrics: %v, %v", stats, err)
+	}
 	if err = store.ReconcileLegacyDeletion(ctx, ops[0].ID, nil, "support-case", time.Now()); err == nil {
 		t.Fatal("unverified legacy app finalized")
 	}

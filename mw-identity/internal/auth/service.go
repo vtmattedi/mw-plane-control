@@ -71,13 +71,14 @@ func NewService(
 	}
 
 	return &Service{
-		store:        store,
-		audit:        auditRecorder,
-		sessionTTL:   cfg.SessionTTL,
-		now:          time.Now,
-		dummyHash:    dummyHash,
-		httpClient:   deletionHTTPClient(),
-		publicIssuer: strings.TrimRight(strings.TrimSpace(cfg.PublicIssuer), "/"),
+		deletionDispatchEnabled: true,
+		store:                   store,
+		audit:                   auditRecorder,
+		sessionTTL:              cfg.SessionTTL,
+		now:                     time.Now,
+		dummyHash:               dummyHash,
+		httpClient:              deletionHTTPClient(),
+		publicIssuer:            strings.TrimRight(strings.TrimSpace(cfg.PublicIssuer), "/"),
 	}, nil
 }
 
