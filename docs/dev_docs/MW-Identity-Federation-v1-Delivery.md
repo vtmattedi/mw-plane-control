@@ -72,6 +72,12 @@ Corrected the assignment API and console to permit ordinary-application denials 
 
 This follow-up requires no schema migration. Receivers returning nonempty HTTP 200 bodies must use the documented terminal envelope; queued work must return HTTP 202. Restore/reconciliation must retain the disabled, marked subject until finalization; missing subjects require operator recovery rather than inferred completion. The frozen contract and existing production release gates remain unchanged.
 
+## Deletion usability and receiver follow-up
+
+Recent Standard-or-higher proof authorizes self-deletion; a stale/unsupported session gets an explicit reauthentication link and must submit a new confirmation afterward. Password registration records the matching password method. Non-destructive consent revocation no longer redirects stale users to Strong authentication. Legacy missing ordinary callbacks remain unresolved, while infrastructure exemption is explicit; results and audits state the fallback's limited cleanup scope. Repeated/operator requests preserve the initiating progress credential and its expiry.
+
+Shared callback HTTP/response handling, initial/terminal state policy, durable initiation and legacy orchestration now have focused owners. WOI's companion branch updates its receiver to acknowledge only after filesystem cleanup and its ledger completion, differentiating cleanup from no mapping across retries. Schema migrations and the frozen contract remain unchanged. Identity tests/vet and WOI's 18 isolated identity integration tests/backend typecheck pass. Durable dispatch remains off pending all receiver/live recovery checks. See [the focused ownership and code review](federation-deletion-follow-up-review.md).
+
 ## Exact changed paths by increment
 
 Paths are recorded for review; migrations and validation/rollback details are in each increment above.

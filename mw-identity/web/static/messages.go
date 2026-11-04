@@ -83,6 +83,8 @@ var catalogs = map[string]map[string]string{
 		"account.delete_lead":        "Revoga todos os acessos e pede aos apps conhecidos, inclusive desconectados, para apagar sua conta. Não dá para desfazer.",
 		"account.delete_label":       "Digite DELETE para confirmar",
 		"account.delete_button":      "Excluir minha conta",
+		"account.delete_reauth":      "Verificar minha identidade novamente",
+		"account.delete_reauth_lead": "Entre novamente com senha, passkey ou senha e autenticador. Depois, confirme a exclusão nesta página.",
 
 		"info.tabs_label": "Sobre o MW Identity",
 		"info.note":       "Isto é um resumo de como o MW Identity funciona, não um documento jurídico.",
@@ -206,6 +208,8 @@ var catalogs = map[string]map[string]string{
 		"account.delete_lead":        "Revokes all access and asks known apps, including disconnected ones, to delete your account. This can’t be undone.",
 		"account.delete_label":       "Type DELETE to confirm",
 		"account.delete_button":      "Delete my account",
+		"account.delete_reauth":      "Verify my identity again",
+		"account.delete_reauth_lead": "Sign in again with a password, passkey, or password and authenticator. Then confirm deletion on this page.",
 
 		"info.tabs_label": "About MW Identity",
 		"info.note":       "This is a summary of how MW Identity works, not a legal document.",

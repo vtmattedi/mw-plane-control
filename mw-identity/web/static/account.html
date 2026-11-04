@@ -287,11 +287,15 @@
       </section>
 
       {{if not .IsSuperadmin}}
-      <section class="session-actions danger-zone">
+      <section class="session-actions danger-zone" id="delete-account">
         <div>
           <h2>{{t .Lang "account.delete_title"}}</h2>
           <p>{{t .Lang "account.delete_lead"}}</p>
         </div>
+        {{if .DeletionReauthRequired}}
+        <p>{{t .Lang "account.delete_reauth_lead"}}</p>
+        <a class="primary-button" href="/login?auth=reauth&amp;return_to=%2Faccount%23delete-account">{{t .Lang "account.delete_reauth"}}</a>
+        {{else}}
         <form
           method="post"
           action="/account/delete"
@@ -311,6 +315,7 @@
             {{t .Lang "account.delete_button"}}
           </button>
         </form>
+        {{end}}
       </section>
       {{end}}
 

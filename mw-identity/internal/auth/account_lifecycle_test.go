@@ -12,7 +12,11 @@ import (
 type lifecycleTestSigner struct{ claims map[string]any }
 
 func (s lifecycleTestSigner) SignJWT(_ context.Context, claims map[string]any) (string, error) {
-	for k,v:=range claims { if s.claims!=nil { s.claims[k]=v } }
+	for k, v := range claims {
+		if s.claims != nil {
+			s.claims[k] = v
+		}
+	}
 	return "signed.lifecycle.assertion", nil
 }
 
@@ -56,16 +60,18 @@ func TestDeletionCallbackStopsAfterSuccess(t *testing.T) {
 	}))
 	defer server.Close()
 
-	claims:=map[string]any{}
-	service := &Service{httpClient: server.Client(), lifecycleSigner: lifecycleTestSigner{claims:claims}, publicIssuer: "https://identity.example"}
+	claims := map[string]any{}
+	service := &Service{httpClient: server.Client(), lifecycleSigner: lifecycleTestSigner{claims: claims}, publicIssuer: "https://identity.example"}
 	result := service.deliverDeletion(context.Background(), "usr_public", ConnectedApplication{
 		ID: "app_woi", ClientID: "woi", DeleteCallbackURI: server.URL,
 	}, time.Now(), DeletionReasonAccountDeleted)
 
-	if result.Status != "delivered" || result.Attempts != 2 || attempts.Load() != 2 {
+	if result.Status != "confirmed_cleanup" || result.Attempts != 2 || attempts.Load() != 2 {
 		t.Fatalf("unexpected delivery result: %#v, requests=%d", result, attempts.Load())
 	}
-	if claims["reason"]!=DeletionReasonAccountDeleted {t.Fatal("destructive callback reason is not signed")}
+	if claims["reason"] != DeletionReasonAccountDeleted {
+		t.Fatal("destructive callback reason is not signed")
+	}
 }
 
 func TestNormalizeUsername(t *testing.T) {

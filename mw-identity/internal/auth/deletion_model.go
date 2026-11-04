@@ -6,12 +6,30 @@ import (
 )
 
 type DeletionOperation struct {
-	ID          string            `json:"id"`
-	Subject     string            `json:"-"`
-	RequestedAt time.Time         `json:"requested_at"`
-	Status      string            `json:"status"`
-	Deliveries  []DurableDelivery `json:"deliveries"`
+	StatusCredentialIssued bool              `json:"-"`
+	ID                     string            `json:"id"`
+	Subject                string            `json:"-"`
+	RequestedAt            time.Time         `json:"requested_at"`
+	Status                 string            `json:"status"`
+	Deliveries             []DurableDelivery `json:"deliveries"`
 }
+
+// Infrastructure has no local profile; an ordinary missing callback is never
+// an acknowledgement of cleanup in either delivery mode.
+func InitialDeletionStatus(internal bool, callback string) string {
+	if internal {
+		return "exempt"
+	}
+	if callback == "" {
+		return "unresolved"
+	}
+	return "pending"
+}
+
+func DeletionOutcomeIsTerminal(status string) bool {
+	return status == "confirmed_cleanup" || status == "no_current_mapping" || status == "exempt"
+}
+
 type DurableDelivery struct {
 	RetryStartedAt time.Time `json:"-"`
 	EventID        string    `json:"event_id"`

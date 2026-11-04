@@ -212,7 +212,7 @@ func TestDurableDeletionSurvivesLostAcknowledgementAndRestart(t *testing.T) {
 		t.Fatal("stale authentication created a session")
 	}
 	again, err := service.DeleteAccount(ctx, user.ID, "")
-	if err != nil || again.OperationID != result.OperationID {
+	if err != nil || again.OperationID != result.OperationID || again.StatusToken != "" {
 		t.Fatal("duplicate deletion created another operation")
 	}
 	if worked, err := service.ProcessDeletionDelivery(ctx); err != nil || !worked {
@@ -243,7 +243,7 @@ func TestDurableDeletionSurvivesLostAcknowledgementAndRestart(t *testing.T) {
 	if len(events) != 2 || events[0] != events[1] || proofs[0] == proofs[1] {
 		t.Fatal("retry did not preserve event with refreshed signing proof")
 	}
-	if _, err = f.store.DeletionByCapability(ctx, auth.HashToken(again.StatusToken), time.Now()); err != nil {
+	if _, err = f.store.DeletionByCapability(ctx, auth.HashToken(result.StatusToken), time.Now()); err != nil {
 		t.Fatal("status lost with user cascade")
 	}
 	if _, err = f.store.DeletionByCapability(ctx, auth.HashToken(result.OperationID), time.Now()); err == nil {
@@ -553,6 +553,9 @@ func TestLegacyDeletionAlsoRequiresTerminalAcknowledgement(t *testing.T) {
 			defer callback.Close()
 			f := newRemovalFixture(t, callback.URL)
 			ctx := context.Background()
+			if _, err := f.store.db.ExecContext(ctx, `UPDATE identity_applications SET internal=1 WHERE id='app_two'`); err != nil {
+				t.Fatal(err)
+			}
 			result, err := f.service.DeleteAccount(ctx, "usr_remove", "")
 			if err != nil || result.Deleted != tc.completed {
 				t.Fatalf("legacy completion = %+v, %v; want completed=%v", result, err, tc.completed)
@@ -564,5 +567,102 @@ func TestLegacyDeletionAlsoRequiresTerminalAcknowledgement(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestLegacyMissingCallbackNeverConfirmsDeletion(t *testing.T) {
+	ctx := context.Background()
+	for _, internal := range []bool{false, true} {
+		t.Run(map[bool]string{false: "ordinary unresolved", true: "infrastructure exempt"}[internal], func(t *testing.T) {
+			callback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(204) }))
+			defer callback.Close()
+			f := newRemovalFixture(t, callback.URL)
+			if internal {
+				if _, err := f.store.db.ExecContext(ctx, `UPDATE identity_applications SET internal=1 WHERE id='app_two'`); err != nil {
+					t.Fatal(err)
+				}
+			}
+			result, err := f.service.DeleteAccount(ctx, "usr_remove", "")
+			if err != nil || result.Deleted != internal {
+				t.Fatalf("legacy missing callback: %+v %v", result, err)
+			}
+			for _, delivery := range result.Deliveries {
+				if delivery.ApplicationID == "app_two" && (delivery.Status != map[bool]string{false: "unresolved", true: "exempt"}[internal] || delivery.Attempts != 0) {
+					t.Fatalf("missing callback falsely acknowledged: %+v", delivery)
+				}
+			}
+			if !internal {
+				user, err := f.store.IdentityUserByID(ctx, "usr_remove")
+				if err != nil || user.Enabled || user.DeletionRequestedAt == nil || result.Status != "legacy_pending" {
+					t.Fatal("legacy missing callback did not preserve disabled subject")
+				}
+			}
+			var metadata string
+			if err := f.store.db.QueryRowContext(ctx, `SELECT metadata_json FROM identity_audit_events WHERE event_type=?`, map[bool]string{false: "identity.user.deletion_pending", true: "identity.user.deletion_completed"}[internal]).Scan(&metadata); err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(metadata, "known_applications_only") || !strings.Contains(metadata, "legacy_request_bound") {
+				t.Fatal("legacy audit implies unbounded cleanup")
+			}
+		})
+	}
+}
+
+func TestOperatorRequestsAndRetriesPreserveBrowserProgressCredential(t *testing.T) {
+	f := newRemovalFixture(t, "https://app.example/delete")
+	ctx := context.Background()
+	f.service.SetDurableDeletion(true, false)
+	result, err := f.service.DeleteAccount(ctx, "usr_remove", "")
+	if err != nil || result.StatusToken == "" {
+		t.Fatalf("missing initiating credential: %+v %v", result, err)
+	}
+	var originalHash string
+	var originalExpiry int64
+	if err := f.store.db.QueryRowContext(ctx, `SELECT capability_hash,capability_expires_at_unix FROM identity_deletion_operations WHERE id=?`, result.OperationID).Scan(&originalHash, &originalExpiry); err != nil {
+		t.Fatal(err)
+	}
+	// The user-delete admin API repeats DeleteAccount while the subject is frozen.
+	repeated, err := f.service.DeleteAccount(ctx, "usr_remove", "")
+	if err != nil || repeated.StatusToken != "" || repeated.OperationID != result.OperationID {
+		t.Fatalf("retry issued a replacement credential: %+v %v", repeated, err)
+	}
+	op, err := f.store.DeletionOperation(ctx, result.OperationID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, delivery := range op.Deliveries {
+		if delivery.ApplicationID == "app_one" {
+			if err := f.store.RetryDeletionDelivery(ctx, delivery.EventID, false, time.Now().UTC()); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	var hash string
+	var expiry int64
+	if err := f.store.db.QueryRowContext(ctx, `SELECT capability_hash,capability_expires_at_unix FROM identity_deletion_operations WHERE id=?`, op.ID).Scan(&hash, &expiry); err != nil {
+		t.Fatal(err)
+	}
+	if hash != originalHash || expiry != originalExpiry {
+		t.Fatal("operator retry rotated or extended the user's credential")
+	}
+	if _, err := f.store.DeletionByCapability(ctx, auth.HashToken(result.StatusToken), time.Now()); err != nil {
+		t.Fatal("original browser progress credential invalidated")
+	}
+	if _, err := f.store.DeletionByCapability(ctx, auth.HashToken(result.OperationID), time.Now()); err == nil {
+		t.Fatal("operation ID authorized progress")
+	}
+	if _, err := f.store.DeletionByCapability(ctx, originalHash, time.Unix(originalExpiry, 0)); err == nil {
+		t.Fatal("operator retry extended credential expiry")
+	}
+	// Operator-verified completion retains the same public progress credential.
+	if _, err := f.store.db.ExecContext(ctx, `UPDATE identity_deletion_deliveries SET status='no_current_mapping' WHERE operation_id=?`, op.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.store.FinalizeDurableDeletion(ctx, op.ID, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	completed, err := f.store.DeletionByCapability(ctx, originalHash, time.Now())
+	if err != nil || completed.Status != "completed" {
+		t.Fatal("progress credential did not survive finalization")
 	}
 }

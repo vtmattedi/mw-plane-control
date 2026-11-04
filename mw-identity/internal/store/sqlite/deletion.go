@@ -60,12 +60,7 @@ func (s *Store) BeginDurableDeletion(ctx context.Context, subject string, now ti
 			if err != nil {
 				return auth.DeletionOperation{}, err
 			}
-			status := "pending"
-			if t.internal {
-				status = "exempt"
-			} else if t.callback == "" {
-				status = "unresolved"
-			}
+			status := auth.InitialDeletionStatus(t.internal, t.callback)
 			if _, err = tx.ExecContext(ctx, `INSERT INTO identity_deletion_deliveries(event_id,operation_id,application_id,client_id,application_name,callback_uri,status,next_attempt_at_unix,retry_started_at_unix) VALUES (?,?,?,?,?,?,?,?,?)`, event, id, t.id, t.client, t.name, t.callback, status, now.Unix(), now.Unix()); err != nil {
 				return auth.DeletionOperation{}, err
 			}
@@ -73,8 +68,14 @@ func (s *Store) BeginDurableDeletion(ctx context.Context, subject string, now ti
 	} else if err != nil {
 		return auth.DeletionOperation{}, err
 	}
-	// Repeated accepted requests reuse the operation and renew only the status capability.
-	if _, err = tx.ExecContext(ctx, `UPDATE identity_deletion_operations SET capability_hash=?,capability_expires_at_unix=? WHERE id=?`, capability, expiry.Unix(), id); err != nil {
+	// Operator retries must not replace the initiating browser's credential or
+	// extend its lifetime. Only the first request can issue a status capability.
+	credential, err := tx.ExecContext(ctx, `UPDATE identity_deletion_operations SET capability_hash=?,capability_expires_at_unix=? WHERE id=? AND capability_hash IS NULL`, capability, expiry.Unix(), id)
+	if err != nil {
+		return auth.DeletionOperation{}, err
+	}
+	issued, err := credential.RowsAffected()
+	if err != nil {
 		return auth.DeletionOperation{}, err
 	}
 	for _, table := range []string{"identity_sessions", "identity_authorization_codes", "identity_access_tokens", "identity_mfa_challenges"} {
@@ -96,7 +97,9 @@ func (s *Store) BeginDurableDeletion(ctx context.Context, subject string, now ti
 	if err = s.FinalizeDurableDeletion(ctx, id, now); err != nil {
 		return auth.DeletionOperation{}, err
 	}
-	return s.DeletionOperation(ctx, id)
+	op, err := s.DeletionOperation(ctx, id)
+	op.StatusCredentialIssued = issued == 1
+	return op, err
 }
 func (s *Store) DeletionOperation(ctx context.Context, id string) (auth.DeletionOperation, error) {
 	var op auth.DeletionOperation

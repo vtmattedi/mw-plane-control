@@ -41,7 +41,8 @@ type RecoveryData struct {
 }
 
 type AccountData struct {
-	PasskeyRequired bool
+	DeletionReauthRequired bool
+	PasskeyRequired        bool
 	Page
 	Email           string
 	DisplayName     string

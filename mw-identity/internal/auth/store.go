@@ -76,6 +76,7 @@ type Session struct {
 }
 
 type ConnectedApplication struct {
+	Internal             bool      `json:"-"`
 	AccountManagementURI string    `json:"account_management_uri,omitempty"`
 	AccountDeletionURI   string    `json:"account_deletion_uri,omitempty"`
 	ID                   string    `json:"id"`

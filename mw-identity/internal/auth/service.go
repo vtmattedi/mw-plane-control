@@ -380,7 +380,7 @@ func authMethodFromReason(reason string) string {
 	switch strings.TrimSpace(reason) {
 	case "webauthn":
 		return "webauthn"
-	case "password":
+	case "password", "public_registration":
 		return "password"
 	case "password_totp":
 		return "password_totp"
