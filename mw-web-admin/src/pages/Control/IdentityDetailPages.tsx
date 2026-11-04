@@ -34,9 +34,7 @@ type Application = {
   name: string
   client_id: string
   application_type: string
-  authentication_policy: string
   access_policy: string
-  access_policy_v1?: boolean
   enabled: boolean
   archived_at?: string
   redirect_uris: string[]
@@ -44,7 +42,6 @@ type Application = {
   account_management_uri?: string
   account_deletion_uri?: string
   delete_callback_uri?: string
-  allow_public_signup: boolean
   internal?: boolean
   needs_delete_callback?: boolean
   scopes: string[]
@@ -56,14 +53,12 @@ type Application = {
 
 type ApplicationForm = {
   name: string
-  authentication_policy: string
   access_policy: string
   redirect_uris: string
   post_logout_redirect_uris: string
   account_management_uri: string
   account_deletion_uri: string
   delete_callback_uri: string
-  allow_public_signup: boolean
   internal: boolean
   scopes: string
   claims: string
@@ -132,12 +127,10 @@ export function IdentityApplicationDetailPage() {
     if (!query.data) return
     const {
       name,
-      authentication_policy,
       access_policy,
       redirect_uris,
       post_logout_redirect_uris,
       delete_callback_uri,
-      allow_public_signup,
       internal,
       scopes,
       claims,
@@ -145,14 +138,12 @@ export function IdentityApplicationDetailPage() {
     } = query.data
     setForm({
       name,
-      authentication_policy,
       access_policy: access_policy || 'default_deny',
       redirect_uris: (redirect_uris ?? []).join(', '),
       post_logout_redirect_uris: (post_logout_redirect_uris ?? []).join(', '),
       delete_callback_uri: delete_callback_uri ?? '',
       account_management_uri: query.data.account_management_uri ?? '',
       account_deletion_uri: query.data.account_deletion_uri ?? '',
-      allow_public_signup: allow_public_signup === true,
       internal: internal === true,
       scopes: (scopes ?? []).join(', '),
       claims: (claims ?? []).join(', '),
@@ -385,7 +376,7 @@ export function IdentityApplicationDetailPage() {
                   <AlertTriangle className="mt-0.5 size-4 shrink-0" />
                   <span>
                     {language === 'en'
-                      ? 'This legacy application needs a whole-identity deletion callback before it can be edited.'
+                      ? 'This application needs a whole-identity deletion callback to complete its registration.'
                       : 'Esta aplicação precisa de um callback de exclusão da identidade MW antes de ser editada.'}
                   </span>
                 </div>
@@ -418,13 +409,6 @@ export function IdentityApplicationDetailPage() {
                     />
                   </Field>
 
-                  {query.data.access_policy_v1 === false && (
-                    <p role="status">
-                      {language === 'en'
-                        ? 'Legacy access rules are active. An operator must review and migrate this client before Public/Private rules are enforced.'
-                        : 'Regras antigas de acesso ativas. Um operador precisa revisar e migrar este cliente antes de aplicar as regras de acesso.'}
-                    </p>
-                  )}
                   {query.data.internal && (
                     <p role="status">
                       {language === 'en'

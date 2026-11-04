@@ -6,7 +6,7 @@ Password verification creates no session. A successful password check starts a r
 
 The portal uses a password then code flow in both languages. Direct email+TOTP login is removed. Login rate limiting and CSRF apply to both stages. Existing WebAuthn-only BFF/Identity admin mutation checks remain in place. Hardware/browser evidence is a separate release gate.
 
-## Published satisfaction matrix and consumer cutover
+## Published satisfaction matrix and consumer requirements
 
 | Proof | Achieved ACR | AMR | Standard | Strong | WebAuthn-only |
 | --- | --- | --- | --- | --- | --- |
@@ -15,10 +15,10 @@ The portal uses a password then code flow in both languages. Direct email+TOTP l
 | UV passkey | `urn:mw:webauthn` | `webauthn` | yes | yes | yes |
 | Missing, legacy TOTP, recovery | none | none | no | no | no |
 
-`acr_values` accepts one exact published value; unknown values or unsupported lists fail explicitly. Default requirement is Standard, augmented by a retained legacy app Strong gate until reviewed cutover. `max_age=0` creates a new authentication transaction/session before issuing a code. Positive age is checked at authorization and exchange. No age resets when exchanging or delegating. Discovery publishes the three implemented ACRs. New ID tokens use the documented AMR identifiers above, replacing legacy password labels.
+`acr_values` accepts one exact published value; unknown values or unsupported lists fail explicitly. Default requirement is Standard for every client. Application-wide authentication policy is removed; only requested ACR and freshness can strengthen the requirement. A nonblank, bounded nonce is mandatory and is preserved exactly in the signed ID token. `max_age=0` creates a new authentication transaction/session before issuing a code. Positive age is checked at authorization and exchange. No age resets when exchanging or delegating. Discovery publishes the three implemented ACRs. New ID tokens use the documented AMR identifiers above, replacing legacy password labels.
 
 Consumers validate signature, exact issuer/audience, nonce/state, expiry/issue time, subject and ACR satisfaction, then freshness. Bind step-up to the original app session/subject and action intent; final destructive confirmation remains local. BFF step-up transactions now persist expected subject and required WebAuthn ACR; wrong subject, weaker/missing ACR and stale proof are rejected, while high-risk routes remain WebAuthn-only.
 
-After owner-reviewed consumer adoption and a disposable end-to-end check, `/app/federation-cutover --client-id <client> --retire-app-strong-reviewed --reviewed` retires that client's old app-wide gate and audits the cutover. It does not change access eligibility unless a separate reviewed access-cutover command is run. Deprecated columns remain through the rollback window. No protected legacy client is automatically downgraded.
+There is no per-client Strong retirement command. Consumer readiness is a deployment requirement: each consumer validates signed ACR, exact subject, freshness and its original action/session intent before integration. The provider has no old-consumer assurance branch. Historical registry columns remain inert to preserve stored information; migration 020 revokes old codes/access tokens. The frozen v1 assurance semantics and the explicit high-risk WebAuthn gates remain authoritative.
 
 TOTP enrollment and changes retain the existing recent-passkey requirement. The combined password/TOTP fallback is available after that enrollment; no credential-management guard was relaxed. Explicit WebAuthn-only setup directs users to enroll a passkey.

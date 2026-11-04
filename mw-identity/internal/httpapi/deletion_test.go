@@ -13,7 +13,7 @@ import (
 func TestDeletionProgressSurvivesSessionRevocationWithoutURLSecret(t *testing.T) {
 	service, h, _ := testAuthHTTPWithStore(t)
 	ctx := context.Background()
-	service.SetDurableDeletion(true, false)
+	service.SetDeletionDispatch(true, false)
 	user, err := service.RegisterPublic(ctx, auth.RegisterPublicRequest{Email: "delete@example.test", Username: "delete.user", Password: []byte("a-long-test-password")}, "")
 	if err != nil {
 		t.Fatal(err)

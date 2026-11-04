@@ -70,7 +70,6 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -o /out/recovery \
     ./cmd/recovery
 
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -o /out/federation-cutover ./cmd/federation-cutover
 
 FROM alpine:3.22
 
@@ -82,7 +81,6 @@ RUN apk add --no-cache ca-certificates tzdata \
 
 WORKDIR /app
 
-COPY --from=build /out/federation-cutover /app/federation-cutover
 COPY --from=build /out/server /app/server
 COPY --from=build /out/create-superadmin /app/create-superadmin
 COPY --from=build /out/create-application /app/create-application

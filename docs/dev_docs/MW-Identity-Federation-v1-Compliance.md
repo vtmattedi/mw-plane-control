@@ -1,5 +1,7 @@
 # Federation v1 conformance and baseline
 
+> The staged compatibility approach and earlier status tables below are historical. The [2026-11-04 clean contract migration](federation-v1-clean-migration.md) is the current implementation decision. Old consumer compatibility is not a provider merge requirement; consumer readiness is required before deployment/integration.
+
 PR-00 baseline: 2026-11-03, `main` and local `origin/main` at `3bf0ca4f53139568f711160a7c269843557708d7`. Remote was not fetched. Working tree was clean. Identity's latest migration is `013_application_consent.sql`; no migration is introduced by PR-00. The frozen contract was already tracked and is preserved byte-for-byte (SHA-256 `df895a4e3084d7988cbdb9e2a08a47a090bdcf259f6bf05b22a6ff760c7fa7ff`).
 
 The user authorized sequential implementation with one commit per PR increment. This overrides the supplied plan's instruction to stop after every increment. Production activation still requires its compatibility and verification gates. Initial provider increments did not modify consumer repositories; later explicitly authorized WOI receiver changes and local cross-service evidence are recorded below and in the deletion follow-up review.
@@ -130,5 +132,22 @@ The existing Step 13 moved-document references were repaired. An isolated Docker
 On 2026-11-04, four cross-service integration cases passed using the actual Identity signer, SQLite store and deletion worker with WOI's real authenticated receiver, PostgreSQL and filesystem. The test-only fixture is `mw-identity/internal/auth/testdata/receiverfixture/main.go`; WOI runs it through `npm --prefix backend run test:identity-provider`, with an explicitly disposable PostgreSQL port and the provider module directory. It reads no deployment configuration and enables durable dispatch only within that isolated process.
 
 The cases demonstrate persisted pending cleanup after a receiver filesystem failure, SQLite/service restart, signing-key rotation/JWKS refresh, stable operation/event/request time, successful terminal retry, differentiated no-current-mapping without removing a detached WOI profile, and refusal to complete on pending/malformed HTTP 200 envelopes. These add local evidence for A23/A24; other receiver populations, browser/hardware, production registration/transport and operator restore gates remain unverified. Durable deletion stays disabled in normal configuration. The existing baseline/current acceptance tables retain their stated historical scopes; no global production compliance is inferred from this consumer fixture.
+
+## Clean contract migration evidence
+
+The provider now applies one Public/Private policy to every ordinary client, with no signup/superadmin/per-client migration exception. Retired application-wide Strong and signup controls are removed from runtime models, SQL, APIs, CLI and UI. The request-bound deletion path and empty/unversioned callback acknowledgement modes are removed. The remaining dispatch switch pauses the worker; every request still uses durable state. Historical data columns and evidence-backed reconciliation remain for data preservation only.
+
+| Revised requirement | Local evidence |
+| --- | --- |
+| Every ordinary client obeys access/deny rules | Go/SQL federation tests, old flag/signup values set, real assignment API denial tests, misclassified administration-audience rejection |
+| Assurance is requested per action | Real signed password/MFA/passkey matrix with retired stored Strong set; explicit weaker/stale/mismatched proof rejected; BFF high-risk tests retained |
+| Nonce is mandatory | Missing/blank/oversized nonce HTTP rejection before login; direct issuance/exchange guard; exact nonce preserved in signed ID token |
+| Only durable deletion, even while dispatch is paused | No synchronous implementation remains; pause/queue/freeze/resume and unresolved missing-callback tests |
+| Explicit terminal receiver contract | Version 1 required; empty 200/204 and unversioned/malformed/nonterminal bodies remain pending; actual worker/WOI suite passes |
+| Important data survives migration | Real 019→020 test snapshots identities/hashes, client secret/metadata, roles/consent/history, signing/TOTP material and existing outbox/capability; simulated failure rolls back, rerun audits once |
+| Prior incomplete deletion requests remain recoverable | Original timestamps imported for orphaned frozen subjects; no fabricated callback IDs or automatic replay |
+| Provider cleanup is reviewable independently of old consumers | Old cutover executable/store methods removed; active integration/runbooks reflect the clean contract; consumer readiness is a deployment prerequisite |
+
+Identity/BFF tests and vet, frontend typecheck/lint/144 tests/build and four actual-provider/WOI tests pass for the revised source. The frozen contract and migrations 001–019 remain unchanged. Production activation, live consumer onboarding and recovery remain separate deployment work.
 
 See the [full diff review](MW-Identity-Federation-v1-Review.md) for findings corrected before the final commit. Consumer repositories and production services were not changed. Durable deletion is disabled by default; compatibility fields remain until audited rollout and rollback windows finish.

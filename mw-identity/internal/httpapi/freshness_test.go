@@ -20,7 +20,7 @@ func TestMaxAgeZeroRejectsAnOlderDifferentSessionWithinSameSecond(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = store.CreateApplication(ctx, applications.CreateInput{ID: "fresh-app", Name: "Fresh", ClientID: "fresh-client", ApplicationType: "public", AuthenticationPolicy: "standard", AccessPolicy: "default_allow", AccessPolicyV1: true, Enabled: true, RedirectURIs: []string{"https://example.com/callback"}, Scopes: []string{"openid"}, CreatedAt: time.Now()}); err != nil {
+	if err = store.CreateApplication(ctx, applications.CreateInput{ID: "fresh-app", Name: "Fresh", ClientID: "fresh-client", ApplicationType: "public", AccessPolicy: "default_allow", Enabled: true, RedirectURIs: []string{"https://example.com/callback"}, Scopes: []string{"openid"}, CreatedAt: time.Now()}); err != nil {
 		t.Fatal(err)
 	}
 	provider, err := oidc.NewService(store, &signing.Manager{}, oidc.ServiceConfig{Issuer: "https://identity.example", AuthorizationCodeTTL: time.Minute, AccessTokenTTL: time.Minute, IDTokenTTL: time.Minute})

@@ -172,8 +172,7 @@ func TestAppSignupLinkMatchesLanguageAndStrongMode(t *testing.T) {
 	handlers.config.PublicSignupEnabled = true
 	if err := store.CreateApplication(context.Background(), applications.CreateInput{
 		ID: "app_woi", Name: "Working On It", ClientID: "woi-test",
-		ApplicationType: "confidential", AuthenticationPolicy: "standard",
-		AllowPublicSignup: true, AccessPolicy: "default_allow", Enabled: true,
+		ApplicationType: "confidential", AccessPolicy: "default_allow", Enabled: true,
 		RedirectURIs: []string{"https://woi.example/callback"},
 		Scopes:       []string{"openid"}, CreatedAt: time.Now().UTC(),
 	}); err != nil {
@@ -209,8 +208,7 @@ func TestAppSignupHandsOffThroughContinue(t *testing.T) {
 	handlers.config.PublicSignupEnabled = true
 	if err := store.CreateApplication(context.Background(), applications.CreateInput{
 		ID: "app_woi", Name: "Working On It", ClientID: "woi-test",
-		ApplicationType: "public", AuthenticationPolicy: "standard",
-		AllowPublicSignup: true, AccessPolicy: "default_allow", Enabled: true,
+		ApplicationType: "public", AccessPolicy: "default_allow", Enabled: true,
 		RedirectURIs: []string{"https://woi.example/callback"},
 		Scopes:       []string{"openid"}, CreatedAt: time.Now().UTC(),
 	}); err != nil {

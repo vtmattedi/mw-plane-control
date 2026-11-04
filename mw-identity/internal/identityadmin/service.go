@@ -27,14 +27,12 @@ type CreateApplicationRequest struct {
 	Name                   string
 	ClientID               string
 	ApplicationType        string
-	AuthenticationPolicy   string
 	AccessPolicy           string
 	RedirectURIs           []string
 	PostLogoutRedirectURIs []string
 	DeleteCallbackURI      string
 	AccountManagementURI   string
 	AccountDeletionURI     string
-	AllowPublicSignup      bool
 	Internal               bool
 	Scopes                 []string
 	Claims                 []string
@@ -163,23 +161,18 @@ func (s *Service) CreateApplication(
 	if request.Internal || privilegedRegistration(request.Scopes, request.Audiences) {
 		return CreateApplicationResult{}, ErrRoleForbidden
 	}
-	if (strings.TrimSpace(request.AuthenticationPolicy) != "" && strings.TrimSpace(request.AuthenticationPolicy) != "standard") || request.AllowPublicSignup {
-		return CreateApplicationResult{}, ErrInvalid
-	}
 	result, err := s.applications.Create(
 		ctx,
 		applications.CreateRequest{
 			Name:                   request.Name,
 			ClientID:               request.ClientID,
 			ApplicationType:        request.ApplicationType,
-			AuthenticationPolicy:   request.AuthenticationPolicy,
 			AccessPolicy:           request.AccessPolicy,
 			RedirectURIs:           request.RedirectURIs,
 			PostLogoutRedirectURIs: request.PostLogoutRedirectURIs,
 			DeleteCallbackURI:      request.DeleteCallbackURI,
 			AccountManagementURI:   request.AccountManagementURI,
 			AccountDeletionURI:     request.AccountDeletionURI,
-			AllowPublicSignup:      request.AllowPublicSignup,
 			Internal:               request.Internal,
 			Scopes:                 request.Scopes,
 			Claims:                 request.Claims,
@@ -281,11 +274,6 @@ func (s *Service) UpdateApplication(
 	if current.Internal || request.Internal != current.Internal || privilegedRegistration(request.Scopes, request.Audiences) {
 		return applications.Application{}, ErrRoleForbidden
 	}
-	if request.AuthenticationPolicy != "" && request.AuthenticationPolicy != current.AuthenticationPolicy {
-		return applications.Application{}, ErrInvalid
-	}
-	request.AuthenticationPolicy = current.AuthenticationPolicy
-	request.AllowPublicSignup = current.AllowPublicSignup
 	normalized, err := normalizeUpdate(request)
 	if err != nil {
 		return applications.Application{}, err
@@ -679,19 +667,9 @@ func normalizeUpdate(
 	request UpdateApplication,
 ) (UpdateApplication, error) {
 	request.Name = strings.TrimSpace(request.Name)
-	request.AuthenticationPolicy =
-		strings.TrimSpace(
-			request.AuthenticationPolicy,
-		)
 	request.AccessPolicy = strings.TrimSpace(request.AccessPolicy)
 
 	if request.Name == "" {
-		return UpdateApplication{}, ErrInvalid
-	}
-	if request.AuthenticationPolicy == "" {
-		request.AuthenticationPolicy = "standard"
-	}
-	if request.AuthenticationPolicy != "standard" && request.AuthenticationPolicy != "strong" {
 		return UpdateApplication{}, ErrInvalid
 	}
 	if request.AccessPolicy == "" {
@@ -736,7 +714,7 @@ func normalizeUpdate(
 	}
 	// An application registered before the callback was mandatory has to add
 	// one on its next edit; enabling, disabling and archiving stay available.
-	if err := applications.CheckLifecycle(request.Internal, request.AllowPublicSignup, request.DeleteCallbackURI); err != nil {
+	if err := applications.CheckLifecycle(request.Internal, request.DeleteCallbackURI); err != nil {
 		return UpdateApplication{}, err
 	}
 

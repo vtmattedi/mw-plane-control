@@ -1,5 +1,7 @@
 # Federated sign-in rollout (2026-10-27)
 
+> Deployment now follows the [clean v1 contract migration](federation-v1-clean-migration.md). Consumers implement the new contract before integration; the provider retains no old-consumer protocol branch.
+
 The current target is [Federation v1](../MW-Identity-Federation-Contract-v1.0.md). Follow the [delivery record](MW-Identity-Federation-v1-Delivery.md) for migrations 014 onward. The earlier rollout below is historical context and does not authorize a v1 downgrade.
 
 Disconnect now revokes consent without deleting application data. Applications

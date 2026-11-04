@@ -157,7 +157,7 @@ func (f *fixture) open(ctx context.Context) error {
 		return err
 	}
 	service.SetLifecycleSigner(manager)
-	service.SetDurableDeletion(true, false) // This disposable test explicitly opts in.
+	service.SetDeletionDispatch(true, false) // This disposable test explicitly opts in.
 	f.db, f.store, f.signer, f.service = db, store, manager, service
 	return nil
 }
@@ -169,7 +169,7 @@ func (f *fixture) execute(ctx context.Context, c command) (result, error) {
 		if err != nil || callback.Scheme != "http" || callback.Hostname() != "127.0.0.1" || callback.User != nil {
 			return result{}, errors.New("fixture callback must be local HTTP")
 		}
-		err = f.store.CreateApplication(ctx, applications.CreateInput{ID: "receiver-app", Name: "Receiver test", ClientID: clientID, ApplicationType: "public", AccessPolicy: "default_allow", AccessPolicyV1: true, AuthenticationPolicy: "standard", Enabled: true, DeleteCallbackURI: c.Callback, Scopes: []string{"openid"}, CreatedAt: time.Now().UTC()})
+		err = f.store.CreateApplication(ctx, applications.CreateInput{ID: "receiver-app", Name: "Receiver test", ClientID: clientID, ApplicationType: "public", AccessPolicy: "default_allow", Enabled: true, DeleteCallbackURI: c.Callback, Scopes: []string{"openid"}, CreatedAt: time.Now().UTC()})
 		return result{}, err
 	case "create":
 		if c.Subject == "" {

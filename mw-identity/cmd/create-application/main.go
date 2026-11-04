@@ -37,11 +37,6 @@ func main() {
 		"confidential",
 		"application type: confidential or public",
 	)
-	policy := flag.String(
-		"auth-policy",
-		"standard",
-		"application authentication policy",
-	)
 	accessPolicy := flag.String(
 		"access-policy",
 		"default_deny",
@@ -51,11 +46,6 @@ func main() {
 		"delete-callback-uri",
 		"",
 		"HTTPS whole-MW-account deletion callback URI; required unless -internal",
-	)
-	allowPublicSignup := flag.Bool(
-		"allow-public-signup",
-		false,
-		"deprecated compatibility metadata; use an explicit public access policy instead",
 	)
 	internal := flag.Bool(
 		"internal",
@@ -166,12 +156,10 @@ func main() {
 			Name:                   *name,
 			ClientID:               *clientID,
 			ApplicationType:        *appType,
-			AuthenticationPolicy:   *policy,
 			AccessPolicy:           *accessPolicy,
 			RedirectURIs:           redirectURIs,
 			PostLogoutRedirectURIs: postLogoutURIs,
 			DeleteCallbackURI:      *deleteCallbackURI,
-			AllowPublicSignup:      *allowPublicSignup,
 			Internal:               *internal,
 			Scopes:                 scopes,
 			Claims:                 claims,

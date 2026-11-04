@@ -257,7 +257,6 @@ try {
         name = "Step 06 Managed App"
         client_id = $TestClientID
         application_type = "confidential"
-        authentication_policy = "standard"
         redirect_uris = @(
             "https://step06.example/initial"
         )
@@ -316,7 +315,6 @@ try {
 
     $UpdateBody = @{
         name = "Step 06 Managed App Updated"
-        authentication_policy = "standard"
         redirect_uris = @(
             "https://step06.example/exact-callback"
         )

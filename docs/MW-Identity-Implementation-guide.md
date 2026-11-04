@@ -1,6 +1,8 @@
 # MW Identity — Implementation Guide
 
-Federation v1 now follows [the integration guide](MW-Identity-application-integration.md) and [evidence record](dev_docs/MW-Identity-Federation-v1-Compliance.md). Legacy app-wide Strong and signup-based access below remain only for reviewed migration; TOTP-only is no longer Strong.
+> Historical implementation/planning snapshot. The [2026-11-04 clean v1 migration decision](dev_docs/federation-v1-clean-migration.md) supersedes compatibility, application-wide Strong and per-application signup behavior described below.
+
+Federation v1 now follows [the integration guide](MW-Identity-application-integration.md) and [evidence record](dev_docs/MW-Identity-Federation-v1-Compliance.md). Compatibility behavior described below is historical and is removed by the clean contract migration; TOTP-only is never Strong.
 
 **Component:** `mw-identity`  
 **Role:** central human identity, authentication, application registry, authorization issuer, token exchange, introspection, revocation, and recovery  

@@ -34,7 +34,7 @@ func TestLegacyDeletionMigrationRequiresExplicitReconciliation(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, entry := range entries {
-		if entry.Name() == "018_durable_deletion.sql" {
+		if entry.Name() >= "018_durable_deletion.sql" {
 			continue
 		}
 		raw, err := fs.ReadFile(migrations.FS, entry.Name())
@@ -132,7 +132,7 @@ func deletionService(t *testing.T, store *Store) (*auth.Service, *signing.Manage
 		t.Fatal(err)
 	}
 	s.SetLifecycleSigner(signer)
-	s.SetDurableDeletion(true, false)
+	s.SetDeletionDispatch(true, false)
 	return s, signer
 }
 func TestDurableDeletionSurvivesLostAcknowledgementAndRestart(t *testing.T) {
@@ -185,7 +185,7 @@ func TestDurableDeletionSurvivesLostAcknowledgementAndRestart(t *testing.T) {
 			}
 			return
 		}
-		w.WriteHeader(204)
+		w.Write([]byte(`{"version":1,"outcome":"confirmed_cleanup"}`))
 	}))
 	defer callback.Close()
 	f := newRemovalFixture(t, callback.URL)
@@ -292,7 +292,7 @@ func TestQueuedCallbackAndChangedRegistrationRemainPending(t *testing.T) {
 	callback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/complete" {
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(`{"outcome":"no_current_mapping"}`))
+			w.Write([]byte(`{"version":1,"outcome":"no_current_mapping"}`))
 			return
 		}
 		w.WriteHeader(202)
@@ -351,7 +351,10 @@ func TestQueuedCallbackAndChangedRegistrationRemainPending(t *testing.T) {
 
 func TestDeletionRedirectIsNotFollowedOrAcknowledged(t *testing.T) {
 	called := false
-	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { called = true; w.WriteHeader(204) }))
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.Write([]byte(`{"version":1,"outcome":"confirmed_cleanup"}`))
+	}))
 	defer target.Close()
 	source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, target.URL, 307) }))
 	defer source.Close()
@@ -380,7 +383,9 @@ func TestDeletionRedirectIsNotFollowedOrAcknowledged(t *testing.T) {
 }
 
 func TestOperatorRetryRenewsHorizonWithoutChangingEvent(t *testing.T) {
-	callback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(204) }))
+	callback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"version":1,"outcome":"confirmed_cleanup"}`))
+	}))
 	defer callback.Close()
 	f := newRemovalFixture(t, callback.URL)
 	ctx := context.Background()
@@ -433,10 +438,10 @@ func TestDeletionCallbackRequiresTerminalAcknowledgement(t *testing.T) {
 		name, body, outcome string
 		code                int
 	}{
-		{"legacy synchronous empty", "", "confirmed_cleanup", 200},
-		{"no content", "", "confirmed_cleanup", 204},
-		{"legacy terminal cleanup", `{"outcome":"confirmed_cleanup"}`, "confirmed_cleanup", 200},
-		{"legacy no mapping", `{"outcome":"no_current_mapping"}`, "no_current_mapping", 200},
+		{"empty 200 rejected", "", "pending", 200},
+		{"empty 204 rejected", "", "pending", 204},
+		{"unversioned cleanup rejected", `{"outcome":"confirmed_cleanup"}`, "pending", 200},
+		{"unversioned no mapping rejected", `{"outcome":"no_current_mapping"}`, "pending", 200},
 		{"versioned cleanup", `{"version":1,"outcome":"confirmed_cleanup"}`, "confirmed_cleanup", 200},
 		{"versioned no mapping", `{"version":1,"outcome":"no_current_mapping"}`, "no_current_mapping", 200},
 		{"accepted is pending", `{"version":1,"outcome":"confirmed_cleanup"}`, "pending", 202},
@@ -469,7 +474,7 @@ func TestDeletionCallbackRequiresTerminalAcknowledgement(t *testing.T) {
 			if _, err := f.store.db.ExecContext(ctx, `UPDATE identity_applications SET internal=1 WHERE id='app_two'`); err != nil {
 				t.Fatal(err)
 			}
-			f.service.SetDurableDeletion(true, false)
+			f.service.SetDeletionDispatch(true, false)
 			result, err := f.service.DeleteAccount(ctx, "usr_remove", "")
 			if err != nil {
 				t.Fatal(err)
@@ -533,85 +538,10 @@ func TestDeletionFinalizationFailsClosedDuringRecovery(t *testing.T) {
 	}
 }
 
-func TestLegacyDeletionAlsoRequiresTerminalAcknowledgement(t *testing.T) {
-	for _, tc := range []struct {
-		name, body string
-		code       int
-		completed  bool
-	}{
-		{"synchronous acknowledgement", "", 200, true},
-		{"versioned terminal", `{"version":1,"outcome":"confirmed_cleanup"}`, 200, true},
-		{"nonterminal", `{"outcome":"pending"}`, 200, false},
-		{"malformed", `{"outcome":`, 200, false},
-		{"queued", "", 202, false},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			callback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(tc.code)
-				_, _ = w.Write([]byte(tc.body))
-			}))
-			defer callback.Close()
-			f := newRemovalFixture(t, callback.URL)
-			ctx := context.Background()
-			if _, err := f.store.db.ExecContext(ctx, `UPDATE identity_applications SET internal=1 WHERE id='app_two'`); err != nil {
-				t.Fatal(err)
-			}
-			result, err := f.service.DeleteAccount(ctx, "usr_remove", "")
-			if err != nil || result.Deleted != tc.completed {
-				t.Fatalf("legacy completion = %+v, %v; want completed=%v", result, err, tc.completed)
-			}
-			if !tc.completed {
-				user, err := f.store.IdentityUserByID(ctx, "usr_remove")
-				if err != nil || user.Enabled || user.DeletionRequestedAt == nil {
-					t.Fatalf("nonterminal legacy response removed or reopened subject: %+v %v", user, err)
-				}
-			}
-		})
-	}
-}
-
-func TestLegacyMissingCallbackNeverConfirmsDeletion(t *testing.T) {
-	ctx := context.Background()
-	for _, internal := range []bool{false, true} {
-		t.Run(map[bool]string{false: "ordinary unresolved", true: "infrastructure exempt"}[internal], func(t *testing.T) {
-			callback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(204) }))
-			defer callback.Close()
-			f := newRemovalFixture(t, callback.URL)
-			if internal {
-				if _, err := f.store.db.ExecContext(ctx, `UPDATE identity_applications SET internal=1 WHERE id='app_two'`); err != nil {
-					t.Fatal(err)
-				}
-			}
-			result, err := f.service.DeleteAccount(ctx, "usr_remove", "")
-			if err != nil || result.Deleted != internal {
-				t.Fatalf("legacy missing callback: %+v %v", result, err)
-			}
-			for _, delivery := range result.Deliveries {
-				if delivery.ApplicationID == "app_two" && (delivery.Status != map[bool]string{false: "unresolved", true: "exempt"}[internal] || delivery.Attempts != 0) {
-					t.Fatalf("missing callback falsely acknowledged: %+v", delivery)
-				}
-			}
-			if !internal {
-				user, err := f.store.IdentityUserByID(ctx, "usr_remove")
-				if err != nil || user.Enabled || user.DeletionRequestedAt == nil || result.Status != "legacy_pending" {
-					t.Fatal("legacy missing callback did not preserve disabled subject")
-				}
-			}
-			var metadata string
-			if err := f.store.db.QueryRowContext(ctx, `SELECT metadata_json FROM identity_audit_events WHERE event_type=?`, map[bool]string{false: "identity.user.deletion_pending", true: "identity.user.deletion_completed"}[internal]).Scan(&metadata); err != nil {
-				t.Fatal(err)
-			}
-			if !strings.Contains(metadata, "known_applications_only") || !strings.Contains(metadata, "legacy_request_bound") {
-				t.Fatal("legacy audit implies unbounded cleanup")
-			}
-		})
-	}
-}
-
 func TestOperatorRequestsAndRetriesPreserveBrowserProgressCredential(t *testing.T) {
 	f := newRemovalFixture(t, "https://app.example/delete")
 	ctx := context.Background()
-	f.service.SetDurableDeletion(true, false)
+	f.service.SetDeletionDispatch(true, false)
 	result, err := f.service.DeleteAccount(ctx, "usr_remove", "")
 	if err != nil || result.StatusToken == "" {
 		t.Fatalf("missing initiating credential: %+v %v", result, err)
@@ -664,5 +594,51 @@ func TestOperatorRequestsAndRetriesPreserveBrowserProgressCredential(t *testing.
 	completed, err := f.store.DeletionByCapability(ctx, originalHash, time.Now())
 	if err != nil || completed.Status != "completed" {
 		t.Fatal("progress credential did not survive finalization")
+	}
+}
+
+func TestDispatchPauseNeverRestoresRequestBoundDeletion(t *testing.T) {
+	for _, infrastructure := range []bool{false, true} {
+		t.Run(map[bool]string{false: "ordinary missing callback", true: "infrastructure exempt"}[infrastructure], func(t *testing.T) {
+			calls := 0
+			callback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				calls++
+				w.Write([]byte(`{"version":1,"outcome":"confirmed_cleanup"}`))
+			}))
+			defer callback.Close()
+			f := newRemovalFixture(t, callback.URL)
+			ctx := context.Background()
+			if infrastructure {
+				if _, err := f.store.db.ExecContext(ctx, `UPDATE identity_applications SET internal=1 WHERE id='app_two'`); err != nil {
+					t.Fatal(err)
+				}
+			}
+			f.service.SetDeletionDispatch(false, false)
+			result, err := f.service.DeleteAccount(ctx, "usr_remove", "")
+			if err != nil || result.Deleted || result.OperationID == "" || result.StatusToken == "" || result.Status != "pending" || calls != 0 {
+				t.Fatalf("paused dispatch escaped durable workflow: %+v calls=%d err=%v", result, calls, err)
+			}
+			user, err := f.store.IdentityUserByID(ctx, "usr_remove")
+			if err != nil || user.Enabled || user.DeletionRequestedAt == nil {
+				t.Fatal("queued identity was not frozen")
+			}
+			op, err := f.store.DeletionOperation(ctx, result.OperationID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, delivery := range op.Deliveries {
+				if delivery.ApplicationID == "app_two" && delivery.Status != map[bool]string{false: "unresolved", true: "exempt"}[infrastructure] {
+					t.Fatal("missing callback falsely completed")
+				}
+			}
+			f.service.SetDeletionDispatch(true, false)
+			if _, err := f.service.ProcessDeletionDelivery(ctx); err != nil {
+				t.Fatal(err)
+			}
+			op, err = f.store.DeletionOperation(ctx, result.OperationID)
+			if err != nil || (op.Status == "completed") != infrastructure || calls != 1 {
+				t.Fatalf("resume did not honor durable obligations: %+v calls=%d err=%v", op, calls, err)
+			}
+		})
 	}
 }

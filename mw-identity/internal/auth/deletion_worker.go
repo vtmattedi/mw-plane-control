@@ -11,7 +11,7 @@ import (
 
 // RunDeletionWorker blocks until shutdown and waits for every bounded worker.
 func (s *Service) RunDeletionWorker(ctx context.Context) {
-	if !s.durableDeletion {
+	if !s.deletionDispatchEnabled {
 		return
 	}
 	var wg sync.WaitGroup

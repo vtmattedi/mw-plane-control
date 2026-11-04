@@ -18,6 +18,9 @@ import (
 func TestSignedAssuranceRoundTripAndNoMintTimeUpgrade(t *testing.T) {
 	f := newRemovalFixture(t, "")
 	ctx := context.Background()
+	if _, err := f.store.db.ExecContext(ctx, `UPDATE identity_applications SET authentication_policy='strong',allow_public_signup=1,access_policy_v1=0 WHERE id='app_one'`); err != nil {
+		t.Fatal(err)
+	}
 	ring, err := signing.ParseKeyring("1:"+base64.RawURLEncoding.EncodeToString(make([]byte, 32)), 1)
 	if err != nil {
 		t.Fatal(err)
@@ -38,7 +41,7 @@ func TestSignedAssuranceRoundTripAndNoMintTimeUpgrade(t *testing.T) {
 		t.Fatal(err)
 	}
 	verifier := strings.Repeat("v", 43)
-	req := oidc.AuthorizationRequest{ResponseType: "code", ClientID: "one-client", RedirectURI: "https://example.com/callback", Scope: "openid", State: "bound-state", Nonce: "bound-nonce", CodeChallenge: oidc.S256Challenge(verifier), CodeChallengeMethod: "S256"}
+	req := oidc.AuthorizationRequest{ResponseType: "code", ClientID: "one-client", RedirectURI: "https://example.com/callback", Scope: "openid", State: "bound-state", Nonce: "  bound-nonce  ", CodeChallenge: oidc.S256Challenge(verifier), CodeChallengeMethod: "S256"}
 	for _, c := range []struct{ proof, method, acr string }{{auth.ProofPassword, "password", auth.ACRStandard}, {auth.ProofMFA, "password_totp", auth.ACRStrong}, {auth.ProofPasskey, "webauthn", auth.ACRWebAuthn}} {
 		req.ACRValues = c.acr
 		validated, e := provider.ValidateAuthorization(ctx, req)
@@ -92,6 +95,18 @@ func TestSignedAssuranceRoundTripAndNoMintTimeUpgrade(t *testing.T) {
 	v, e := provider.ValidateAuthorization(ctx, req)
 	if e != nil {
 		t.Fatal(e)
+	}
+	withoutNonce := v
+	withoutNonce.Nonce = ""
+	if _, err := provider.IssueAuthorizationCode(ctx, withoutNonce, user, time.Now(), "webauthn", auth.ProofPasskey); err == nil {
+		t.Fatal("direct issuance accepted missing nonce")
+	}
+	// Even a preexisting malformed store artifact cannot bypass token exchange.
+	if err := f.store.CreateAuthorizationCode(ctx, oidc.AuthorizationCode{ID: "missing-nonce", CodeHash: auth.HashToken("missing-nonce"), ClientID: "one-client", UserID: user.ID, ConsentVersion: 1, Scopes: []string{"openid"}, RedirectURI: req.RedirectURI, CodeChallenge: req.CodeChallenge, RequestedACR: auth.ACRStandard, Proof: auth.ProofPassword, AuthMethod: "password", AuthTime: time.Now().Add(-time.Second), CreatedAt: time.Now(), ExpiresAt: time.Now().Add(time.Minute)}); err != nil {
+		t.Fatal(err)
+	}
+	if _, protocolErr := provider.ExchangeCode(ctx, oidc.TokenRequest{GrantType: "authorization_code", ClientID: "one-client", Code: "missing-nonce", RedirectURI: req.RedirectURI, CodeVerifier: verifier}); protocolErr == nil || protocolErr.Code != "invalid_grant" {
+		t.Fatal("nonce-less artifact was exchanged")
 	}
 	if _, err = provider.IssueAuthorizationCode(ctx, v, user, time.Now(), "password", auth.ProofPassword); err == nil {
 		t.Fatal("password satisfied Strong")

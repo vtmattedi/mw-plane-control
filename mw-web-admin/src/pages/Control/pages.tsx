@@ -51,7 +51,7 @@ const configs: Record<string, ResourcePageConfig> = {
     module: 'Identity',
     title: 'Aplicações',
     description:
-      'Clientes OIDC, URIs exatas, audiências e políticas de autenticação.',
+      'Clientes OIDC, URIs exatas, audiências e políticas de acesso.',
     icon: AppWindow,
     endpoint: '/identity/applications',
     collectionKey: 'applications',
@@ -59,7 +59,6 @@ const configs: Record<string, ResourcePageConfig> = {
       { key: 'name', label: 'Aplicação' },
       { key: 'client_id', label: 'Client ID' },
       { key: 'application_type', label: 'Tipo' },
-      { key: 'authentication_policy', label: 'Política' },
       { key: 'access_policy', label: 'Acesso' },
       {
         key: 'needs_delete_callback',

@@ -8,8 +8,8 @@ import (
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/audit"
 )
 
-func (s *Service) SetDurableDeletion(enabled, production bool) {
-	s.durableDeletion = enabled
+func (s *Service) SetDeletionDispatch(enabled, production bool) {
+	s.deletionDispatchEnabled = enabled
 	if production {
 		s.httpClient = productionDeletionClient()
 	}

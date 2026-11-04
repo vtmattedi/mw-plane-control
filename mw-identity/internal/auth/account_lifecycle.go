@@ -22,10 +22,7 @@ func (s *Service) DeleteAccount(ctx context.Context, userID, remoteIP string) (D
 		return DeleteAccountResult{}, ErrAccountDeletionForbidden
 	}
 
-	if s.durableDeletion || user.DeletionRequestedAt != nil {
-		return s.beginDurableDeletion(ctx, userID)
-	}
-	return s.deleteAccountLegacy(ctx, userID, remoteIP)
+	return s.beginDurableDeletion(ctx, userID)
 }
 
 // RemoveConnectedApplication revokes sign-in consent, preserving app data and assignments.

@@ -103,12 +103,11 @@ type DeleteAccountResult struct {
 }
 
 type SignupApplication struct {
-	AccessPolicy      string
-	ID                string
-	Name              string
-	ClientID          string
-	AllowPublicSignup bool
-	Enabled           bool
+	AccessPolicy string
+	ID           string
+	Name         string
+	ClientID     string
+	Enabled      bool
 }
 
 type Store interface {

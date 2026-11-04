@@ -9,7 +9,7 @@ import (
 )
 
 type Config struct {
-	DurableDeletionEnabled             bool
+	DeletionDispatchEnabled            bool
 	AppEnv                             string
 	Port                               int
 	DatabasePath                       string
@@ -136,7 +136,7 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	durableDeletion, err := boolean("IDENTITY_DURABLE_DELETION_ENABLED", false)
+	deletionDispatchEnabled, err := boolean("IDENTITY_DURABLE_DELETION_ENABLED", false)
 	if err != nil {
 		return Config{}, err
 	}
@@ -166,7 +166,7 @@ func Load() (Config, error) {
 	}
 
 	return Config{
-		DurableDeletionEnabled:  durableDeletion,
+		DeletionDispatchEnabled: deletionDispatchEnabled,
 		AppEnv:                  strings.ToLower(strings.TrimSpace(getenv("APP_ENV", "development"))),
 		Port:                    port,
 		DatabasePath:            databasePath,

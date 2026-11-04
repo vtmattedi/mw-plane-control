@@ -9,8 +9,6 @@ import (
 	"time"
 )
 
-var deletionRetryDelays = []time.Duration{250 * time.Millisecond, 750 * time.Millisecond}
-
 func (s *Service) deliverDurableDeletion(ctx context.Context, d DurableDelivery, now time.Time) (string, string) {
 	if s.lifecycleSigner == nil {
 		return "pending", "signing_unavailable"
@@ -26,74 +24,6 @@ func (s *Service) deliverDurableDeletion(ctx context.Context, d DurableDelivery,
 		return "pending", "signing_unavailable"
 	}
 	return s.sendDeletionCallback(ctx, d.CallbackURI, d.EventID, payload, assertion)
-}
-
-func (s *Service) deliverDeletion(ctx context.Context, userID string, app ConnectedApplication, requestedAt time.Time, reason string) DeletionDelivery {
-	result := DeletionDelivery{
-		ApplicationID: app.ID,
-		ClientID:      app.ClientID,
-		Status:        InitialDeletionStatus(app.Internal, app.DeleteCallbackURI),
-	}
-	if result.Status != "pending" {
-		return result
-	}
-
-	eventID, err := NewOpaqueToken("evt_")
-	if err != nil {
-		result.Status = "failed"
-		return result
-	}
-	payload, err := json.Marshal(map[string]any{
-		"id":             eventID,
-		"type":           "identity.user.deleted",
-		"sub":            userID,
-		"application_id": app.ID,
-		"client_id":      app.ClientID,
-		"reason":         reason,
-		"requested_at":   requestedAt.Format(time.RFC3339),
-	})
-	if err != nil {
-		result.Status = "failed"
-		return result
-	}
-	if s.lifecycleSigner == nil {
-		result.Status = "failed"
-		return result
-	}
-	assertion, err := s.lifecycleSigner.SignJWT(ctx, map[string]any{
-		"iss":    s.publicIssuer,
-		"sub":    userID,
-		"aud":    app.ClientID,
-		"iat":    requestedAt.Unix(),
-		"exp":    requestedAt.Add(5 * time.Minute).Unix(),
-		"jti":    eventID,
-		"event":  "identity.user.deleted",
-		"reason": reason,
-	})
-	if err != nil {
-		result.Status = "failed"
-		return result
-	}
-
-	for attempt := 1; attempt <= 3; attempt++ {
-		result.Attempts = attempt
-		outcome, _ := s.sendDeletionCallback(ctx, app.DeleteCallbackURI, eventID, payload, assertion)
-		if DeletionOutcomeIsTerminal(outcome) {
-			result.Status = outcome
-			return result
-		}
-		if attempt < 3 {
-			select {
-			case <-ctx.Done():
-				result.Status = "failed"
-				return result
-			case <-time.After(deletionRetryDelays[attempt-1]):
-			}
-		}
-	}
-
-	result.Status = "failed"
-	return result
 }
 
 func deletionHTTPClient() *http.Client {

@@ -15,9 +15,11 @@ import (
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/identityadmin"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/oidc"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/signing"
+	storesqlite "github.com/vtmattedi/mw-plane-control/mw-identity/internal/store/sqlite"
 )
 
-func TestAssignmentAPIDeniesSuperadminOnlyOnOrdinaryApplications(t *testing.T) {
+func testIdentityAdminAPI(t *testing.T) (*storesqlite.Store, *oidc.Service, *http.ServeMux) {
+	t.Helper()
 	ctx := context.Background()
 	_, _, store := testAuthHTTPWithStore(t)
 	now := time.Now().UTC()
@@ -27,7 +29,7 @@ func TestAssignmentAPIDeniesSuperadminOnlyOnOrdinaryApplications(t *testing.T) {
 		}
 	}
 	for _, id := range []string{"ordinary", "administration"} {
-		app := applications.CreateInput{ID: id, Name: id, ClientID: id, ApplicationType: "public", AuthenticationPolicy: "standard", AccessPolicy: "default_allow", AccessPolicyV1: true, Enabled: true, RedirectURIs: []string{"https://app.example/callback"}, Scopes: []string{"openid"}, CreatedAt: now}
+		app := applications.CreateInput{ID: id, Name: id, ClientID: id, ApplicationType: "public", AccessPolicy: "default_allow", Enabled: true, RedirectURIs: []string{"https://app.example/callback"}, Scopes: []string{"openid"}, CreatedAt: now}
 		if id == "administration" {
 			app.Internal = true
 			app.Audiences = []string{oidc.IdentityAdminAudience}
@@ -62,6 +64,14 @@ func TestAssignmentAPIDeniesSuperadminOnlyOnOrdinaryApplications(t *testing.T) {
 	h := newIdentityAdminHandlers(provider, admin, nil, nil, 5*time.Minute)
 	mux := http.NewServeMux()
 	mux.HandleFunc("PUT /admin/api/applications/{id}/assignments/{user_id}", h.upsertAssignment)
+	mux.HandleFunc("POST /admin/api/applications", h.createApplication)
+	mux.HandleFunc("PATCH /admin/api/applications/{id}", h.updateApplication)
+	return store, provider, mux
+}
+
+func TestAssignmentAPIDeniesSuperadminOnlyOnOrdinaryApplications(t *testing.T) {
+	ctx := context.Background()
+	store, provider, mux := testIdentityAdminAPI(t)
 	target, err := store.IdentityUserByID(ctx, "target")
 	if err != nil {
 		t.Fatal(err)
@@ -119,5 +129,65 @@ func TestAssignmentAPIDeniesSuperadminOnlyOnOrdinaryApplications(t *testing.T) {
 	assignment, err := store.IdentityAssignment(ctx, "administration", "staff")
 	if err != nil || assignment.Role != "admin" || assignment.AccessEffect != "allow" {
 		t.Fatalf("protected existing assignment changed: %+v %v", assignment, err)
+	}
+}
+
+func TestRegistryAPIRejectsRetiredControlsAndOmitsThemFromResponses(t *testing.T) {
+	store, _, mux := testIdentityAdminAPI(t)
+	base := map[string]any{"name": "Clean contract", "client_id": "clean-client", "application_type": "public", "access_policy": "default_allow", "redirect_uris": []string{"https://app.example/callback"}, "delete_callback_uri": "https://app.example/delete", "scopes": []string{"openid"}}
+	call := func(method, path string, body map[string]any) *httptest.ResponseRecorder {
+		encoded, err := json.Marshal(body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req := httptest.NewRequest(method, path, strings.NewReader(string(encoded)))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer admin-token")
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		return rec
+	}
+	for key, value := range map[string]any{"authentication_policy": "strong", "allow_public_signup": true, "access_policy_v1": false} {
+		body := map[string]any{}
+		for k, v := range base {
+			body[k] = v
+		}
+		body[key] = value
+		if rec := call("POST", "/admin/api/applications", body); rec.Code != 400 {
+			t.Fatalf("retired creation field accepted: %s, %d", key, rec.Code)
+		}
+	}
+	if _, err := store.ApplicationByClientID(context.Background(), "clean-client"); err == nil {
+		t.Fatal("rejected creation mutated registry")
+	}
+	rec := call("POST", "/admin/api/applications", base)
+	if rec.Code != 201 {
+		t.Fatalf("clean creation: %d %s", rec.Code, rec.Body.String())
+	}
+	var response map[string]json.RawMessage
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	var application map[string]any
+	if err := json.Unmarshal(response["application"], &application); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"authentication_policy", "allow_public_signup", "access_policy_v1"} {
+		if _, exists := application[key]; exists {
+			t.Fatalf("retired response field retained: %s", key)
+		}
+		body := map[string]any{}
+		for k, v := range base {
+			if k != "client_id" && k != "application_type" {
+				body[k] = v
+			}
+		}
+		body[key] = "obsolete"
+		if rec := call("PATCH", "/admin/api/applications/"+application["id"].(string), body); rec.Code != 400 {
+			t.Fatalf("retired update field accepted: %s, %d", key, rec.Code)
+		}
+	}
+	if _, exists := response["client_secret"]; exists {
+		t.Fatal("public client returned a secret")
 	}
 }

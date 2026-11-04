@@ -116,10 +116,10 @@ func (s *Service) ValidateAuthorization(
 			invalidRequest("invalid S256 code_challenge", true)
 	}
 
-	nonce := strings.TrimSpace(request.Nonce)
-	if len(nonce) > 1024 {
+	nonce := request.Nonce
+	if strings.TrimSpace(nonce) == "" || len(nonce) > 1024 {
 		return ValidatedAuthorization{},
-			invalidRequest("nonce is too long", true)
+			invalidRequest("nonce is required and must not exceed 1024 bytes", true)
 	}
 
 	acr := strings.TrimSpace(request.ACRValues)
@@ -129,10 +129,7 @@ func (s *Service) ValidateAuthorization(
 	if acr != auth.ACRStandard && acr != auth.ACRStrong && acr != auth.ACRWebAuthn {
 		return ValidatedAuthorization{}, invalidRequest("unsupported acr_values", true)
 	}
-	// Retain legacy app-wide Strong until the protected consumer is explicitly migrated.
-	if app.AuthenticationPolicy == "strong" && acr == auth.ACRStandard {
-		acr = auth.ACRStrong
-	}
+
 	requireWebAuthn := acr == auth.ACRWebAuthn
 	var maxAgeSeconds int64 = 300
 	if rawMaxAge := strings.TrimSpace(request.MaxAge); rawMaxAge != "" {
@@ -183,7 +180,7 @@ func (s *Service) IssueAuthorizationCode(
 		return "", fmt.Errorf("cannot authorize disabled identity")
 	}
 
-	if authMethod != auth.MethodForProof(proof) || !auth.Satisfies(proof, authorization.RequestedACR) || authTime.IsZero() || authTime.After(s.now().UTC()) {
+	if strings.TrimSpace(authorization.Nonce) == "" || authMethod != auth.MethodForProof(proof) || !auth.Satisfies(proof, authorization.RequestedACR) || authTime.IsZero() || authTime.After(s.now().UTC()) {
 		return "", fmt.Errorf("authentication evidence required")
 	}
 	if authorization.MaxAgeSet && authorization.MaxAgeSeconds > 0 && s.now().Sub(authTime) > time.Duration(authorization.MaxAgeSeconds)*time.Second {
@@ -290,11 +287,8 @@ func (s *Service) ExchangeCode(
 			invalidGrant("authorization code is invalid or expired")
 	}
 
-	if code.AuthMethod != auth.MethodForProof(code.Proof) || !auth.Satisfies(code.Proof, code.RequestedACR) || code.AuthTime.After(now) || code.AuthTime.Unix() <= 0 || (code.MaxAgeSeconds > 0 && now.Sub(code.AuthTime) > time.Duration(code.MaxAgeSeconds)*time.Second) {
+	if strings.TrimSpace(code.Nonce) == "" || code.AuthMethod != auth.MethodForProof(code.Proof) || !auth.Satisfies(code.Proof, code.RequestedACR) || code.AuthTime.After(now) || code.AuthTime.Unix() <= 0 || (code.MaxAgeSeconds > 0 && now.Sub(code.AuthTime) > time.Duration(code.MaxAgeSeconds)*time.Second) {
 		return TokenResponse{}, invalidGrant("authentication evidence invalid or expired")
-	}
-	if app.AuthenticationPolicy == "strong" && !auth.Satisfies(code.Proof, auth.ACRStrong) {
-		return TokenResponse{}, invalidGrant("strong authentication required")
 	}
 	if code.ClientID != app.ClientID ||
 		code.RedirectURI != request.RedirectURI {
@@ -350,9 +344,7 @@ func (s *Service) ExchangeCode(
 		"acr":             achieved,
 		"mw_account_type": accountType,
 	}
-	if code.Nonce != "" {
-		idClaims["nonce"] = code.Nonce
-	}
+	idClaims["nonce"] = code.Nonce
 	if contains(code.Scopes, "email") {
 		idClaims["email"] = user.Email
 		idClaims["email_verified"] = user.EmailVerifiedAt != nil

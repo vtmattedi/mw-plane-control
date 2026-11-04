@@ -25,14 +25,12 @@ type CreateRequest struct {
 	Name                   string
 	ClientID               string
 	ApplicationType        string
-	AuthenticationPolicy   string
 	AccessPolicy           string
 	RedirectURIs           []string
 	PostLogoutRedirectURIs []string
 	DeleteCallbackURI      string
 	AccountManagementURI   string
 	AccountDeletionURI     string
-	AllowPublicSignup      bool
 	Internal               bool
 	Scopes                 []string
 	Claims                 []string
@@ -64,9 +62,6 @@ func (s *Service) Create(
 	name := strings.TrimSpace(request.Name)
 	clientID := strings.TrimSpace(request.ClientID)
 	appType := strings.TrimSpace(request.ApplicationType)
-	policy := strings.TrimSpace(
-		request.AuthenticationPolicy,
-	)
 	accessPolicy := strings.TrimSpace(request.AccessPolicy)
 
 	if name == "" || clientID == "" {
@@ -81,12 +76,6 @@ func (s *Service) Create(
 		return CreateResult{}, ErrInvalidApplication
 	}
 
-	if policy == "" {
-		policy = "standard"
-	}
-	if policy != "standard" && policy != "strong" {
-		return CreateResult{}, ErrInvalidApplication
-	}
 	if accessPolicy == "" {
 		accessPolicy = "default_deny"
 	}
@@ -128,7 +117,7 @@ func (s *Service) Create(
 			return CreateResult{}, ErrInvalidApplication
 		}
 	}
-	if err := CheckLifecycle(request.Internal, request.AllowPublicSignup, deleteCallback); err != nil {
+	if err := CheckLifecycle(request.Internal, deleteCallback); err != nil {
 		return CreateResult{}, err
 	}
 
@@ -167,12 +156,10 @@ func (s *Service) Create(
 
 	input := CreateInput{
 		ID:                     appID,
-		AccessPolicyV1:         true,
 		Name:                   name,
 		ClientID:               clientID,
 		ClientSecretHash:       secretHash,
 		ApplicationType:        appType,
-		AuthenticationPolicy:   policy,
 		AccessPolicy:           accessPolicy,
 		Enabled:                true,
 		RedirectURIs:           redirectURIs,
@@ -180,7 +167,6 @@ func (s *Service) Create(
 		DeleteCallbackURI:      deleteCallback,
 		AccountManagementURI:   management,
 		AccountDeletionURI:     deletion,
-		AllowPublicSignup:      request.AllowPublicSignup,
 		Internal:               request.Internal,
 		Scopes:                 scopes,
 		Claims:                 claims,
@@ -197,12 +183,10 @@ func (s *Service) Create(
 
 	app := Application{
 		ID:                     input.ID,
-		AccessPolicyV1:         input.AccessPolicyV1,
 		Name:                   input.Name,
 		ClientID:               input.ClientID,
 		ClientSecretHash:       input.ClientSecretHash,
 		ApplicationType:        input.ApplicationType,
-		AuthenticationPolicy:   input.AuthenticationPolicy,
 		AccessPolicy:           input.AccessPolicy,
 		Enabled:                input.Enabled,
 		RedirectURIs:           append([]string(nil), input.RedirectURIs...),
@@ -210,7 +194,6 @@ func (s *Service) Create(
 		DeleteCallbackURI:      input.DeleteCallbackURI,
 		AccountManagementURI:   input.AccountManagementURI,
 		AccountDeletionURI:     input.AccountDeletionURI,
-		AllowPublicSignup:      input.AllowPublicSignup,
 		Internal:               input.Internal,
 		Scopes:                 append([]string(nil), input.Scopes...),
 		Claims:                 append([]string(nil), input.Claims...),

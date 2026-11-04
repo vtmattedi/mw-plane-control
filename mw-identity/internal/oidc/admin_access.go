@@ -88,7 +88,7 @@ func (s *Service) AuthorizeIdentityUser(
 	) {
 		return accessDenied()
 	}
-	if user.IsSuperadmin &&
+	if user.IsSuperadmin && authorization.Application.Internal &&
 		contains(
 			authorization.Scopes,
 			"identity.admin",
@@ -97,14 +97,6 @@ func (s *Service) AuthorizeIdentityUser(
 			authorization.Application.Audiences,
 			IdentityAdminAudience,
 		) {
-		return nil
-	}
-	// Preserve the explicitly unmigrated legacy exception only. Ordinary v1
-	// clients require their own access assignment even for a global superadmin.
-	if !authorization.Application.AccessPolicyV1 && user.IsSuperadmin && !contains(
-		authorization.Application.Audiences,
-		IdentityAdminAudience,
-	) {
 		return nil
 	}
 
@@ -144,7 +136,7 @@ func accessAllowedByApplicationPolicy(
 	if assignment != nil {
 		return assignment.AccessEffect == "allow"
 	}
-	return application.AccessPolicy == "default_allow" || (!application.AccessPolicyV1 && application.AllowPublicSignup && !application.Internal && !contains(application.Audiences, IdentityAdminAudience))
+	return application.AccessPolicy == "default_allow"
 }
 
 func accessDenied() *ProtocolError {

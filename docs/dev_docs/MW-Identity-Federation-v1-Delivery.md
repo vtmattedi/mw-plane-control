@@ -1,5 +1,7 @@
 # Federation v1 delivery record
 
+> The original compatibility increments below are historical. The latest [clean contract migration decision and review](federation-v1-clean-migration.md) supersedes per-client cutover, application-wide Strong and request-bound deletion behavior.
+
 The frozen contract remains normative. Each PR increment is a separate local commit. Deployment and consumer evidence remain separate from source implementation. Never advertise full compliance while any required live gate is unverified.
 
 ## PR-00

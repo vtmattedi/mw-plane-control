@@ -25,15 +25,15 @@ type LifecycleSigner interface {
 }
 
 type Service struct {
-	durableDeletion bool
-	store           Store
-	audit           audit.Recorder
-	sessionTTL      time.Duration
-	now             func() time.Time
-	dummyHash       string
-	httpClient      *http.Client
-	lifecycleSigner LifecycleSigner
-	publicIssuer    string
+	deletionDispatchEnabled bool
+	store                   Store
+	audit                   audit.Recorder
+	sessionTTL              time.Duration
+	now                     func() time.Time
+	dummyHash               string
+	httpClient              *http.Client
+	lifecycleSigner         LifecycleSigner
+	publicIssuer            string
 }
 
 type LoginResult struct {

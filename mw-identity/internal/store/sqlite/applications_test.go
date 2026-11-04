@@ -43,11 +43,9 @@ func TestApplicationRegistryRoundTrip(t *testing.T) {
 			ClientID:             "mw_admin",
 			ClientSecretHash:     "hash-only",
 			ApplicationType:      "confidential",
-			AuthenticationPolicy: "standard",
 			DeleteCallbackURI:    "https://app.example.com/account-deleted",
 			AccountManagementURI: "https://app.example.com/account",
 			AccountDeletionURI:   "https://app.example.com/account?intent=delete",
-			AllowPublicSignup:    true,
 			Enabled:              true,
 			RedirectURIs: []string{
 				"https://admin.mattediworks.com/api/auth/callback",
@@ -89,8 +87,8 @@ func TestApplicationRegistryRoundTrip(t *testing.T) {
 			app.ClientSecretHash,
 		)
 	}
-	if app.DeleteCallbackURI != "https://app.example.com/account-deleted" || !app.AllowPublicSignup {
-		t.Fatalf("lifecycle settings = callback %q, signup %v", app.DeleteCallbackURI, app.AllowPublicSignup)
+	if app.DeleteCallbackURI != "https://app.example.com/account-deleted" {
+		t.Fatalf("lifecycle callback = %q", app.DeleteCallbackURI)
 	}
 	if app.AccountManagementURI != "https://app.example.com/account" || app.AccountDeletionURI != "https://app.example.com/account?intent=delete" {
 		t.Fatal("navigation metadata lost in registry round trip")
@@ -111,8 +109,7 @@ func TestDenyAssignmentRevokesExistingAccessToken(t *testing.T) {
 	now := time.Now().UTC()
 	if err := store.CreateApplication(ctx, applications.CreateInput{
 		ID: "app_access", Name: "Access", ClientID: "access-client",
-		ApplicationType: "public", AuthenticationPolicy: "standard",
-		AccessPolicy: "default_allow", Enabled: true,
+		ApplicationType: "public", AccessPolicy: "default_allow", Enabled: true,
 		RedirectURIs: []string{"https://example.com/callback"},
 		Scopes:       []string{"openid"}, CreatedAt: now,
 	}); err != nil {
@@ -166,7 +163,7 @@ func TestDenyAssignmentRevokesExistingAccessToken(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := store.UpdateIdentityApplication(ctx, "app_access", identityadmin.UpdateApplication{
-		Name: "Access", AuthenticationPolicy: "standard", AccessPolicy: "default_deny",
+		Name: "Access", AccessPolicy: "default_deny",
 		RedirectURIs: []string{"https://example.com/callback"}, Scopes: []string{"openid"},
 	}, now.Add(time.Second)); err != nil {
 		t.Fatal(err)
@@ -191,8 +188,7 @@ func TestPurgeIdentityApplicationRequiresNoDependentDataAndFreesClientID(t *test
 	now := time.Now().UTC()
 	input := applications.CreateInput{
 		ID: "app_purge", Name: "Temporary", ClientID: "mw_temporary",
-		ApplicationType: "public", AuthenticationPolicy: "standard",
-		Enabled: true, RedirectURIs: []string{"https://example.com/callback"},
+		ApplicationType: "public", Enabled: true, RedirectURIs: []string{"https://example.com/callback"},
 		Scopes: []string{"openid"}, CreatedAt: now,
 	}
 	if err := store.CreateApplication(ctx, input); err != nil {
@@ -249,7 +245,7 @@ func TestLegacyApplicationWithoutDeleteCallback(t *testing.T) {
 		{ID: "app_legacy", Name: "Legacy", ClientID: "legacy"},
 		{ID: "app_bff", Name: "MW Admin", ClientID: "mw_admin", Internal: true},
 	} {
-		input.ApplicationType, input.AuthenticationPolicy, input.Enabled = "public", "standard", true
+		input.ApplicationType, input.Enabled = "public", true
 		input.RedirectURIs, input.Scopes, input.CreatedAt = []string{"https://example.com/callback"}, []string{"openid"}, now
 		if err := store.CreateApplication(ctx, input); err != nil {
 			t.Fatal(err)

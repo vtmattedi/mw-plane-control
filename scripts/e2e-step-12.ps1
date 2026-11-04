@@ -171,7 +171,6 @@ BFF_STRONG_AUTH_MAX_AGE_MINUTES=5
         "--name", "MW Admin Step 12",
         "--client-id", $BFFClientID,
         "--type", "confidential", "--internal",
-        "--auth-policy", "strong",
         "--redirect-uri", $BFFCallback,
         "--scope", "openid", "--scope", "profile", "--scope", "email", "--scope", "identity.admin"
     )
@@ -188,15 +187,15 @@ BFF_STRONG_AUTH_MAX_AGE_MINUTES=5
     $StrongRedirect = "https://step12-strong.invalid/callback"
 
     foreach ($Spec in @(
-        @{ Name = "Step 12 Standard"; ID = $StandardClientID; Policy = "standard"; Redirect = $StandardRedirect },
-        @{ Name = "Step 12 Strong"; ID = $StrongClientID; Policy = "strong"; Redirect = $StrongRedirect }
+        @{ Name = "Step 12 Standard"; ID = $StandardClientID; Redirect = $StandardRedirect },
+        @{ Name = "Step 12 Strong"; ID = $StrongClientID; Redirect = $StrongRedirect }
     )) {
         $Create = @(
             "compose", "-f", (Join-Path $Root "docker-compose.yml"), "-f", $Step12Compose,
             "--env-file", $Step12Env,
             "run", "--rm", "--entrypoint", "/app/create-application", "mw-identity",
             "--name", $Spec.Name, "--client-id", $Spec.ID, "--type", "confidential", "--internal",
-            "--auth-policy", $Spec.Policy, "--redirect-uri", $Spec.Redirect,
+            "--redirect-uri", $Spec.Redirect,
             "--scope", "openid", "--json"
         )
         $Raw = (& docker @Create) -join "`n"
@@ -283,8 +282,8 @@ BFF_MAIL_HTTP_TIMEOUT_SECONDS=5
     }
     Write-Host "PASS Step 12 disposable application assignments"
 
-    # Establish one legacy/password Identity session. Standard applications keep
-    # this compatibility path; strong applications must refuse it.
+    # Establish a password session (Standard assurance). Strong is requested
+    # per authorization, never inferred from an application policy.
     $LoginPage = (& curl.exe --fail --silent --show-error -b $CookieJar -c $CookieJar `
         -H "Host: identity.mattediworks.com" "http://127.0.0.1:$Port/login") -join "`n"
     $LoginCSRF = [regex]::Match($LoginPage, 'name="csrf_token" value="([^"]+)"').Groups[1].Value
@@ -298,29 +297,29 @@ BFF_MAIL_HTTP_TIMEOUT_SECONDS=5
     if ([int]$LoginStatus -ne 303) { throw "Identity password login failed: $LoginStatus" }
     $AccountStatus = Invoke-IdentityStatus "GET" "/account" $CookieJar
     if ($AccountStatus -ne 200) { throw "password Identity session was not established" }
-    Write-Host "PASS legacy password session remains available for standard policy"
+    Write-Host "PASS password session establishes Standard assurance"
 
     $StandardPath = New-AuthorizePath $StandardClientID $StandardRedirect
     $Standard = Request-Redirect "identity.mattediworks.com" $StandardPath $CookieJar $Headers
     if ($Standard.Status -ne 302 -or $Standard.Location -notlike "$StandardRedirect*") {
-        throw "standard application rejected compatible password session: status=$($Standard.Status) location=$($Standard.Location)"
+        throw "Standard request rejected password assurance: status=$($Standard.Status) location=$($Standard.Location)"
     }
     if ($Standard.Location -notmatch '[?&]code=mwac_') {
         throw "standard authorization code missing: location=$($Standard.Location)"
     }
-    Write-Host "PASS standard application accepts configured legacy assurance"
+    Write-Host "PASS Standard request accepts password assurance"
 
-    $StrongPath = New-AuthorizePath $StrongClientID $StrongRedirect
+    $StrongPath = New-AuthorizePath $StrongClientID $StrongRedirect "acr_values=$([uri]::EscapeDataString('urn:mw:auth:strong'))"
     $Strong = Request-Redirect "identity.mattediworks.com" $StrongPath $CookieJar $Headers
-    if ($Strong.Status -ne 303 -or $Strong.Location -notmatch 'auth=strong') {
-        throw "strong application did not require strong authentication: status=$($Strong.Status) location=$($Strong.Location)"
+    if ($Strong.Status -ne 303 -or $Strong.Location -notmatch '(auth=strong|strong_setup_required=1)') {
+        throw "Strong ACR request did not require stronger authentication: status=$($Strong.Status) location=$($Strong.Location)"
     }
-    Write-Host "PASS strong application rejects password-only assurance"
+    Write-Host "PASS Strong ACR request rejects password-only assurance"
 
     $ACRExtra = "acr_values=$([uri]::EscapeDataString('urn:mw:webauthn'))&max_age=300"
     $StepUpPath = New-AuthorizePath $StandardClientID $StandardRedirect $ACRExtra
     $StepUp = Request-Redirect "identity.mattediworks.com" $StepUpPath $CookieJar $Headers
-    if ($StepUp.Status -ne 303 -or $StepUp.Location -notmatch 'auth=webauthn') {
+    if ($StepUp.Status -ne 303 -or $StepUp.Location -notmatch '(auth=webauthn|passkey_required=1)') {
         throw "explicit WebAuthn ACR did not force step-up: status=$($StepUp.Status) location=$($StepUp.Location)"
     }
     Write-Host "PASS explicit WebAuthn ACR + max_age forces step-up"
@@ -369,7 +368,7 @@ BFF_MAIL_HTTP_TIMEOUT_SECONDS=5
     Write-Host "Browser checkpoint password: $Password"
     Write-Host "Browser Identity: http://localhost:7100/login"
     Write-Host "Browser BFF: http://localhost:7200/auth/login?return_to=%2F"
-    Write-Host "Final STEP 12 E2E PASS requires the real browser/passkey checkpoint in docs/step-12-strong-auth-totp-recovery.md."
+    Write-Host "Final STEP 12 E2E PASS requires the real browser/passkey checkpoint in docs/construction_steps/step-12-strong-auth-totp-recovery.md."
 }
 finally {
     foreach ($Path in @($CookieJar, $RecoveryCookieJar, $Headers, "$Headers.body")) {

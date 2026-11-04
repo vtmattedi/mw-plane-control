@@ -19,7 +19,6 @@ func (s *memoryApplicationStore) CreateApplication(
 		ClientID:               input.ClientID,
 		ClientSecretHash:       input.ClientSecretHash,
 		ApplicationType:        input.ApplicationType,
-		AuthenticationPolicy:   input.AuthenticationPolicy,
 		AccessPolicy:           input.AccessPolicy,
 		Enabled:                input.Enabled,
 		RedirectURIs:           input.RedirectURIs,
@@ -209,7 +208,6 @@ func TestCreateEnforcesTheDeletionContract(t *testing.T) {
 		{"user-facing app with blank callback", func(r *CreateRequest) { r.DeleteCallbackURI = "  " }, ErrDeleteCallbackRequired},
 		{"user-facing app with callback", func(r *CreateRequest) { r.DeleteCallbackURI = "https://app.example.com/account-deleted" }, nil},
 		{"internal app without callback", func(r *CreateRequest) { r.Internal = true }, nil},
-		{"internal app cannot open public sign-up", func(r *CreateRequest) { r.Internal = true; r.AllowPublicSignup = true }, ErrInvalidApplication},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

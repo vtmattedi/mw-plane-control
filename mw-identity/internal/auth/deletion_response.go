@@ -7,21 +7,13 @@ import (
 	"net/http"
 )
 
-// Registered legacy callbacks promise synchronous cleanup for empty 200/204
-// acknowledgements. A response body must explicitly acknowledge a terminal
-// outcome; no envelope may fall back to the legacy acknowledgement semantics.
+// Only a versioned terminal acknowledgement can satisfy an application obligation.
 func deletionResponseOutcome(status int, raw []byte) (string, string) {
-	if status == http.StatusNoContent {
-		return "confirmed_cleanup", ""
-	}
 	if status >= 300 && status < 400 {
 		return "unresolved", "callback_redirect"
 	}
 	if status != http.StatusOK {
 		return "pending", "callback_not_completed"
-	}
-	if len(raw) == 0 {
-		return "confirmed_cleanup", ""
 	}
 
 	decoder := json.NewDecoder(bytes.NewReader(raw))
@@ -51,7 +43,7 @@ func deletionResponseOutcome(status int, raw []byte) (string, string) {
 	if decoder.Decode(new(any)) != io.EOF {
 		return "pending", "invalid_response"
 	}
-	if version, exists := fields["version"]; exists && !bytes.Equal(bytes.TrimSpace(version), []byte("1")) {
+	if !bytes.Equal(bytes.TrimSpace(fields["version"]), []byte("1")) {
 		return "pending", "invalid_response"
 	}
 	var outcome string

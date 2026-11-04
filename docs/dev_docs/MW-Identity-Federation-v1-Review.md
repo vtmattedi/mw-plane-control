@@ -1,5 +1,7 @@
 # Federation v1 full-diff code review
 
+> Historical review of the earlier staged implementation. The current [clean contract migration review](federation-v1-clean-migration.md) removes the compatibility paths described below and preserves migration/recovery data.
+
 Reviewed the complete change against `3bf0ca4f53139568f711160a7c269843557708d7`, including the sequential PR-00 through PR-07 increments. Review covered authentication and BFF callbacks; Go and SQL eligibility; registration and infrastructure boundaries; migrations; worker claims, retry/finalization and transport; session/proof storage; portal/admin UI; operational configuration; tests and documentation. The normative frozen contract remains unchanged.
 
 ## Findings fixed before the final commit

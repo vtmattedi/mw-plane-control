@@ -228,14 +228,12 @@ func (h *identityAdminHandlers) createApplication(
 		Name                   string   `json:"name"`
 		ClientID               string   `json:"client_id"`
 		ApplicationType        string   `json:"application_type"`
-		AuthenticationPolicy   string   `json:"authentication_policy"`
 		AccessPolicy           string   `json:"access_policy"`
 		RedirectURIs           []string `json:"redirect_uris"`
 		PostLogoutRedirectURIs []string `json:"post_logout_redirect_uris"`
 		DeleteCallbackURI      string   `json:"delete_callback_uri"`
 		AccountManagementURI   string   `json:"account_management_uri"`
 		AccountDeletionURI     string   `json:"account_deletion_uri"`
-		AllowPublicSignup      bool     `json:"allow_public_signup"`
 		Internal               bool     `json:"internal"`
 		Scopes                 []string `json:"scopes"`
 		Claims                 []string `json:"claims"`
@@ -254,14 +252,12 @@ func (h *identityAdminHandlers) createApplication(
 			Name:                   request.Name,
 			ClientID:               request.ClientID,
 			ApplicationType:        request.ApplicationType,
-			AuthenticationPolicy:   request.AuthenticationPolicy,
 			AccessPolicy:           request.AccessPolicy,
 			RedirectURIs:           request.RedirectURIs,
 			PostLogoutRedirectURIs: request.PostLogoutRedirectURIs,
 			DeleteCallbackURI:      request.DeleteCallbackURI,
 			AccountManagementURI:   request.AccountManagementURI,
 			AccountDeletionURI:     request.AccountDeletionURI,
-			AllowPublicSignup:      request.AllowPublicSignup,
 			Internal:               request.Internal,
 			Scopes:                 request.Scopes,
 			Claims:                 request.Claims,

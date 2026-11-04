@@ -1,5 +1,7 @@
 # MW Identity Federation v1.0 — Codex Implementation Plan
 
+> Historical implementation/planning snapshot. The [2026-11-04 clean v1 migration decision](federation-v1-clean-migration.md) supersedes compatibility, application-wide Strong and per-application signup behavior described below.
+
 > **Status:** Implementation roadmap; no production behavior changes authorized by this document
 > **Repository:** `vtmattedi/mw-plane-control`
 > **Date:** 2026-11-03

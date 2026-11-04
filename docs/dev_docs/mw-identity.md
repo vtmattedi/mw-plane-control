@@ -1,5 +1,7 @@
 # MW Identity — Project Plan
 
+> Historical implementation/planning snapshot. The [2026-11-04 clean v1 migration decision](federation-v1-clean-migration.md) supersedes compatibility, application-wide Strong and per-application signup behavior described below.
+
 ## Responsibility
 
 `mw-identity` is the trust root for MattediWorks application identity.

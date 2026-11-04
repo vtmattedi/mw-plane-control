@@ -13,30 +13,20 @@ var (
 	ErrDeleteCallbackRequired = errors.New("non-internal applications must configure a delete callback")
 )
 
-// CheckLifecycle enforces the deletion contract: every application that is not
-// internal must accept identity.user.deleted events. Internal applications run
-// behind the MW BFF for the workforce, so they cannot open public sign-up.
-func CheckLifecycle(internal, allowPublicSignup bool, deleteCallbackURI string) error {
-	if internal {
-		if allowPublicSignup {
-			return ErrInvalidApplication
-		}
-		return nil
-	}
-	if deleteCallbackURI == "" {
+// CheckLifecycle requires ordinary applications to accept whole-identity deletion events.
+func CheckLifecycle(internal bool, deleteCallbackURI string) error {
+	if !internal && deleteCallbackURI == "" {
 		return ErrDeleteCallbackRequired
 	}
 	return nil
 }
 
 type Application struct {
-	AccessPolicyV1         bool       `json:"access_policy_v1"`
 	ID                     string     `json:"id"`
 	Name                   string     `json:"name"`
 	ClientID               string     `json:"client_id"`
 	ClientSecretHash       string     `json:"-"`
 	ApplicationType        string     `json:"application_type"`
-	AuthenticationPolicy   string     `json:"authentication_policy"`
 	AccessPolicy           string     `json:"access_policy"`
 	Enabled                bool       `json:"enabled"`
 	ArchivedAt             *time.Time `json:"archived_at,omitempty"`
@@ -45,10 +35,9 @@ type Application struct {
 	DeleteCallbackURI      string     `json:"delete_callback_uri,omitempty"`
 	AccountManagementURI   string     `json:"account_management_uri"`
 	AccountDeletionURI     string     `json:"account_deletion_uri"`
-	AllowPublicSignup      bool       `json:"allow_public_signup"`
 	Internal               bool       `json:"internal"`
 	// NeedsDeleteCallback flags an application registered before the callback
-	// became mandatory. It keeps working; its next edit must add one.
+	// became mandatory. The registration must be completed before integration.
 	NeedsDeleteCallback bool      `json:"needs_delete_callback"`
 	Scopes              []string  `json:"scopes"`
 	Claims              []string  `json:"claims"`
@@ -58,13 +47,11 @@ type Application struct {
 }
 
 type CreateInput struct {
-	AccessPolicyV1         bool
 	ID                     string
 	Name                   string
 	ClientID               string
 	ClientSecretHash       string
 	ApplicationType        string
-	AuthenticationPolicy   string
 	AccessPolicy           string
 	Enabled                bool
 	RedirectURIs           []string
@@ -72,7 +59,6 @@ type CreateInput struct {
 	DeleteCallbackURI      string
 	AccountManagementURI   string
 	AccountDeletionURI     string
-	AllowPublicSignup      bool
 	Internal               bool
 	Scopes                 []string
 	Claims                 []string

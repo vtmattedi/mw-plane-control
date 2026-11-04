@@ -46,9 +46,9 @@ func accountRoutes(h *identityAuthHandlers) http.Handler {
 
 func TestPasswordOnlySignupCanDeleteWholeAccount(t *testing.T) {
 	for _, durable := range []bool{false, true} {
-		t.Run(map[bool]string{false: "legacy", true: "durable"}[durable], func(t *testing.T) {
+		t.Run(map[bool]string{false: "dispatch paused", true: "dispatch enabled"}[durable], func(t *testing.T) {
 			service, h, store := testAuthHTTPWithStore(t)
-			service.SetDurableDeletion(durable, false)
+			service.SetDeletionDispatch(durable, false)
 			h.config.PublicSignupEnabled = true
 			browser := accountBrowser{loginCSRFCookieName: "login-csrf-test"}
 			form := standaloneForm("password.deletion")

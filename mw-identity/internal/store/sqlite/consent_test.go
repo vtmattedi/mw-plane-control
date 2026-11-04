@@ -24,7 +24,7 @@ func TestConsentMigrationPreservesAssignmentsWithoutInventingConsent(t *testing.
 		if e != nil {
 			return e
 		}
-		if !d.IsDir() && path != "013_application_consent.sql" {
+		if !d.IsDir() && path < "013_application_consent.sql" {
 			body, e := fs.ReadFile(migrations.FS, path)
 			if e != nil {
 				return e
@@ -64,7 +64,9 @@ func TestConsentMigrationPreservesAssignmentsWithoutInventingConsent(t *testing.
 	if err != nil || len(apps) != 2 {
 		t.Fatalf("lost history: %v %v", apps, err)
 	}
-	if _,err:=store.AccessTokenByHash(ctx,"internal-hash",time.Unix(2,0));err!=nil{t.Fatalf("internal legacy token lost access on migration: %v",err)}
+	if _, err := store.AccessTokenByHash(ctx, "internal-hash", time.Unix(2, 0)); err == nil {
+		t.Fatal("pre-contract credential survived cutover")
+	}
 }
 
 func TestConsentFencesInFlightCredentialsAndPreservesHistory(t *testing.T) {
@@ -126,7 +128,7 @@ func TestConsentFencesInFlightCredentialsAndPreservesHistory(t *testing.T) {
 	}
 }
 
-func TestExistingIdentityCanEnrollPublicDefaultDenyWithoutAssignment(t *testing.T) {
+func TestPrivateApplicationIgnoresRetiredSignupMetadata(t *testing.T) {
 	f := newRemovalFixture(t, "")
 	ctx := context.Background()
 	if _, err := f.store.db.ExecContext(ctx, `DELETE FROM identity_application_assignments; UPDATE identity_applications SET access_policy='default_deny',allow_public_signup=1 WHERE id='app_one'`); err != nil {
@@ -145,12 +147,8 @@ func TestExistingIdentityCanEnrollPublicDefaultDenyWithoutAssignment(t *testing.
 		t.Fatal(err)
 	}
 	a := oidc.ValidatedAuthorization{Application: app, Scopes: []string{"openid"}}
-	if e := s.AuthorizeIdentityUser(ctx, a, user); e != nil {
-		t.Fatal(e)
-	}
-	app.AllowPublicSignup = false
-	a.Application = app
 	if e := s.AuthorizeIdentityUser(ctx, a, user); e == nil {
-		t.Fatal("private application admitted an unassigned identity")
+		t.Fatal("retired signup metadata bypassed private access")
 	}
+
 }

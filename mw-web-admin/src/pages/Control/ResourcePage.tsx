@@ -88,15 +88,12 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
     password: '',
     clientID: '',
     applicationType: 'confidential',
-    authenticationPolicy: 'standard',
     accessPolicy: 'default_deny',
     redirectURIs: '',
     postLogoutRedirectURIs: '',
     deleteCallbackURI: '',
     accountManagementURI: '',
     accountDeletionURI: '',
-    allowPublicSignup: false,
-    internal: false,
     scopes: 'openid, profile, email',
     claims: '',
     audiences: '',
@@ -198,8 +195,6 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
         deleteCallbackURI: '',
         accountManagementURI: '',
         accountDeletionURI: '',
-        allowPublicSignup: false,
-        internal: false,
         claims: '',
         audiences: '',
       }))
@@ -668,9 +663,7 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
                 <CreateField
                   className="sm:col-span-2"
                   label={tr(
-                    createFields.internal
-                      ? 'Callback de exclusão da conta MW inteira (opcional)'
-                      : 'Callback de exclusão da conta MW inteira (obrigatório)',
+                    'Callback de exclusão da conta MW inteira (obrigatório)',
                   )}
                 >
                   <Input
