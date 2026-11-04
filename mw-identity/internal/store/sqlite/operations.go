@@ -39,7 +39,11 @@ func RunMaintenance(ctx context.Context, db *sql.DB, now time.Time, auditRetenti
 		args  []any
 		out   *int64
 	}{
+		{"UPDATE identity_deletion_operations SET capability_hash=NULL,capability_expires_at_unix=0 WHERE capability_expires_at_unix < ?", []any{nowUnix}, new(int64)},
+		{"DELETE FROM identity_deletion_deliveries WHERE operation_id IN (SELECT id FROM identity_deletion_operations WHERE status='completed' AND completed_at_unix < ?)", []any{now.Add(-30 * 24 * time.Hour).Unix()}, new(int64)},
+		{"DELETE FROM identity_deletion_operations WHERE status='completed' AND completed_at_unix < ?", []any{now.Add(-30 * 24 * time.Hour).Unix()}, new(int64)},
 		{"DELETE FROM identity_audit_events WHERE created_at_unix < ?", []any{auditCutoff}, &stats.AuditEvents},
+		{"DELETE FROM identity_mfa_challenges WHERE expires_at_unix < ?", []any{nowUnix}, new(int64)},
 		{"DELETE FROM identity_sessions WHERE expires_at_unix < ?", []any{nowUnix}, &stats.Sessions},
 		{"DELETE FROM identity_authorization_codes WHERE expires_at_unix < ?", []any{nowUnix}, &stats.AuthorizationCodes},
 		{"DELETE FROM identity_access_tokens WHERE expires_at_unix < ? OR revoked_at_unix IS NOT NULL", []any{nowUnix}, &stats.AccessTokens},

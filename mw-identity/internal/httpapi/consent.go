@@ -88,15 +88,15 @@ func (h *oauthHandlers) consent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.ConsentVersion = p.Version + 1
-	h.finishAuthorization(w, r, a, session.User, session.Session.AuthTime, session.Session.AuthMethod)
+	h.finishAuthorization(w, r, a, session.User, session.Session.AuthTime, session.Session.AuthMethod, session.Session.Proof)
 }
 
-func (h *oauthHandlers) finishAuthorization(w http.ResponseWriter, r *http.Request, a oidc.ValidatedAuthorization, user auth.User, authTime time.Time, method string) {
+func (h *oauthHandlers) finishAuthorization(w http.ResponseWriter, r *http.Request, a oidc.ValidatedAuthorization, user auth.User, authTime time.Time, method string, proof string) {
 	if e := h.oidc.AuthorizeIdentityUser(r.Context(), a, user); e != nil {
 		h.authorizationError(w, r, oidc.AuthorizationRequest{RedirectURI: a.RedirectURI, State: a.State}, e)
 		return
 	}
-	code, err := h.oidc.IssueAuthorizationCode(r.Context(), a, user, authTime, method)
+	code, err := h.oidc.IssueAuthorizationCode(r.Context(), a, user, authTime, method, proof)
 	if err != nil {
 		writePlainError(w, 409, "authorization changed; start sign-in again")
 		return

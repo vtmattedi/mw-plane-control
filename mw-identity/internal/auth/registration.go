@@ -33,7 +33,7 @@ func (s *Service) PublicSignupApplication(ctx context.Context, clientID string) 
 	if err != nil {
 		return SignupApplication{}, err
 	}
-	if !app.Enabled || !app.AllowPublicSignup {
+	if !app.Enabled {
 		return SignupApplication{}, ErrAccountDeletionForbidden
 	}
 	return app, nil

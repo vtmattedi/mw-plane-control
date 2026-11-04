@@ -120,19 +120,15 @@ func (s *Store) UpdateIdentityApplication(
 		ctx,
 		`UPDATE identity_applications
 		 SET name = ?,
-		     authentication_policy = ?,
 		     access_policy = ?,
-		     delete_callback_uri = ?,
-		     allow_public_signup = ?,
+		     delete_callback_uri = ?, account_management_uri = ?, account_deletion_uri = ?,
 		     internal = ?,
 		     updated_at_unix = ?
 		 WHERE id = ?
 		   AND archived_at_unix IS NULL`,
 		value.Name,
-		value.AuthenticationPolicy,
 		value.AccessPolicy,
-		nullableString(value.DeleteCallbackURI),
-		boolInt(value.AllowPublicSignup),
+		nullableString(value.DeleteCallbackURI), value.AccountManagementURI, value.AccountDeletionURI,
 		boolInt(value.Internal),
 		now.Unix(),
 		id,
@@ -156,8 +152,7 @@ func (s *Store) UpdateIdentityApplication(
 			  AND user_id NOT IN (
 				SELECT user_id FROM identity_application_assignments
 				WHERE application_id = ? AND access_effect = 'allow'
-			  )
-			  AND user_id NOT IN (SELECT id FROM identity_users WHERE is_superadmin = 1)`, id, id); err != nil {
+			  )`, id, id); err != nil {
 			return fmt.Errorf("revoke authorization codes after access policy update: %w", err)
 		}
 		if _, err := tx.ExecContext(ctx, `UPDATE identity_access_tokens
@@ -167,8 +162,7 @@ func (s *Store) UpdateIdentityApplication(
 			  AND user_id NOT IN (
 				SELECT user_id FROM identity_application_assignments
 				WHERE application_id = ? AND access_effect = 'allow'
-			  )
-			  AND user_id NOT IN (SELECT id FROM identity_users WHERE is_superadmin = 1)`, now.Unix(), id, id); err != nil {
+			  )`, now.Unix(), id, id); err != nil {
 			return fmt.Errorf("revoke access tokens after access policy update: %w", err)
 		}
 	}

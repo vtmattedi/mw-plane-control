@@ -701,6 +701,8 @@ const english: Record<string, string> = {
   'Exceções de acesso': 'Access exceptions',
   'As exceções substituem a política padrão. Superadmins e administradores não podem ser bloqueados.':
     'Exceptions override the default policy. Superadmins and administrators cannot be blocked.',
+  'As exceções substituem a política padrão, inclusive para superadmins e administradores.':
+    'Exceptions override the default policy, including for superadmins and administrators.',
   'Selecione um usuário': 'Select a user',
   Permitir: 'Allow',
   Bloquear: 'Block',

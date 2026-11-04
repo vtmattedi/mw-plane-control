@@ -114,7 +114,7 @@ func (s *Store) CreateIdentitySession(
 	ctx context.Context,
 	input auth.SessionRecord,
 ) error {
-	_, err := s.db.ExecContext(
+	result, err := s.db.ExecContext(
 		ctx,
 		`INSERT INTO identity_sessions (
 			id,
@@ -125,8 +125,8 @@ func (s *Store) CreateIdentitySession(
 			created_at_unix,
 			last_seen_at_unix,
 			auth_method,
-			auth_time_unix
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			auth_time_unix, auth_proof, auth_time_nanos
+		) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM identity_users WHERE id=? AND enabled=1 AND deletion_requested_at_unix IS NULL AND recovery_pending=0)`,
 		input.ID,
 		input.UserID,
 		input.TokenHash,
@@ -135,12 +135,16 @@ func (s *Store) CreateIdentitySession(
 		input.CreatedAt.Unix(),
 		input.LastSeenAt.Unix(),
 		input.AuthMethod,
-		input.AuthTime.Unix(),
+		input.AuthTime.Unix(), input.Proof, input.AuthTime.UnixNano(), input.UserID,
 	)
 	if err != nil {
 		return fmt.Errorf("create identity session: %w", err)
 	}
 
+	n, _ := result.RowsAffected()
+	if n != 1 {
+		return auth.ErrInvalidSession
+	}
 	return nil
 }
 
@@ -159,7 +163,7 @@ func (s *Store) IdentitySessionByTokenHash(
 			s.created_at_unix,
 			s.last_seen_at_unix,
 			s.auth_method,
-			s.auth_time_unix,
+			s.auth_time_unix, s.auth_proof, s.auth_time_nanos,
 			u.id,
 			u.email,
 			u.email_normalized,
@@ -188,6 +192,7 @@ func (s *Store) IdentitySessionByTokenHash(
 		created           int64
 		lastSeen          int64
 		authTime          int64
+		authNanos         int64
 		userCreated       int64
 		userUpdated       int64
 		emailVerified     sql.NullInt64
@@ -204,7 +209,7 @@ func (s *Store) IdentitySessionByTokenHash(
 		&created,
 		&lastSeen,
 		&session.AuthMethod,
-		&authTime,
+		&authTime, &session.Proof, &authNanos,
 		&session.User.ID,
 		&session.User.Email,
 		&session.User.EmailNormalized,
@@ -234,6 +239,9 @@ func (s *Store) IdentitySessionByTokenHash(
 	session.CreatedAt = time.Unix(created, 0).UTC()
 	session.LastSeenAt = time.Unix(lastSeen, 0).UTC()
 	session.AuthTime = time.Unix(authTime, 0).UTC()
+	if authNanos > 0 {
+		session.AuthTime = time.Unix(0, authNanos).UTC()
+	}
 	session.User.Enabled = enabled == 1
 	session.User.IsSuperadmin = superadmin == 1
 	session.User.CreatedAt = time.Unix(userCreated, 0).UTC()

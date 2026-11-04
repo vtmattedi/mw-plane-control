@@ -15,10 +15,10 @@ func (s *Store) ListIdentityUserDeletionApplications(ctx context.Context, userID
 	return s.listConsentApplications(ctx, userID, false)
 }
 func (s *Store) listConsentApplications(ctx context.Context, userID string, active bool) ([]auth.ConnectedApplication, error) {
-	query := `SELECT p.id,p.name,p.client_id,'user',COALESCE(p.delete_callback_uri,''),c.created_at_unix FROM identity_applications p JOIN identity_application_consents c ON c.application_id=p.id WHERE c.user_id=? AND c.active=1 ORDER BY p.name,p.id`
+	query := `SELECT p.id,p.name,p.client_id,'user',COALESCE(p.delete_callback_uri,''),c.created_at_unix,p.account_management_uri,p.account_deletion_uri,p.internal FROM identity_applications p JOIN identity_application_consents c ON c.application_id=p.id WHERE c.user_id=? AND c.active=1 ORDER BY p.name,p.id`
 	args := []any{userID}
 	if !active {
-		query = `WITH known AS (SELECT application_id,created_at_unix FROM identity_application_consents WHERE user_id=? UNION ALL SELECT application_id,created_at_unix FROM identity_application_assignments WHERE user_id=?) SELECT p.id,p.name,p.client_id,'user',COALESCE(p.delete_callback_uri,''),MIN(k.created_at_unix) FROM identity_applications p JOIN known k ON k.application_id=p.id GROUP BY p.id ORDER BY p.name,p.id`
+		query = `WITH known AS (SELECT application_id,created_at_unix FROM identity_application_consents WHERE user_id=? UNION ALL SELECT application_id,created_at_unix FROM identity_application_assignments WHERE user_id=?) SELECT p.id,p.name,p.client_id,'user',COALESCE(p.delete_callback_uri,''),MIN(k.created_at_unix),p.account_management_uri,p.account_deletion_uri,p.internal FROM identity_applications p JOIN known k ON k.application_id=p.id GROUP BY p.id ORDER BY p.name,p.id`
 		args = append(args, userID)
 	}
 	rows, err := s.db.QueryContext(ctx, query, args...)
@@ -30,7 +30,7 @@ func (s *Store) listConsentApplications(ctx context.Context, userID string, acti
 	for rows.Next() {
 		var a auth.ConnectedApplication
 		var created int64
-		if err := rows.Scan(&a.ID, &a.Name, &a.ClientID, &a.Role, &a.DeleteCallbackURI, &created); err != nil {
+		if err := rows.Scan(&a.ID, &a.Name, &a.ClientID, &a.Role, &a.DeleteCallbackURI, &created, &a.AccountManagementURI, &a.AccountDeletionURI, &a.Internal); err != nil {
 			return nil, err
 		}
 		a.ConnectedAt = time.Unix(created, 0).UTC()

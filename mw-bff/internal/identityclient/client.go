@@ -116,14 +116,14 @@ func (c *Client) Start(ctx context.Context, returnTo string) (string, error) {
 	return c.start(ctx, returnTo, false)
 }
 
-func (c *Client) StartStepUp(ctx context.Context, returnTo string) (string, error) {
-	return c.start(ctx, returnTo, true)
+func (c *Client) StartStepUp(ctx context.Context, returnTo string, subject string) (string, error) {
+	return c.start(ctx, returnTo, true, subject)
 }
 
 func (c *Client) start(
 	ctx context.Context,
 	returnTo string,
-	stepUp bool,
+	stepUp bool, expectedSubject ...string,
 ) (string, error) {
 	transactionID, err := randomOpaque("oidctx_", 18)
 	if err != nil {
@@ -162,11 +162,20 @@ func (c *Client) start(
 		return "", err
 	}
 
+	requiredACR, subject := "", ""
+	if stepUp {
+		requiredACR = "urn:mw:webauthn"
+		if len(expectedSubject) != 1 || expectedSubject[0] == "" {
+			return "", ErrIdentityProtocol
+		}
+		subject = expectedSubject[0]
+	}
 	now := c.now().UTC()
 	err = c.store.CreateOIDCTransaction(
 		ctx,
 		Transaction{
-			ID:                     transactionID,
+			ID:          transactionID,
+			RequiredACR: requiredACR, ExpectedSubject: subject,
 			StateHash:              hashOpaque(state),
 			NonceHash:              hashOpaque(nonce),
 			PKCEVerifierCiphertext: ciphertext,
@@ -297,6 +306,9 @@ func (c *Client) Complete(
 		)
 	}
 
+	if err := validateStepUp(claims, transaction, now, c.config.StrongAuthMaxAge); err != nil {
+		return Identity{}, "", err
+	}
 	if claims.Subject == "" {
 		return Identity{}, "", fmt.Errorf(
 			"%w: subject missing",
@@ -447,4 +459,18 @@ func zero(value []byte) {
 	for i := range value {
 		value[i] = 0
 	}
+}
+
+func validateStepUp(claims validatedClaims, tx Transaction, now time.Time, maxAge time.Duration) error {
+	if tx.RequiredACR == "" {
+		return nil
+	}
+	if maxAge <= 0 {
+		maxAge = 5 * time.Minute
+	}
+	age := now.Sub(time.Unix(claims.AuthTime, 0))
+	if tx.RequiredACR != "urn:mw:webauthn" || claims.ACR != tx.RequiredACR || claims.AuthMethod != "webauthn" || claims.Subject != tx.ExpectedSubject || tx.ExpectedSubject == "" || age < 0 || age > maxAge {
+		return fmt.Errorf("%w: step-up evidence mismatch", ErrIdentityProtocol)
+	}
+	return nil
 }

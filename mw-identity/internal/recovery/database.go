@@ -322,7 +322,7 @@ func invalidate(ctx context.Context, path string) error {
 	}
 	defer tx.Rollback()
 	for _, query := range []string{
-		"DELETE FROM identity_access_tokens", "DELETE FROM identity_authorization_codes", "DELETE FROM identity_sessions", "DELETE FROM identity_webauthn_ceremonies",
+		"DELETE FROM identity_access_tokens", "DELETE FROM identity_authorization_codes", "DELETE FROM identity_sessions", "DELETE FROM identity_mfa_challenges", "DELETE FROM identity_webauthn_ceremonies",
 		"UPDATE identity_recovery_requests SET status='cancelled' WHERE status='pending'",
 	} {
 		if _, err := tx.ExecContext(ctx, query); err != nil {

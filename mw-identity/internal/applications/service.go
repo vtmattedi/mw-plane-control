@@ -16,20 +16,21 @@ import (
 )
 
 type Service struct {
-	store Store
-	now   func() time.Time
+	production bool
+	store      Store
+	now        func() time.Time
 }
 
 type CreateRequest struct {
 	Name                   string
 	ClientID               string
 	ApplicationType        string
-	AuthenticationPolicy   string
 	AccessPolicy           string
 	RedirectURIs           []string
 	PostLogoutRedirectURIs []string
 	DeleteCallbackURI      string
-	AllowPublicSignup      bool
+	AccountManagementURI   string
+	AccountDeletionURI     string
 	Internal               bool
 	Scopes                 []string
 	Claims                 []string
@@ -61,9 +62,6 @@ func (s *Service) Create(
 	name := strings.TrimSpace(request.Name)
 	clientID := strings.TrimSpace(request.ClientID)
 	appType := strings.TrimSpace(request.ApplicationType)
-	policy := strings.TrimSpace(
-		request.AuthenticationPolicy,
-	)
 	accessPolicy := strings.TrimSpace(request.AccessPolicy)
 
 	if name == "" || clientID == "" {
@@ -78,12 +76,6 @@ func (s *Service) Create(
 		return CreateResult{}, ErrInvalidApplication
 	}
 
-	if policy == "" {
-		policy = "standard"
-	}
-	if policy != "standard" && policy != "strong" {
-		return CreateResult{}, ErrInvalidApplication
-	}
 	if accessPolicy == "" {
 		accessPolicy = "default_deny"
 	}
@@ -110,7 +102,22 @@ func (s *Service) Create(
 	if err != nil {
 		return CreateResult{}, ErrInvalidApplication
 	}
-	if err := CheckLifecycle(request.Internal, request.AllowPublicSignup, deleteCallback); err != nil {
+	management, err := ValidateNavigationURI(request.AccountManagementURI)
+	if err != nil {
+		return CreateResult{}, ErrInvalidApplication
+	}
+	deletion, err := ValidateNavigationURI(request.AccountDeletionURI)
+	if err != nil {
+		return CreateResult{}, ErrInvalidApplication
+	}
+	if s.production {
+		uris := append(append([]string{}, redirectURIs...), postLogout...)
+		uris = append(uris, deleteCallback, management, deletion)
+		if err = ValidateProductionURIs(uris...); err != nil {
+			return CreateResult{}, ErrInvalidApplication
+		}
+	}
+	if err := CheckLifecycle(request.Internal, deleteCallback); err != nil {
 		return CreateResult{}, err
 	}
 
@@ -153,13 +160,13 @@ func (s *Service) Create(
 		ClientID:               clientID,
 		ClientSecretHash:       secretHash,
 		ApplicationType:        appType,
-		AuthenticationPolicy:   policy,
 		AccessPolicy:           accessPolicy,
 		Enabled:                true,
 		RedirectURIs:           redirectURIs,
 		PostLogoutRedirectURIs: postLogout,
 		DeleteCallbackURI:      deleteCallback,
-		AllowPublicSignup:      request.AllowPublicSignup,
+		AccountManagementURI:   management,
+		AccountDeletionURI:     deletion,
 		Internal:               request.Internal,
 		Scopes:                 scopes,
 		Claims:                 claims,
@@ -180,13 +187,13 @@ func (s *Service) Create(
 		ClientID:               input.ClientID,
 		ClientSecretHash:       input.ClientSecretHash,
 		ApplicationType:        input.ApplicationType,
-		AuthenticationPolicy:   input.AuthenticationPolicy,
 		AccessPolicy:           input.AccessPolicy,
 		Enabled:                input.Enabled,
 		RedirectURIs:           append([]string(nil), input.RedirectURIs...),
 		PostLogoutRedirectURIs: append([]string(nil), input.PostLogoutRedirectURIs...),
 		DeleteCallbackURI:      input.DeleteCallbackURI,
-		AllowPublicSignup:      input.AllowPublicSignup,
+		AccountManagementURI:   input.AccountManagementURI,
+		AccountDeletionURI:     input.AccountDeletionURI,
 		Internal:               input.Internal,
 		Scopes:                 append([]string(nil), input.Scopes...),
 		Claims:                 append([]string(nil), input.Claims...),
@@ -274,14 +281,12 @@ func normalizeURIs(
 		parsed, err := url.Parse(value)
 		if err != nil ||
 			parsed.Scheme == "" ||
-			parsed.Host == "" ||
+			parsed.Host == "" || parsed.User != nil || len(value) > 2048 ||
 			parsed.Fragment != "" {
 			return nil, fmt.Errorf("invalid URI")
 		}
 
-		if requiredHTTPS &&
-			parsed.Scheme != "https" &&
-			parsed.Hostname() != "localhost" {
+		if parsed.Scheme != "https" && !(parsed.Scheme == "http" && parsed.Hostname() == "localhost") {
 			return nil, fmt.Errorf(
 				"redirect URI must use https outside localhost",
 			)
@@ -345,3 +350,5 @@ func randomID(prefix string) (string, error) {
 	return prefix +
 		base64.RawURLEncoding.EncodeToString(raw), nil
 }
+
+func (s *Service) RequireHTTPS(production bool) { s.production = production }

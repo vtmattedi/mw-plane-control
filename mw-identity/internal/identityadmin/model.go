@@ -33,12 +33,12 @@ const (
 
 type UpdateApplication struct {
 	Name                   string   `json:"name"`
-	AuthenticationPolicy   string   `json:"authentication_policy"`
 	AccessPolicy           string   `json:"access_policy"`
 	RedirectURIs           []string `json:"redirect_uris"`
 	PostLogoutRedirectURIs []string `json:"post_logout_redirect_uris"`
 	DeleteCallbackURI      string   `json:"delete_callback_uri"`
-	AllowPublicSignup      bool     `json:"allow_public_signup"`
+	AccountManagementURI   string   `json:"account_management_uri"`
+	AccountDeletionURI     string   `json:"account_deletion_uri"`
 	Internal               bool     `json:"internal"`
 	Scopes                 []string `json:"scopes"`
 	Claims                 []string `json:"claims"`

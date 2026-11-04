@@ -35,8 +35,8 @@ func (s *Store) CreateOIDCTransaction(
 			return_to,
 			expires_at_unix,
 			consumed_at_unix,
-			created_at_unix
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)`,
+			created_at_unix, expected_subject, required_acr
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)`,
 		value.ID,
 		value.StateHash,
 		value.NonceHash,
@@ -45,7 +45,7 @@ func (s *Store) CreateOIDCTransaction(
 		value.EncryptionKeyVersion,
 		value.ReturnTo,
 		value.ExpiresAt.Unix(),
-		value.CreatedAt.Unix(),
+		value.CreatedAt.Unix(), value.ExpectedSubject, value.RequiredACR,
 	)
 	if err != nil {
 		return fmt.Errorf(
@@ -84,7 +84,7 @@ func (s *Store) ClaimOIDCTransaction(
 			encryption_key_version,
 			return_to,
 			expires_at_unix,
-			created_at_unix
+			created_at_unix, expected_subject, required_acr
 		FROM bff_oidc_transactions
 		WHERE state_hash = ?
 		  AND consumed_at_unix IS NULL
@@ -108,7 +108,7 @@ func (s *Store) ClaimOIDCTransaction(
 		&value.EncryptionKeyVersion,
 		&value.ReturnTo,
 		&expires,
-		&created,
+		&created, &value.ExpectedSubject, &value.RequiredACR,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return identityclient.Transaction{},

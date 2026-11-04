@@ -79,7 +79,7 @@ func (s *Service) AuthorizeIdentityUser(
 	authorization ValidatedAuthorization,
 	user auth.User,
 ) *ProtocolError {
-	if !user.Enabled || !authorization.Application.Enabled || authorization.Application.ArchivedAt != nil {
+	if !user.Enabled || user.DeletionRequestedAt != nil || !authorization.Application.Enabled || authorization.Application.ArchivedAt != nil {
 		return accessDenied()
 	}
 	if user.AccountType == "public" && contains(
@@ -88,7 +88,7 @@ func (s *Service) AuthorizeIdentityUser(
 	) {
 		return accessDenied()
 	}
-	if user.IsSuperadmin &&
+	if user.IsSuperadmin && authorization.Application.Internal &&
 		contains(
 			authorization.Scopes,
 			"identity.admin",
@@ -97,15 +97,6 @@ func (s *Service) AuthorizeIdentityUser(
 			authorization.Application.Audiences,
 			IdentityAdminAudience,
 		) {
-		return nil
-	}
-	// Global superadmins cannot be blocked by an application's default policy
-	// or a per-user exception. The Identity Admin audience remains protected by
-	// the identity.admin scope check above.
-	if user.IsSuperadmin && !contains(
-		authorization.Application.Audiences,
-		IdentityAdminAudience,
-	) {
 		return nil
 	}
 
@@ -145,7 +136,7 @@ func accessAllowedByApplicationPolicy(
 	if assignment != nil {
 		return assignment.AccessEffect == "allow"
 	}
-	return application.AccessPolicy == "default_allow" || (application.AllowPublicSignup && !application.Internal && !contains(application.Audiences, IdentityAdminAudience))
+	return application.AccessPolicy == "default_allow"
 }
 
 func accessDenied() *ProtocolError {

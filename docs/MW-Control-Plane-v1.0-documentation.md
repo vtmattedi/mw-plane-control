@@ -1,5 +1,7 @@
 # MW Control Plane v1.0 — Technical Documentation
 
+> Historical implementation/planning snapshot. The [2026-11-04 clean v1 migration decision](dev_docs/federation-v1-clean-migration.md) supersedes compatibility, application-wide Strong and per-application signup behavior described below.
+
 **Status:** v1.0 baseline; v1.1 adds the MQTT module (section 30)  
 **Scope:** MW Plane Control shared administrative control plane  
 **Components:** MW Identity, MW BFF, Gateway, MW Web Admin, delegated MattediWorks services  

@@ -26,8 +26,8 @@ func (s *Store) CreateAuthorizationCode(
 		`INSERT INTO identity_authorization_codes (
 			id, code_hash, client_id, user_id, redirect_uri, scope_json,
 			code_challenge, nonce, auth_time_unix, auth_method, expires_at_unix,
-			consumed_at_unix, created_at_unix, consent_version
-		) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ? WHERE `+credentialConsentPredicate,
+			consumed_at_unix, created_at_unix, consent_version, auth_proof, requested_acr, max_age_seconds
+		) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ? WHERE `+credentialConsentPredicate,
 		code.ID,
 		code.CodeHash,
 		code.ClientID,
@@ -39,7 +39,7 @@ func (s *Store) CreateAuthorizationCode(
 		code.AuthTime.Unix(),
 		code.AuthMethod,
 		code.ExpiresAt.Unix(),
-		code.CreatedAt.Unix(), code.ConsentVersion, code.UserID, code.ClientID, code.ConsentVersion, code.ConsentVersion,
+		code.CreatedAt.Unix(), code.ConsentVersion, code.Proof, code.RequestedACR, code.MaxAgeSeconds, code.UserID, code.ClientID, code.ConsentVersion, code.ConsentVersion,
 	)
 	if err != nil {
 		return fmt.Errorf("create authorization code: %w", err)
@@ -61,11 +61,11 @@ func (s *Store) AuthorizationCodeByHash(
 		`SELECT
 			id, code_hash, client_id, user_id, redirect_uri, scope_json,
 			code_challenge, nonce, auth_time_unix, auth_method, expires_at_unix,
-			consumed_at_unix, created_at_unix, consent_version
+			consumed_at_unix, created_at_unix, consent_version, auth_proof, requested_acr, max_age_seconds
 		FROM identity_authorization_codes AS artifact
 		WHERE code_hash = ?
 		  AND consumed_at_unix IS NULL
-		  AND expires_at_unix > ? AND EXISTS (SELECT 1 FROM identity_applications p JOIN identity_users u ON u.id=artifact.user_id WHERE p.client_id=artifact.client_id AND u.enabled=1 AND p.enabled=1 AND p.archived_at_unix IS NULL  AND (u.is_superadmin=1 OR EXISTS (SELECT 1 FROM identity_application_assignments a WHERE a.user_id=u.id AND a.application_id=p.id AND a.access_effect='allow') OR (NOT EXISTS (SELECT 1 FROM identity_application_assignments a WHERE a.user_id=u.id AND a.application_id=p.id) AND (p.access_policy='default_allow' OR (p.allow_public_signup=1 AND p.internal=0 AND NOT EXISTS (SELECT 1 FROM identity_application_audiences aa WHERE aa.application_id=p.id AND aa.audience='mw-identity-admin'))))) AND (u.account_type!='public' OR NOT EXISTS (SELECT 1 FROM identity_application_audiences aa WHERE aa.application_id=p.id AND aa.audience='mw-identity-admin')) AND (artifact.consent_version>0 AND EXISTS (SELECT 1 FROM identity_application_consents c WHERE c.user_id=u.id AND c.application_id=p.id AND c.active=1 AND c.version=artifact.consent_version)))`,
+		  AND expires_at_unix > ? AND EXISTS (SELECT 1 FROM identity_applications p JOIN identity_users u ON u.id=artifact.user_id WHERE p.client_id=artifact.client_id AND u.enabled=1 AND p.enabled=1 AND p.archived_at_unix IS NULL  AND `+credentialEligibility+` AND (artifact.consent_version>0 AND EXISTS (SELECT 1 FROM identity_application_consents c WHERE c.user_id=u.id AND c.application_id=p.id AND c.active=1 AND c.version=artifact.consent_version)))`,
 		codeHash,
 		now.Unix(),
 	)
@@ -93,7 +93,7 @@ func (s *Store) AuthorizationCodeByHash(
 		&code.AuthMethod,
 		&expires,
 		&consumed,
-		&created, &code.ConsentVersion,
+		&created, &code.ConsentVersion, &code.Proof, &code.RequestedACR, &code.MaxAgeSeconds,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return oidc.AuthorizationCode{}, oidc.ErrStoreNotFound
@@ -131,7 +131,7 @@ func (s *Store) ConsumeAuthorizationCode(
 		 SET consumed_at_unix = ?
 		 WHERE code_hash = ?
 		   AND consumed_at_unix IS NULL
-		   AND expires_at_unix > ? AND EXISTS (SELECT 1 FROM identity_applications p JOIN identity_users u ON u.id=identity_authorization_codes.user_id WHERE p.client_id=identity_authorization_codes.client_id AND u.enabled=1 AND p.enabled=1 AND p.archived_at_unix IS NULL  AND (u.is_superadmin=1 OR EXISTS (SELECT 1 FROM identity_application_assignments a WHERE a.user_id=u.id AND a.application_id=p.id AND a.access_effect='allow') OR (NOT EXISTS (SELECT 1 FROM identity_application_assignments a WHERE a.user_id=u.id AND a.application_id=p.id) AND (p.access_policy='default_allow' OR (p.allow_public_signup=1 AND p.internal=0 AND NOT EXISTS (SELECT 1 FROM identity_application_audiences aa WHERE aa.application_id=p.id AND aa.audience='mw-identity-admin'))))) AND (u.account_type!='public' OR NOT EXISTS (SELECT 1 FROM identity_application_audiences aa WHERE aa.application_id=p.id AND aa.audience='mw-identity-admin')) AND (identity_authorization_codes.consent_version>0 AND EXISTS (SELECT 1 FROM identity_application_consents c WHERE c.user_id=u.id AND c.application_id=p.id AND c.active=1 AND c.version=identity_authorization_codes.consent_version)))`,
+		   AND expires_at_unix > ? AND EXISTS (SELECT 1 FROM identity_applications p JOIN identity_users u ON u.id=identity_authorization_codes.user_id WHERE p.client_id=identity_authorization_codes.client_id AND u.enabled=1 AND p.enabled=1 AND p.archived_at_unix IS NULL  AND `+credentialEligibility+` AND (identity_authorization_codes.consent_version>0 AND EXISTS (SELECT 1 FROM identity_application_consents c WHERE c.user_id=u.id AND c.application_id=p.id AND c.active=1 AND c.version=identity_authorization_codes.consent_version)))`,
 		now.Unix(),
 		codeHash,
 		now.Unix(),
@@ -164,8 +164,8 @@ func (s *Store) CreateAccessToken(
 		`INSERT INTO identity_access_tokens (
 			id, token_hash, client_id, user_id, scope_json,
 			expires_at_unix, created_at_unix, revoked_at_unix,
-			audience, auth_time_unix, auth_method, parent_token_id, consent_version
-		) SELECT ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ? WHERE `+credentialConsentPredicate,
+			audience, auth_time_unix, auth_method, parent_token_id, consent_version, auth_proof
+		) SELECT ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ? WHERE `+credentialConsentPredicate,
 		token.ID,
 		token.TokenHash,
 		token.ClientID,
@@ -176,7 +176,7 @@ func (s *Store) CreateAccessToken(
 		token.Audience,
 		token.AuthTime.Unix(),
 		token.AuthMethod,
-		nullableOIDCString(token.ParentTokenID), token.ConsentVersion, token.UserID, token.ClientID, token.ConsentVersion, token.ConsentVersion,
+		nullableOIDCString(token.ParentTokenID), token.ConsentVersion, token.Proof, token.UserID, token.ClientID, token.ConsentVersion, token.ConsentVersion,
 	)
 	if err != nil {
 		return fmt.Errorf("create access token: %w", err)
@@ -198,11 +198,11 @@ func (s *Store) AccessTokenByHash(
 		`SELECT
 			id, token_hash, client_id, user_id, audience, scope_json,
 			auth_time_unix, auth_method, parent_token_id,
-			expires_at_unix, created_at_unix, consent_version
+			expires_at_unix, created_at_unix, consent_version, auth_proof
 		FROM identity_access_tokens AS artifact
 		WHERE token_hash = ?
 		  AND revoked_at_unix IS NULL
-		  AND expires_at_unix > ? AND EXISTS (SELECT 1 FROM identity_applications p JOIN identity_users u ON u.id=artifact.user_id WHERE p.client_id=artifact.client_id AND u.enabled=1 AND p.enabled=1 AND p.archived_at_unix IS NULL  AND (u.is_superadmin=1 OR EXISTS (SELECT 1 FROM identity_application_assignments a WHERE a.user_id=u.id AND a.application_id=p.id AND a.access_effect='allow') OR (NOT EXISTS (SELECT 1 FROM identity_application_assignments a WHERE a.user_id=u.id AND a.application_id=p.id) AND (p.access_policy='default_allow' OR (p.allow_public_signup=1 AND p.internal=0 AND NOT EXISTS (SELECT 1 FROM identity_application_audiences aa WHERE aa.application_id=p.id AND aa.audience='mw-identity-admin'))))) AND (u.account_type!='public' OR NOT EXISTS (SELECT 1 FROM identity_application_audiences aa WHERE aa.application_id=p.id AND aa.audience='mw-identity-admin')) AND (artifact.consent_version>0 AND EXISTS (SELECT 1 FROM identity_application_consents c WHERE c.user_id=u.id AND c.application_id=p.id AND c.active=1 AND c.version=artifact.consent_version)))`,
+		  AND expires_at_unix > ? AND EXISTS (SELECT 1 FROM identity_applications p JOIN identity_users u ON u.id=artifact.user_id WHERE p.client_id=artifact.client_id AND u.enabled=1 AND p.enabled=1 AND p.archived_at_unix IS NULL  AND `+credentialEligibility+` AND (artifact.consent_version>0 AND EXISTS (SELECT 1 FROM identity_application_consents c WHERE c.user_id=u.id AND c.application_id=p.id AND c.active=1 AND c.version=artifact.consent_version)))`,
 		tokenHash,
 		now.Unix(),
 	)
@@ -227,7 +227,7 @@ func (s *Store) AccessTokenByHash(
 		&token.AuthMethod,
 		&parentID,
 		&expires,
-		&created, &token.ConsentVersion,
+		&created, &token.ConsentVersion, &token.Proof,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return oidc.AccessToken{}, oidc.ErrStoreNotFound

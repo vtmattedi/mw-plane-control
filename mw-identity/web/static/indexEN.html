@@ -18,6 +18,7 @@
     <script src="/static/portal.js" defer></script>
   </head>
   <body data-required-auth="{{.RequiredAuth}}">
+ {{if .RestrictedApplication}}<p role="status">Access to this application is restricted. An administrator must grant access; creating an MW identity does not grant access.</p>{{end}}
     <div class="ambient ambient-one"></div>
     <div class="ambient ambient-two"></div>
 
@@ -180,7 +181,8 @@
               <h2>Verification code</h2>
               <p>Enter the 6-digit code from your authenticator app.</p>
             </div>
-            <form action="/api/totp/login" method="post" data-code-form>
+            <form action="/api/totp/login" method="post" data-code-form><label>Email<input name="mfa_email" type="email" autocomplete="username" required /></label>
+<label>Password<input name="mfa_password" type="password" autocomplete="current-password" required /></label>
               <input type="hidden" name="csrf_token" data-csrf />
               <input
                 type="hidden"

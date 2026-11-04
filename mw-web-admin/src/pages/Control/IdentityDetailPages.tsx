@@ -34,14 +34,14 @@ type Application = {
   name: string
   client_id: string
   application_type: string
-  authentication_policy: string
   access_policy: string
   enabled: boolean
   archived_at?: string
   redirect_uris: string[]
   post_logout_redirect_uris: string[]
+  account_management_uri?: string
+  account_deletion_uri?: string
   delete_callback_uri?: string
-  allow_public_signup: boolean
   internal?: boolean
   needs_delete_callback?: boolean
   scopes: string[]
@@ -53,12 +53,12 @@ type Application = {
 
 type ApplicationForm = {
   name: string
-  authentication_policy: string
   access_policy: string
   redirect_uris: string
   post_logout_redirect_uris: string
+  account_management_uri: string
+  account_deletion_uri: string
   delete_callback_uri: string
-  allow_public_signup: boolean
   internal: boolean
   scopes: string
   claims: string
@@ -83,7 +83,7 @@ const pendingApplicationKey = 'mw-identity-application-pending'
 
 export function IdentityApplicationDetailPage() {
   const { applicationID = '' } = useParams()
-  const { tr } = usePreferences()
+  const { tr, language } = usePreferences()
   const confirm = useConfirm()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -127,12 +127,10 @@ export function IdentityApplicationDetailPage() {
     if (!query.data) return
     const {
       name,
-      authentication_policy,
       access_policy,
       redirect_uris,
       post_logout_redirect_uris,
       delete_callback_uri,
-      allow_public_signup,
       internal,
       scopes,
       claims,
@@ -140,12 +138,12 @@ export function IdentityApplicationDetailPage() {
     } = query.data
     setForm({
       name,
-      authentication_policy,
       access_policy: access_policy || 'default_deny',
       redirect_uris: (redirect_uris ?? []).join(', '),
       post_logout_redirect_uris: (post_logout_redirect_uris ?? []).join(', '),
       delete_callback_uri: delete_callback_uri ?? '',
-      allow_public_signup: allow_public_signup === true,
+      account_management_uri: query.data.account_management_uri ?? '',
+      account_deletion_uri: query.data.account_deletion_uri ?? '',
       internal: internal === true,
       scopes: (scopes ?? []).join(', '),
       claims: (claims ?? []).join(', '),
@@ -193,6 +191,17 @@ export function IdentityApplicationDetailPage() {
     [users],
   )
   const selectedExceptionUser = usersByID.get(exceptionUserID)
+  const administrationAudience =
+    query.data?.audiences?.includes('mw-identity-admin') === true
+  const selectedAssignment = assignments.find(
+    (assignment) => assignment.user_id === exceptionUserID,
+  )
+  const selectedProtectedAdmin =
+    administrationAudience &&
+    (selectedExceptionUser?.is_superadmin ||
+      exceptionRole !== 'user' ||
+      selectedAssignment?.role === 'admin' ||
+      selectedAssignment?.role === 'superadmin')
 
   function saveAccessException() {
     if (!exceptionUserID) return
@@ -200,10 +209,7 @@ export function IdentityApplicationDetailPage() {
       userID: exceptionUserID,
       method: 'PUT',
       role: exceptionRole,
-      accessEffect:
-        selectedExceptionUser?.is_superadmin || exceptionRole !== 'user'
-          ? 'allow'
-          : exceptionEffect,
+      accessEffect: selectedProtectedAdmin ? 'allow' : exceptionEffect,
     })
   }
 
@@ -369,15 +375,17 @@ export function IdentityApplicationDetailPage() {
                 >
                   <AlertTriangle className="mt-0.5 size-4 shrink-0" />
                   <span>
-                    {tr(
-                      'Esta aplicação não tem callback de exclusão da conta MW inteira. Ela continua funcionando, mas a próxima edição exige um callback, ou que ela seja marcada como interna.',
-                    )}
+                    {language === 'en'
+                      ? 'This application needs a whole-identity deletion callback to complete its registration.'
+                      : 'Esta aplicação precisa de um callback de exclusão da identidade MW antes de ser editada.'}
                   </span>
                 </div>
               )}
               <fieldset
                 className="contents"
-                disabled={Boolean(query.data.archived_at)}
+                disabled={
+                  Boolean(query.data.archived_at) || query.data.internal
+                }
               >
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field label={tr('Nome')}>
@@ -400,20 +408,14 @@ export function IdentityApplicationDetailPage() {
                       value={query.data.application_type}
                     />
                   </Field>
-                  <Field label={tr('Política')}>
-                    <Select
-                      onChange={(event) =>
-                        setForm({
-                          ...form,
-                          authentication_policy: event.target.value,
-                        })
-                      }
-                      value={form.authentication_policy}
-                    >
-                      <option value="standard">Standard</option>
-                      <option value="strong">Strong</option>
-                    </Select>
-                  </Field>
+
+                  {query.data.internal && (
+                    <p role="status">
+                      {language === 'en'
+                        ? 'Infrastructure configuration is managed through the operator workflow.'
+                        : 'A configuração de infraestrutura é gerenciada pelo operador.'}
+                    </p>
+                  )}
                   <Field label={tr('Política de acesso')}>
                     <Select
                       onChange={(event) =>
@@ -422,10 +424,10 @@ export function IdentityApplicationDetailPage() {
                       value={form.access_policy}
                     >
                       <option value="default_deny">
-                        {tr('Negar por padrão')}
+                        {language === 'en' ? 'Private' : 'Privado'}
                       </option>
                       <option value="default_allow">
-                        {tr('Permitir por padrão')}
+                        {language === 'en' ? 'Public' : 'Público'}
                       </option>
                     </Select>
                   </Field>
@@ -448,24 +450,7 @@ export function IdentityApplicationDetailPage() {
                       value={form.post_logout_redirect_uris}
                     />
                   </Field>
-                  <Field label={tr('Uso')}>
-                    <Select
-                      onChange={(event) =>
-                        setForm({
-                          ...form,
-                          internal: event.target.value === 'internal',
-                          allow_public_signup:
-                            event.target.value === 'internal'
-                              ? false
-                              : form.allow_public_signup,
-                        })
-                      }
-                      value={form.internal ? 'internal' : 'users'}
-                    >
-                      <option value="users">{tr('Para usuários')}</option>
-                      <option value="internal">{tr('Interna (MW BFF)')}</option>
-                    </Select>
-                  </Field>
+
                   <Field
                     className="sm:col-span-2"
                     label={tr(
@@ -482,20 +467,34 @@ export function IdentityApplicationDetailPage() {
                       value={form.delete_callback_uri}
                     />
                   </Field>
-                  <Field label={tr('Cadastro público')}>
-                    <Select
-                      disabled={form.internal}
-                      onChange={(event) =>
-                        setForm({
-                          ...form,
-                          allow_public_signup: event.target.value === 'enabled',
-                        })
+
+                  <Field
+                    label={
+                      language === 'en'
+                        ? 'Manage account URL (optional)'
+                        : 'URL de gestão da conta (opcional)'
+                    }
+                  >
+                    <Input
+                      value={form.account_management_uri}
+                      onChange={(account_management_uri) =>
+                        setForm({ ...form, account_management_uri })
                       }
-                      value={form.allow_public_signup ? 'enabled' : 'disabled'}
-                    >
-                      <option value="disabled">{tr('Desativado')}</option>
-                      <option value="enabled">{tr('Ativado')}</option>
-                    </Select>
+                    />
+                  </Field>
+                  <Field
+                    label={
+                      language === 'en'
+                        ? 'Delete account URL (optional)'
+                        : 'URL de exclusão da conta (opcional)'
+                    }
+                  >
+                    <Input
+                      value={form.account_deletion_uri}
+                      onChange={(account_deletion_uri) =>
+                        setForm({ ...form, account_deletion_uri })
+                      }
+                    />
                   </Field>
                   <Field label="Scopes">
                     <Input
@@ -522,6 +521,7 @@ export function IdentityApplicationDetailPage() {
                   <Button
                     disabled={
                       mutation.isPending ||
+                      query.data.internal ||
                       !form.name.trim() ||
                       !form.redirect_uris.trim()
                     }
@@ -584,7 +584,9 @@ export function IdentityApplicationDetailPage() {
           <CardContent className="space-y-5">
             <p className="text-muted-foreground text-sm leading-6">
               {tr(
-                'As exceções substituem a política padrão. Superadmins e administradores não podem ser bloqueados.',
+                administrationAudience
+                  ? 'As exceções substituem a política padrão. Superadmins e administradores não podem ser bloqueados.'
+                  : 'As exceções substituem a política padrão, inclusive para superadmins e administradores.',
               )}
             </p>
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem_10rem_auto]">
@@ -606,7 +608,8 @@ export function IdentityApplicationDetailPage() {
                 onChange={(event) => {
                   const role = event.target.value as Assignment['role']
                   setExceptionRole(role)
-                  if (role !== 'user') setExceptionEffect('allow')
+                  if (administrationAudience && role !== 'user')
+                    setExceptionEffect('allow')
                 }}
                 value={exceptionRole}
               >
@@ -615,22 +618,13 @@ export function IdentityApplicationDetailPage() {
                 <option value="superadmin">Superadmin</option>
               </Select>
               <Select
-                disabled={
-                  accessMutation.isPending ||
-                  selectedExceptionUser?.is_superadmin ||
-                  exceptionRole !== 'user'
-                }
+                disabled={accessMutation.isPending || selectedProtectedAdmin}
                 onChange={(event) =>
                   setExceptionEffect(
                     event.target.value as Assignment['access_effect'],
                   )
                 }
-                value={
-                  selectedExceptionUser?.is_superadmin ||
-                  exceptionRole !== 'user'
-                    ? 'allow'
-                    : exceptionEffect
-                }
+                value={selectedProtectedAdmin ? 'allow' : exceptionEffect}
               >
                 <option value="allow">{tr('Permitir')}</option>
                 <option value="deny">{tr('Bloquear')}</option>
@@ -646,9 +640,10 @@ export function IdentityApplicationDetailPage() {
               {assignments.map((assignment) => {
                 const user = usersByID.get(assignment.user_id)
                 const protectedAdmin =
-                  user?.is_superadmin ||
-                  assignment.role === 'admin' ||
-                  assignment.role === 'superadmin'
+                  administrationAudience &&
+                  (user?.is_superadmin ||
+                    assignment.role === 'admin' ||
+                    assignment.role === 'superadmin')
                 return (
                   <div
                     className="border-border flex flex-wrap items-center gap-3 rounded-xl border p-3 text-sm"
@@ -690,7 +685,7 @@ export function IdentityApplicationDetailPage() {
                         accessMutation.mutate({
                           userID: assignment.user_id,
                           method: 'PUT',
-                          role: 'user',
+                          role: assignment.role,
                           accessEffect: 'deny',
                         })
                       }

@@ -41,10 +41,13 @@ func newOAuthHandlers(
 // challenge (no passkey, no TOTP) to the account page to enroll one, instead
 // of the step-up screen, which would otherwise be a dead end. The original
 // authorize request is preserved so the account page can offer a way back in.
-func (h *oauthHandlers) redirectToStrongSetup(w http.ResponseWriter, r *http.Request) {
+func (h *oauthHandlers) redirectToStrongSetup(w http.ResponseWriter, r *http.Request, passkeyOnly bool) {
 	values := url.Values{
 		"strong_setup_required": {"1"},
 		"continue_to":           {r.URL.RequestURI()},
+	}
+	if passkeyOnly {
+		values.Set("passkey_required", "1")
 	}
 	http.Redirect(w, r, "/account?"+values.Encode(), http.StatusSeeOther)
 }
@@ -53,10 +56,16 @@ func (h *oauthHandlers) redirectToStrongSetup(w http.ResponseWriter, r *http.Req
 // satisfying a step-up/strong-auth challenge (a passkey or an enrolled TOTP
 // authenticator). Users with neither can never complete a step-up prompt, so
 // callers must route them to enroll one instead of showing that prompt.
-func (h *oauthHandlers) hasStrongCredential(r *http.Request, userID string) bool {
+func (h *oauthHandlers) hasStrongCredential(r *http.Request, userID string, passkeyOnly bool) bool {
+	if h.webauthn == nil {
+		return false
+	}
 	credentials, err := h.webauthn.ListCredentials(r.Context(), userID)
 	if err == nil && len(credentials) > 0 {
 		return true
+	}
+	if passkeyOnly || h.strong == nil {
+		return false
 	}
 	totpEnabled, err := h.strong.TOTPStatus(r.Context(), userID)
 	return err == nil && totpEnabled
@@ -90,18 +99,18 @@ func (h *oauthHandlers) authorize(
 	}
 	_, session, err := h.auth.currentSession(r)
 	now := time.Now()
-	needsLogin := err != nil
+	needsLogin := err != nil || !auth.Satisfies(session.Session.Proof, validated.RequestedACR) || session.Session.AuthTime.After(now)
 	mode := "reauth"
 	if validated.RequireWebAuthn {
 		mode = "webauthn"
 		needsLogin = needsLogin || !recentWebAuthnSession(session.Session, time.Duration(max(int64(1), validated.MaxAgeSeconds))*time.Second, now)
-	} else if validated.Application.AuthenticationPolicy == "strong" {
+	} else if validated.RequestedACR == auth.ACRStrong {
 		mode = "strong"
 		needsLogin = needsLogin || !strongSessionMethod(session.Session.AuthMethod)
 	}
 	if err == nil && validated.MaxAgeSet {
 		if validated.MaxAgeSeconds == 0 {
-			needsLogin = needsLogin || !resumed || previous.SessionID == session.Session.ID || session.Session.AuthTime.Unix() < previous.Started.Unix()
+			needsLogin = needsLogin || !resumed || previous.SessionID == session.Session.ID || session.Session.AuthTime.Before(previous.Started)
 		} else {
 			needsLogin = needsLogin || now.Sub(session.Session.AuthTime) > time.Duration(validated.MaxAgeSeconds)*time.Second
 		}
@@ -115,8 +124,8 @@ func (h *oauthHandlers) authorize(
 		return
 	}
 	if needsLogin {
-		if err == nil && (mode == "webauthn" || mode == "strong") && !h.hasStrongCredential(r, session.User.ID) {
-			h.redirectToStrongSetup(w, r)
+		if err == nil && (mode == "webauthn" || mode == "strong") && !h.hasStrongCredential(r, session.User.ID, validated.RequireWebAuthn) {
+			h.redirectToStrongSetup(w, r, validated.RequireWebAuthn)
 			return
 		}
 		started := now
@@ -167,7 +176,7 @@ func (h *oauthHandlers) authorize(
 	if id := r.URL.Query().Get("request"); id != "" {
 		h.loadRequest(id, true)
 	}
-	h.finishAuthorization(w, r, validated, session.User, session.Session.AuthTime, session.Session.AuthMethod)
+	h.finishAuthorization(w, r, validated, session.User, session.Session.AuthTime, session.Session.AuthMethod, session.Session.Proof)
 }
 
 func (h *oauthHandlers) token(

@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/applications"
+	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/audit"
+	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/auth"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/config"
 	storesqlite "github.com/vtmattedi/mw-plane-control/mw-identity/internal/store/sqlite"
 	"github.com/vtmattedi/mw-plane-control/mw-identity/migrations"
@@ -35,11 +37,6 @@ func main() {
 		"confidential",
 		"application type: confidential or public",
 	)
-	policy := flag.String(
-		"auth-policy",
-		"standard",
-		"application authentication policy",
-	)
 	accessPolicy := flag.String(
 		"access-policy",
 		"default_deny",
@@ -49,11 +46,6 @@ func main() {
 		"delete-callback-uri",
 		"",
 		"HTTPS whole-MW-account deletion callback URI; required unless -internal",
-	)
-	allowPublicSignup := flag.Bool(
-		"allow-public-signup",
-		false,
-		"allow public enrollment with new or existing MW identities",
 	)
 	internal := flag.Bool(
 		"internal",
@@ -157,18 +149,17 @@ func main() {
 		fatal(err.Error())
 	}
 
+	service.RequireHTTPS(cfg.AppEnv == "production")
 	result, err := service.Create(
 		ctx,
 		applications.CreateRequest{
 			Name:                   *name,
 			ClientID:               *clientID,
 			ApplicationType:        *appType,
-			AuthenticationPolicy:   *policy,
 			AccessPolicy:           *accessPolicy,
 			RedirectURIs:           redirectURIs,
 			PostLogoutRedirectURIs: postLogoutURIs,
 			DeleteCallbackURI:      *deleteCallbackURI,
-			AllowPublicSignup:      *allowPublicSignup,
 			Internal:               *internal,
 			Scopes:                 scopes,
 			Claims:                 claims,
@@ -199,6 +190,13 @@ func main() {
 		}
 	}
 
+	auditID, auditErr := auth.NewOpaqueToken("aud_")
+	if auditErr != nil {
+		fatal(auditErr.Error())
+	}
+	if err := storesqlite.NewStore(db).RecordAuditEvent(ctx, audit.Event{ID: auditID, EventType: "identity.application.operator_provisioned", Status: "success", Severity: "warning", ReasonCode: "operator_cli", Metadata: map[string]any{"client_id": result.Application.ClientID, "internal": result.Application.Internal}, CreatedAt: time.Now().UTC()}); err != nil {
+		fatal("provisioning audit failed")
+	}
 	if *asJSON {
 		payload := map[string]any{
 			"application": map[string]any{

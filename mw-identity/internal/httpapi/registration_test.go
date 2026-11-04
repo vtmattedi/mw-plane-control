@@ -169,10 +169,10 @@ func TestLoginPathFollowsRequestedLanguage(t *testing.T) {
 // login offers sign-up in his language, also when the app requires strong auth.
 func TestAppSignupLinkMatchesLanguageAndStrongMode(t *testing.T) {
 	_, handlers, store := testAuthHTTPWithStore(t)
+	handlers.config.PublicSignupEnabled = true
 	if err := store.CreateApplication(context.Background(), applications.CreateInput{
 		ID: "app_woi", Name: "Working On It", ClientID: "woi-test",
-		ApplicationType: "confidential", AuthenticationPolicy: "standard",
-		AllowPublicSignup: true, Enabled: true,
+		ApplicationType: "confidential", AccessPolicy: "default_allow", Enabled: true,
 		RedirectURIs: []string{"https://woi.example/callback"},
 		Scopes:       []string{"openid"}, CreatedAt: time.Now().UTC(),
 	}); err != nil {
@@ -205,10 +205,10 @@ func TestAppSignupLinkMatchesLanguageAndStrongMode(t *testing.T) {
 // continues to an application hands off through /continue.
 func TestAppSignupHandsOffThroughContinue(t *testing.T) {
 	_, handlers, store := testAuthHTTPWithStore(t)
+	handlers.config.PublicSignupEnabled = true
 	if err := store.CreateApplication(context.Background(), applications.CreateInput{
 		ID: "app_woi", Name: "Working On It", ClientID: "woi-test",
-		ApplicationType: "public", AuthenticationPolicy: "standard",
-		AllowPublicSignup: true, Enabled: true,
+		ApplicationType: "public", AccessPolicy: "default_allow", Enabled: true,
 		RedirectURIs: []string{"https://woi.example/callback"},
 		Scopes:       []string{"openid"}, CreatedAt: time.Now().UTC(),
 	}); err != nil {

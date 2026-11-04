@@ -88,13 +88,12 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
     password: '',
     clientID: '',
     applicationType: 'confidential',
-    authenticationPolicy: 'standard',
     accessPolicy: 'default_deny',
     redirectURIs: '',
     postLogoutRedirectURIs: '',
     deleteCallbackURI: '',
-    allowPublicSignup: false,
-    internal: false,
+    accountManagementURI: '',
+    accountDeletionURI: '',
     scopes: 'openid, profile, email',
     claims: '',
     audiences: '',
@@ -194,8 +193,8 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
         redirectURIs: '',
         postLogoutRedirectURIs: '',
         deleteCallbackURI: '',
-        allowPublicSignup: false,
-        internal: false,
+        accountManagementURI: '',
+        accountDeletionURI: '',
         claims: '',
         audiences: '',
       }))
@@ -301,15 +300,18 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
         name: projectName.trim(),
         client_id: createFields.clientID.trim(),
         application_type: createFields.applicationType,
-        authentication_policy: createFields.authenticationPolicy,
+
         access_policy: createFields.accessPolicy,
         redirect_uris: splitFormValues(createFields.redirectURIs),
         post_logout_redirect_uris: splitFormValues(
           createFields.postLogoutRedirectURIs,
         ),
         delete_callback_uri: trimPastedValue(createFields.deleteCallbackURI),
-        allow_public_signup: createFields.allowPublicSignup,
-        internal: createFields.internal,
+        account_management_uri: trimPastedValue(
+          createFields.accountManagementURI,
+        ),
+        account_deletion_uri: trimPastedValue(createFields.accountDeletionURI),
+
         scopes: splitFormValues(createFields.scopes),
         claims: splitFormValues(createFields.claims),
         audiences: splitFormValues(createFields.audiences),
@@ -587,7 +589,13 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
                     value={createFields.clientID}
                   />
                 </CreateField>
-                <CreateField label={tr('Tipo')}>
+                <CreateField
+                  label={
+                    language === 'en'
+                      ? 'OAuth client type'
+                      : 'Tipo de cliente OAuth'
+                  }
+                >
                   <Select
                     disabled={mutation.isPending}
                     onChange={(event) =>
@@ -602,21 +610,7 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
                     <option value="public">{tr('Pública')}</option>
                   </Select>
                 </CreateField>
-                <CreateField label={tr('Política')}>
-                  <Select
-                    disabled={mutation.isPending}
-                    onChange={(event) =>
-                      setCreateFields((value) => ({
-                        ...value,
-                        authenticationPolicy: event.target.value,
-                      }))
-                    }
-                    value={createFields.authenticationPolicy}
-                  >
-                    <option value="standard">{tr('Padrão')}</option>
-                    <option value="strong">{tr('Forte')}</option>
-                  </Select>
-                </CreateField>
+
                 <CreateField label={tr('Política de acesso')}>
                   <Select
                     disabled={mutation.isPending}
@@ -629,10 +623,10 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
                     value={createFields.accessPolicy}
                   >
                     <option value="default_deny">
-                      {tr('Negar por padrão')}
+                      {language === 'en' ? 'Private' : 'Privado'}
                     </option>
                     <option value="default_allow">
-                      {tr('Permitir por padrão')}
+                      {language === 'en' ? 'Public' : 'Público'}
                     </option>
                   </Select>
                 </CreateField>
@@ -665,31 +659,11 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
                     value={createFields.postLogoutRedirectURIs}
                   />
                 </CreateField>
-                <CreateField label={tr('Uso')}>
-                  <Select
-                    disabled={mutation.isPending}
-                    onChange={(event) =>
-                      setCreateFields((value) => ({
-                        ...value,
-                        internal: event.target.value === 'internal',
-                        allowPublicSignup:
-                          event.target.value === 'internal'
-                            ? false
-                            : value.allowPublicSignup,
-                      }))
-                    }
-                    value={createFields.internal ? 'internal' : 'users'}
-                  >
-                    <option value="users">{tr('Para usuários')}</option>
-                    <option value="internal">{tr('Interna (MW BFF)')}</option>
-                  </Select>
-                </CreateField>
+
                 <CreateField
                   className="sm:col-span-2"
                   label={tr(
-                    createFields.internal
-                      ? 'Callback de exclusão da conta MW inteira (opcional)'
-                      : 'Callback de exclusão da conta MW inteira (obrigatório)',
+                    'Callback de exclusão da conta MW inteira (obrigatório)',
                   )}
                 >
                   <Input
@@ -704,22 +678,36 @@ export function ResourcePage({ config }: { config: ResourcePageConfig }) {
                     value={createFields.deleteCallbackURI}
                   />
                 </CreateField>
-                <CreateField label={tr('Cadastro público')}>
-                  <Select
-                    disabled={mutation.isPending || createFields.internal}
-                    onChange={(event) =>
-                      setCreateFields((value) => ({
-                        ...value,
-                        allowPublicSignup: event.target.value === 'enabled',
-                      }))
+
+                <CreateField
+                  label={
+                    language === 'en'
+                      ? 'Manage account URL (optional)'
+                      : 'URL de gestão da conta (opcional)'
+                  }
+                >
+                  <Input
+                    disabled={mutation.isPending}
+                    value={createFields.accountManagementURI}
+                    onChange={(accountManagementURI) =>
+                      setCreateFields((v) => ({ ...v, accountManagementURI }))
                     }
-                    value={
-                      createFields.allowPublicSignup ? 'enabled' : 'disabled'
+                  />
+                </CreateField>
+                <CreateField
+                  label={
+                    language === 'en'
+                      ? 'Delete account URL (optional)'
+                      : 'URL de exclusão da conta (opcional)'
+                  }
+                >
+                  <Input
+                    disabled={mutation.isPending}
+                    value={createFields.accountDeletionURI}
+                    onChange={(accountDeletionURI) =>
+                      setCreateFields((v) => ({ ...v, accountDeletionURI }))
                     }
-                  >
-                    <option value="disabled">{tr('Desativado')}</option>
-                    <option value="enabled">{tr('Ativado')}</option>
-                  </Select>
+                  />
                 </CreateField>
                 <CreateField label={tr('Escopos')}>
                   <Input

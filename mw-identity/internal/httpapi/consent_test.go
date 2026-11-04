@@ -21,7 +21,7 @@ import (
 func TestPublicConsentDisconnectReconsentAndRecentAuthentication(t *testing.T) {
 	ctx := context.Background()
 	service, authHandlers, store := testAuthHTTPWithStore(t)
-	err := store.CreateApplication(ctx, applications.CreateInput{ID: "public_app", Name: "WOI", ClientID: "woi", ApplicationType: "public", AuthenticationPolicy: "standard", AccessPolicy: "default_deny", AllowPublicSignup: true, Enabled: true, RedirectURIs: []string{"https://app.example/callback"}, Scopes: []string{"openid", "profile", "email"}, CreatedAt: time.Now()})
+	err := store.CreateApplication(ctx, applications.CreateInput{ID: "public_app", Name: "WOI", ClientID: "woi", ApplicationType: "public", AccessPolicy: "default_allow", Enabled: true, RedirectURIs: []string{"https://app.example/callback"}, Scopes: []string{"openid", "profile", "email"}, CreatedAt: time.Now()})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,5 +1,7 @@
 # MW Plane Control Step 12 — Strong auth, TOTP, recovery
 
+> Historical construction checkpoint. The current [clean v1 decision](../dev_docs/federation-v1-clean-migration.md) removes application-wide Strong policies. The current e2e script requests assurance explicitly with ACR/freshness; credential-management and recovery protections remain.
+
 Step 12 hardens the control-plane Identity boundary after OAuth and Mail federation are stable.
 
 ## Assurance hierarchy

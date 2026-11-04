@@ -9,6 +9,7 @@ import (
 )
 
 type Config struct {
+	DeletionDispatchEnabled            bool
 	AppEnv                             string
 	Port                               int
 	DatabasePath                       string
@@ -34,8 +35,8 @@ type Config struct {
 	TOTPIssuer                         string
 	StrongAuthMaxAge                   time.Duration
 	RecoveryTTL                        time.Duration
-	// PublicSignupEnabled allows /register without an application. Sign-up
-	// started from an application with allow_public_signup is unaffected.
+	// PublicSignupEnabled is the global emergency registration switch for both
+	// standalone and application-initiated identity creation.
 	PublicSignupEnabled bool
 }
 
@@ -135,6 +136,10 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	deletionDispatchEnabled, err := boolean("IDENTITY_DELETION_DISPATCH_ENABLED", true)
+	if err != nil {
+		return Config{}, err
+	}
 	publicSignup, err := boolean("IDENTITY_PUBLIC_SIGNUP_ENABLED", true)
 	if err != nil {
 		return Config{}, err
@@ -161,7 +166,8 @@ func Load() (Config, error) {
 	}
 
 	return Config{
-		AppEnv:                  getenv("APP_ENV", "development"),
+		DeletionDispatchEnabled: deletionDispatchEnabled,
+		AppEnv:                  strings.ToLower(strings.TrimSpace(getenv("APP_ENV", "development"))),
 		Port:                    port,
 		DatabasePath:            databasePath,
 		PublicIssuer:            publicIssuer,

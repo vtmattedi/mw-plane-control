@@ -116,21 +116,22 @@ func (s *Service) ValidateAuthorization(
 			invalidRequest("invalid S256 code_challenge", true)
 	}
 
-	nonce := strings.TrimSpace(request.Nonce)
-	if len(nonce) > 1024 {
+	nonce := request.Nonce
+	if strings.TrimSpace(nonce) == "" || len(nonce) > 1024 {
 		return ValidatedAuthorization{},
-			invalidRequest("nonce is too long", true)
+			invalidRequest("nonce is required and must not exceed 1024 bytes", true)
 	}
 
-	requireWebAuthn := false
-	var maxAgeSeconds int64 = 300
 	acr := strings.TrimSpace(request.ACRValues)
-	if acr != "" {
-		if acr != "urn:mw:webauthn" {
-			return ValidatedAuthorization{}, invalidRequest("unsupported acr_values", true)
-		}
-		requireWebAuthn = true
+	if acr == "" {
+		acr = auth.ACRStandard
 	}
+	if acr != auth.ACRStandard && acr != auth.ACRStrong && acr != auth.ACRWebAuthn {
+		return ValidatedAuthorization{}, invalidRequest("unsupported acr_values", true)
+	}
+
+	requireWebAuthn := acr == auth.ACRWebAuthn
+	var maxAgeSeconds int64 = 300
 	if rawMaxAge := strings.TrimSpace(request.MaxAge); rawMaxAge != "" {
 		parsed, err := strconv.ParseInt(rawMaxAge, 10, 64)
 		if err != nil || parsed < 0 || parsed > 3600 {
@@ -156,6 +157,7 @@ func (s *Service) ValidateAuthorization(
 
 	return ValidatedAuthorization{
 		Application:     app,
+		RequestedACR:    acr,
 		RedirectURI:     redirectURI,
 		Scopes:          scopes,
 		State:           state,
@@ -172,12 +174,18 @@ func (s *Service) IssueAuthorizationCode(
 	authorization ValidatedAuthorization,
 	user auth.User,
 	authTime time.Time,
-	authMethod string,
+	authMethod string, proof string,
 ) (string, error) {
-	if !user.Enabled {
+	if !user.Enabled || user.DeletionRequestedAt != nil {
 		return "", fmt.Errorf("cannot authorize disabled identity")
 	}
 
+	if strings.TrimSpace(authorization.Nonce) == "" || authMethod != auth.MethodForProof(proof) || !auth.Satisfies(proof, authorization.RequestedACR) || authTime.IsZero() || authTime.After(s.now().UTC()) {
+		return "", fmt.Errorf("authentication evidence required")
+	}
+	if authorization.MaxAgeSet && authorization.MaxAgeSeconds > 0 && s.now().Sub(authTime) > time.Duration(authorization.MaxAgeSeconds)*time.Second {
+		return "", fmt.Errorf("authentication expired")
+	}
 	consent, err := s.Consent(ctx, authorization, user)
 	if err != nil || !ConsentCovers(consent, authorization.Scopes) || (authorization.ConsentVersion != 0 && authorization.ConsentVersion != consent.Version) {
 		return "", fmt.Errorf("consent required")
@@ -196,22 +204,27 @@ func (s *Service) IssueAuthorizationCode(
 		authTime = now
 	}
 
+	maxAge := int64(-1)
+	if authorization.MaxAgeSet {
+		maxAge = authorization.MaxAgeSeconds
+	}
 	err = s.store.CreateAuthorizationCode(
 		ctx,
 		AuthorizationCode{
 			ID:             codeID,
 			ConsentVersion: consent.Version,
-			CodeHash:       hashOpaque(rawCode),
-			ClientID:       authorization.Application.ClientID,
-			UserID:         user.ID,
-			RedirectURI:    authorization.RedirectURI,
-			Scopes:         authorization.Scopes,
-			CodeChallenge:  authorization.CodeChallenge,
-			Nonce:          authorization.Nonce,
-			AuthTime:       authTime.UTC(),
-			AuthMethod:     normalizedAuthMethod(authMethod),
-			ExpiresAt:      now.Add(s.config.AuthorizationCodeTTL),
-			CreatedAt:      now,
+			Proof:          proof, RequestedACR: authorization.RequestedACR, MaxAgeSeconds: maxAge,
+			CodeHash:      hashOpaque(rawCode),
+			ClientID:      authorization.Application.ClientID,
+			UserID:        user.ID,
+			RedirectURI:   authorization.RedirectURI,
+			Scopes:        authorization.Scopes,
+			CodeChallenge: authorization.CodeChallenge,
+			Nonce:         authorization.Nonce,
+			AuthTime:      authTime.UTC(),
+			AuthMethod:    normalizedAuthMethod(authMethod),
+			ExpiresAt:     now.Add(s.config.AuthorizationCodeTTL),
+			CreatedAt:     now,
 		},
 	)
 	if err != nil {
@@ -274,6 +287,9 @@ func (s *Service) ExchangeCode(
 			invalidGrant("authorization code is invalid or expired")
 	}
 
+	if strings.TrimSpace(code.Nonce) == "" || code.AuthMethod != auth.MethodForProof(code.Proof) || !auth.Satisfies(code.Proof, code.RequestedACR) || code.AuthTime.After(now) || code.AuthTime.Unix() <= 0 || (code.MaxAgeSeconds > 0 && now.Sub(code.AuthTime) > time.Duration(code.MaxAgeSeconds)*time.Second) {
+		return TokenResponse{}, invalidGrant("authentication evidence invalid or expired")
+	}
 	if code.ClientID != app.ClientID ||
 		code.RedirectURI != request.RedirectURI {
 		return TokenResponse{},
@@ -316,6 +332,7 @@ func (s *Service) ExchangeCode(
 	}
 
 	accountType := normalizedAccountType(user.AccountType)
+	achieved, methods := auth.Assurance(code.Proof)
 	idClaims := map[string]any{
 		"iss":             s.config.Issuer,
 		"sub":             user.ID,
@@ -323,12 +340,11 @@ func (s *Service) ExchangeCode(
 		"exp":             now.Add(s.config.IDTokenTTL).Unix(),
 		"iat":             now.Unix(),
 		"auth_time":       code.AuthTime.Unix(),
-		"amr":             []string{code.AuthMethod},
+		"amr":             methods,
+		"acr":             achieved,
 		"mw_account_type": accountType,
 	}
-	if code.Nonce != "" {
-		idClaims["nonce"] = code.Nonce
-	}
+	idClaims["nonce"] = code.Nonce
 	if contains(code.Scopes, "email") {
 		idClaims["email"] = user.Email
 		idClaims["email_verified"] = user.EmailVerifiedAt != nil
@@ -375,6 +391,7 @@ func (s *Service) ExchangeCode(
 			Audience:       accessAudience,
 			Scopes:         code.Scopes,
 			AuthTime:       code.AuthTime,
+			Proof:          code.Proof,
 			AuthMethod:     normalizedAuthMethod(code.AuthMethod),
 			ParentTokenID:  "",
 			ExpiresAt:      accessExpires,
@@ -451,6 +468,8 @@ func normalizedAuthMethod(value string) string {
 	switch strings.TrimSpace(value) {
 	case "password":
 		return "password"
+	case "password_totp":
+		return "password_totp"
 	case "webauthn":
 		return "webauthn"
 	default:

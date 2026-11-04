@@ -281,7 +281,6 @@ try {
         name = "Step 08 Account Linking RP"
         client_id = $ClientID
         application_type = "confidential"
-        authentication_policy = "standard"
         redirect_uris = @("$RPBase/oidc/callback")
         post_logout_redirect_uris = @()
         delete_callback_uri = "$RPBase/identity/account-deleted"

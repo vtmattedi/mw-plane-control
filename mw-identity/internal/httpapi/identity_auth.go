@@ -131,14 +131,21 @@ func (h *identityAuthHandlers) loginPage(
 			registrationURL = "/register/en"
 		}
 	}
+	restricted := false
+	if target, e := url.Parse(returnTo); e == nil && target.Path == "/oauth/authorize" {
+		if app, e := h.service.PublicSignupApplication(r.Context(), target.Query().Get("client_id")); e == nil {
+			restricted = app.AccessPolicy == "default_deny"
+		}
+	}
 	if err := webstatic.RenderLogin(
 		w,
 		loginPageEnglish(r),
 		webstatic.LoginData{
-			CSRFToken:       token,
-			ReturnTo:        returnTo,
-			RegistrationURL: registrationURL,
-			RequiredAuth:    requestedAuth,
+			RestrictedApplication: restricted,
+			CSRFToken:             token,
+			ReturnTo:              returnTo,
+			RegistrationURL:       registrationURL,
+			RequiredAuth:          requestedAuth,
 		},
 	); err != nil {
 		return
@@ -164,23 +171,25 @@ func (h *identityAuthHandlers) registrationURL(r *http.Request, returnTo string)
 		return ""
 	}
 	clientID := parsed.Query().Get("client_id")
-	if _, err := h.service.PublicSignupApplication(r.Context(), clientID); err != nil {
+	if app, err := h.service.PublicSignupApplication(r.Context(), clientID); err != nil || app.AccessPolicy != "default_allow" || !h.config.PublicSignupEnabled {
 		return ""
 	}
 	values := url.Values{"client_id": {clientID}, "return_to": {returnTo}}
 	return "/register?" + values.Encode()
 }
 
-// registrationTarget validates where a sign-up came from. With a client_id it
-// must be an authorization request for an application that allows public
-// sign-up; without one it is a stand-alone sign-up, allowed only when enabled.
+// Registration uses the global switch. A client binding is only a validated
+// return destination and never grants eligibility or consent.
 func (h *identityAuthHandlers) registrationTarget(r *http.Request, clientID, returnTo string) (webstatic.RegistrationData, bool) {
+	if !h.config.PublicSignupEnabled {
+		return webstatic.RegistrationData{}, false
+	}
 	if clientID == "" {
-		return webstatic.RegistrationData{}, h.config.PublicSignupEnabled
+		return webstatic.RegistrationData{}, true
 	}
 	parsedReturn, _ := url.Parse(returnTo)
 	app, err := h.service.PublicSignupApplication(r.Context(), clientID)
-	if err != nil || parsedReturn.Query().Get("client_id") != clientID || h.registrationURL(r, returnTo) == "" {
+	if err != nil || parsedReturn == nil || parsedReturn.Path != "/oauth/authorize" || parsedReturn.Query().Get("client_id") != clientID {
 		return webstatic.RegistrationData{}, false
 	}
 	return webstatic.RegistrationData{ReturnTo: returnTo, ClientID: clientID, AppName: app.Name}, true
@@ -500,18 +509,20 @@ func (h *identityAuthHandlers) account(
 	_ = webstatic.RenderAccount(
 		w,
 		webstatic.AccountData{
-			Page:                h.page(w, r),
-			Email:               result.User.Email,
-			DisplayName:         result.User.DisplayName,
-			IsSuperadmin:        result.User.IsSuperadmin,
-			CSRFToken:           csrfToken,
-			AuthMethod:          result.Session.AuthMethod,
-			Username:            result.User.Username,
-			AccountType:         result.User.AccountType,
-			EmailVerifiedAt:     result.User.EmailVerifiedAt,
-			Applications:        applications,
-			Notice:              r.URL.Query().Get("notice"),
-			StrongSetupContinue: strongSetupContinue(r),
+			Page:                   h.page(w, r),
+			Email:                  result.User.Email,
+			DisplayName:            result.User.DisplayName,
+			IsSuperadmin:           result.User.IsSuperadmin,
+			CSRFToken:              csrfToken,
+			AuthMethod:             result.Session.AuthMethod,
+			Username:               result.User.Username,
+			AccountType:            result.User.AccountType,
+			EmailVerifiedAt:        result.User.EmailVerifiedAt,
+			Applications:           applications,
+			Notice:                 r.URL.Query().Get("notice"),
+			StrongSetupContinue:    strongSetupContinue(r),
+			PasskeyRequired:        r.URL.Query().Get("passkey_required") == "1",
+			DeletionReauthRequired: !h.recentAccountAuthentication(result.Session),
 		},
 	)
 }
@@ -534,10 +545,6 @@ func (h *identityAuthHandlers) removeApplication(w http.ResponseWriter, r *http.
 	if err != nil {
 		h.clearAuthCookies(w)
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
-		return
-	}
-	if h.config.StrongAuthMaxAge > 0 && time.Since(result.Session.AuthTime) > h.config.StrongAuthMaxAge {
-		http.Redirect(w, r, "/login?auth=strong&return_to=/account", http.StatusSeeOther)
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 8*1024)
@@ -571,48 +578,6 @@ func (h *identityAuthHandlers) removeApplication(w http.ResponseWriter, r *http.
 		notice = "app_removed_no_callback"
 	}
 	http.Redirect(w, r, "/account?notice="+notice, http.StatusSeeOther)
-}
-
-func (h *identityAuthHandlers) deleteAccount(w http.ResponseWriter, r *http.Request) {
-	_, result, err := h.currentSession(r)
-	if err != nil {
-		h.clearAuthCookies(w)
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
-		return
-	}
-	if h.config.StrongAuthMaxAge > 0 && time.Since(result.Session.AuthTime) > h.config.StrongAuthMaxAge {
-		writePlainError(w, http.StatusForbidden, "recent authentication required")
-		return
-	}
-	r.Body = http.MaxBytesReader(w, r.Body, 8*1024)
-	if err := r.ParseForm(); err != nil {
-		writePlainError(w, http.StatusBadRequest, "invalid account deletion form")
-		return
-	}
-	csrfCookie := cookieValue(r, csrfCookieName)
-	if csrfCookie == "" ||
-		!auth.TokensEqual(csrfCookie, r.FormValue("csrf_token")) ||
-		!auth.TokenMatchesHash(csrfCookie, result.Session.CSRFHash) ||
-		r.FormValue("confirmation") != "DELETE" {
-		writePlainError(w, http.StatusForbidden, "invalid account deletion request")
-		return
-	}
-
-	deletion, err := h.service.DeleteAccount(r.Context(), result.User.ID, remoteIP(r))
-	if errors.Is(err, auth.ErrAccountDeletionForbidden) {
-		writePlainError(w, http.StatusForbidden, "superadmin accounts cannot be self-deleted")
-		return
-	}
-	if err != nil {
-		writePlainError(w, http.StatusInternalServerError, "account deletion failed")
-		return
-	}
-	h.clearAuthCookies(w)
-	if deletion.Deleted {
-		http.Redirect(w, r, "/login?account_deleted=1", http.StatusSeeOther)
-		return
-	}
-	http.Redirect(w, r, "/login?deletion_pending=1", http.StatusSeeOther)
 }
 
 func (h *identityAuthHandlers) privacy(w http.ResponseWriter, r *http.Request) {

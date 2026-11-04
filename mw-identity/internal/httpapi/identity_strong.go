@@ -136,28 +136,52 @@ func (h *identityStrongHandlers) loginTOTP(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	var req struct {
-		Email    string `json:"email"`
-		Code     string `json:"code"`
-		ReturnTo string `json:"return_to"`
+		Email     string `json:"email"`
+		Password  string `json:"password"`
+		Code      string `json:"code"`
+		Challenge string `json:"challenge"`
+		CSRF      string `json:"csrf_token"`
+		ReturnTo  string `json:"return_to"`
 	}
 	if !decodeJSONBody(w, r, &req) {
 		return
 	}
-	user, err := h.service.AuthenticateTOTP(r.Context(), req.Email, req.Code)
+	if !h.auth.validLoginCSRF(r, req.CSRF) {
+		writeJSONError(w, 403, "invalid_csrf")
+		return
+	}
+	binding := cookieValue(r, loginCSRFCookieName)
+	if req.Challenge == "" {
+		password := []byte(req.Password)
+		defer auth.ZeroBytes(password)
+		challenge, err := h.auth.service.BeginMFA(r.Context(), req.Email, password, binding, safeReturnTo(req.ReturnTo), remoteIP(r))
+		if err != nil {
+			writeJSONError(w, 401, "totp_login_failed")
+			return
+		}
+		writeJSON(w, 200, map[string]any{"challenge": challenge})
+		return
+	}
+	challenge, user, err := h.auth.service.AttemptMFA(r.Context(), req.Challenge, binding)
 	if err != nil {
 		writeJSONError(w, 401, "totp_login_failed")
 		return
 	}
-	result, err := h.auth.service.CreateSessionForUser(r.Context(), user.ID, remoteIP(r), "totp")
+	verifiedUser, err := h.service.AuthenticateTOTP(r.Context(), user.Email, req.Code)
+	if err != nil || verifiedUser.ID != challenge.UserID {
+		writeJSONError(w, 401, "totp_login_failed")
+		return
+	}
+	result, err := h.auth.service.FinishMFA(r.Context(), challenge, binding, remoteIP(r))
 	if err != nil {
-		writeJSONError(w, 500, "session_failed")
+		writeJSONError(w, 401, "totp_login_failed")
 		return
 	}
 	setSessionCookie(w, sessionCookieName, result.SessionToken, result.ExpiresAt, h.auth.secure, true)
 	setSessionCookie(w, csrfCookieName, result.CSRFToken, result.ExpiresAt, h.auth.secure, false)
 	clearCookie(w, loginCSRFCookieName, h.auth.secure, false)
 	h.auth.limiter.Reset(remoteIP(r))
-	target := safeReturnTo(req.ReturnTo)
+	target := challenge.ReturnTo
 	if target == "" {
 		target = "/account"
 	}

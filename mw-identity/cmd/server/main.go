@@ -97,6 +97,7 @@ func main() {
 		os.Exit(1)
 	}
 	authService.SetLifecycleSigner(signingManager)
+	authService.SetDeletionDispatch(cfg.DeletionDispatchEnabled, cfg.AppEnv == "production")
 
 	oidcService, err := oidc.NewService(
 		store,
@@ -125,6 +126,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	identityAdminService.RequireHTTPS(cfg.AppEnv == "production")
 	identityStrongService, err := identitystrong.NewService(store, identitystrong.Options{
 		SecretKeys: cfg.TOTPSecretKeys, ActiveKeyVersion: cfg.TOTPSecretActiveKeyVersion,
 		Issuer: cfg.TOTPIssuer, RecoveryTTL: cfg.RecoveryTTL,
@@ -185,6 +187,8 @@ func main() {
 		syscall.SIGTERM,
 	)
 	defer stop()
+	workerDone := make(chan struct{})
+	go func() { defer close(workerDone); authService.RunDeletionWorker(shutdownCtx) }()
 
 	go func() {
 		<-shutdownCtx.Done()
@@ -212,5 +216,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	stop()
+	<-workerDone
 	slog.Info("server stopped", "service", "mw-identity")
 }

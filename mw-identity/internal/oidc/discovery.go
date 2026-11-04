@@ -3,6 +3,7 @@ package oidc
 import "strings"
 
 type DiscoveryDocument struct {
+	ACRValuesSupported                []string `json:"acr_values_supported"`
 	Issuer                            string   `json:"issuer"`
 	AuthorizationEndpoint             string   `json:"authorization_endpoint"`
 	TokenEndpoint                     string   `json:"token_endpoint"`
@@ -24,6 +25,7 @@ func Discovery(issuer string) DiscoveryDocument {
 
 	return DiscoveryDocument{
 		Issuer:                issuer,
+		ACRValuesSupported:    []string{"urn:mw:auth:standard", "urn:mw:auth:strong", "urn:mw:webauthn"},
 		AuthorizationEndpoint: issuer + "/oauth/authorize",
 		TokenEndpoint:         issuer + "/oauth/token",
 		JWKSURI:               issuer + "/.well-known/jwks.json",
@@ -54,7 +56,7 @@ func Discovery(issuer string) DiscoveryDocument {
 			"aud",
 			"exp",
 			"iat",
-			"auth_time",
+			"auth_time", "acr", "amr",
 			"email",
 			"email_verified",
 			"name",

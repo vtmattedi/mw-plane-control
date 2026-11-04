@@ -5,6 +5,17 @@ import (
 	"time"
 )
 
+func TestProductionModeNormalization(t *testing.T) {
+	t.Setenv("APP_ENV", " Production ")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.AppEnv != "production" {
+		t.Fatal("production URI/transport policy could be skipped by environment spelling")
+	}
+}
+
 func TestLoadDefaults(t *testing.T) {
 	for _, key := range []string{
 		"PORT",
@@ -17,6 +28,7 @@ func TestLoadDefaults(t *testing.T) {
 		"IDENTITY_LOGIN_RATE_WINDOW_MINUTES",
 		"IDENTITY_SIGNING_KEYS",
 		"IDENTITY_SIGNING_ACTIVE_KEY_VERSION",
+		"IDENTITY_DELETION_DISPATCH_ENABLED",
 	} {
 		t.Setenv(key, "")
 	}
@@ -28,6 +40,9 @@ func TestLoadDefaults(t *testing.T) {
 
 	if cfg.Port != 7100 {
 		t.Fatalf("Port = %d", cfg.Port)
+	}
+	if !cfg.DeletionDispatchEnabled {
+		t.Fatal("deletion dispatch must default to enabled")
 	}
 	if cfg.DatabasePath != "./data/identity.db" {
 		t.Fatalf(
@@ -54,6 +69,28 @@ func TestLoadDefaults(t *testing.T) {
 			"SigningActiveKeyVersion = %d",
 			cfg.SigningActiveKeyVersion,
 		)
+	}
+}
+
+func TestDeletionDispatchSwitch(t *testing.T) {
+	for _, test := range []struct {
+		value string
+		want  bool
+	}{
+		{"", true},
+		{"true", true},
+		{"false", false},
+		{"0", false},
+	} {
+		t.Setenv("IDENTITY_DELETION_DISPATCH_ENABLED", test.value)
+		cfg, err := Load()
+		if err != nil || cfg.DeletionDispatchEnabled != test.want {
+			t.Fatalf("%q: DeletionDispatchEnabled = %v, %v", test.value, cfg.DeletionDispatchEnabled, err)
+		}
+	}
+	t.Setenv("IDENTITY_DELETION_DISPATCH_ENABLED", "sometimes")
+	if _, err := Load(); err == nil {
+		t.Fatal("expected invalid IDENTITY_DELETION_DISPATCH_ENABLED error")
 	}
 }
 

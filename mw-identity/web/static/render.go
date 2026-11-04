@@ -11,11 +11,12 @@ import (
 )
 
 type LoginData struct {
-	CSRFToken       string
-	Error           string
-	ReturnTo        string
-	RegistrationURL string
-	RequiredAuth    string
+	RestrictedApplication bool
+	CSRFToken             string
+	Error                 string
+	ReturnTo              string
+	RegistrationURL       string
+	RequiredAuth          string
 }
 
 // Page carries the language every catalog-driven page needs: Lang selects the
@@ -40,6 +41,8 @@ type RecoveryData struct {
 }
 
 type AccountData struct {
+	DeletionReauthRequired bool
+	PasskeyRequired        bool
 	Page
 	Email           string
 	DisplayName     string

@@ -17,6 +17,7 @@ import (
 )
 
 type Service struct {
+	production   bool
 	store        Store
 	applications *applications.Service
 	now          func() time.Time
@@ -26,12 +27,12 @@ type CreateApplicationRequest struct {
 	Name                   string
 	ClientID               string
 	ApplicationType        string
-	AuthenticationPolicy   string
 	AccessPolicy           string
 	RedirectURIs           []string
 	PostLogoutRedirectURIs []string
 	DeleteCallbackURI      string
-	AllowPublicSignup      bool
+	AccountManagementURI   string
+	AccountDeletionURI     string
 	Internal               bool
 	Scopes                 []string
 	Claims                 []string
@@ -157,18 +158,21 @@ func (s *Service) CreateApplication(
 	remoteIP string,
 	request CreateApplicationRequest,
 ) (CreateApplicationResult, error) {
+	if request.Internal || privilegedRegistration(request.Scopes, request.Audiences) {
+		return CreateApplicationResult{}, ErrRoleForbidden
+	}
 	result, err := s.applications.Create(
 		ctx,
 		applications.CreateRequest{
 			Name:                   request.Name,
 			ClientID:               request.ClientID,
 			ApplicationType:        request.ApplicationType,
-			AuthenticationPolicy:   request.AuthenticationPolicy,
 			AccessPolicy:           request.AccessPolicy,
 			RedirectURIs:           request.RedirectURIs,
 			PostLogoutRedirectURIs: request.PostLogoutRedirectURIs,
 			DeleteCallbackURI:      request.DeleteCallbackURI,
-			AllowPublicSignup:      request.AllowPublicSignup,
+			AccountManagementURI:   request.AccountManagementURI,
+			AccountDeletionURI:     request.AccountDeletionURI,
 			Internal:               request.Internal,
 			Scopes:                 request.Scopes,
 			Claims:                 request.Claims,
@@ -267,11 +271,21 @@ func (s *Service) UpdateApplication(
 		return applications.Application{}, ErrArchived
 	}
 
+	if current.Internal || request.Internal != current.Internal || privilegedRegistration(request.Scopes, request.Audiences) {
+		return applications.Application{}, ErrRoleForbidden
+	}
 	normalized, err := normalizeUpdate(request)
 	if err != nil {
 		return applications.Application{}, err
 	}
 
+	if s.production {
+		uris := append(append([]string{}, normalized.RedirectURIs...), normalized.PostLogoutRedirectURIs...)
+		uris = append(uris, normalized.DeleteCallbackURI, normalized.AccountManagementURI, normalized.AccountDeletionURI)
+		if err = applications.ValidateProductionURIs(uris...); err != nil {
+			return applications.Application{}, ErrInvalid
+		}
+	}
 	now := s.now().UTC()
 	if err := s.store.UpdateIdentityApplication(
 		ctx,
@@ -510,10 +524,11 @@ func (s *Service) UpsertAssignment(
 		return Assignment{}, ErrInvalid
 	}
 
-	if _, err := s.store.IdentityApplicationByID(
+	app, err := s.store.IdentityApplicationByID(
 		ctx,
 		applicationID,
-	); err != nil {
+	)
+	if err != nil {
 		return Assignment{}, err
 	}
 	user, err := s.store.IdentityUserByID(
@@ -526,7 +541,9 @@ func (s *Service) UpsertAssignment(
 		}
 		return Assignment{}, err
 	}
-	if accessEffect == "deny" {
+	// Ordinary application roles do not override explicit access denials.
+	// Preserve lockout protections only for the MW administration audience.
+	if accessEffect == "deny" && contains(app.Audiences, "mw-identity-admin") {
 		if user.IsSuperadmin || role == "admin" || role == "superadmin" {
 			return Assignment{}, ErrRoleForbidden
 		}
@@ -650,19 +667,9 @@ func normalizeUpdate(
 	request UpdateApplication,
 ) (UpdateApplication, error) {
 	request.Name = strings.TrimSpace(request.Name)
-	request.AuthenticationPolicy =
-		strings.TrimSpace(
-			request.AuthenticationPolicy,
-		)
 	request.AccessPolicy = strings.TrimSpace(request.AccessPolicy)
 
 	if request.Name == "" {
-		return UpdateApplication{}, ErrInvalid
-	}
-	if request.AuthenticationPolicy == "" {
-		request.AuthenticationPolicy = "standard"
-	}
-	if request.AuthenticationPolicy != "standard" && request.AuthenticationPolicy != "strong" {
 		return UpdateApplication{}, ErrInvalid
 	}
 	if request.AccessPolicy == "" {
@@ -673,6 +680,14 @@ func normalizeUpdate(
 	}
 
 	var err error
+	request.AccountManagementURI, err = applications.ValidateNavigationURI(request.AccountManagementURI)
+	if err != nil {
+		return UpdateApplication{}, ErrInvalid
+	}
+	request.AccountDeletionURI, err = applications.ValidateNavigationURI(request.AccountDeletionURI)
+	if err != nil {
+		return UpdateApplication{}, ErrInvalid
+	}
 	request.RedirectURIs, err = normalizeURIs(
 		request.RedirectURIs,
 		true,
@@ -699,7 +714,7 @@ func normalizeUpdate(
 	}
 	// An application registered before the callback was mandatory has to add
 	// one on its next edit; enabling, disabling and archiving stay available.
-	if err := applications.CheckLifecycle(request.Internal, request.AllowPublicSignup, request.DeleteCallbackURI); err != nil {
+	if err := applications.CheckLifecycle(request.Internal, request.DeleteCallbackURI); err != nil {
 		return UpdateApplication{}, err
 	}
 
@@ -736,15 +751,13 @@ func normalizeURIs(
 		parsed, err := url.Parse(value)
 		if err != nil ||
 			parsed.Scheme == "" ||
-			parsed.Host == "" ||
+			parsed.Host == "" || len(value) > 2048 ||
 			parsed.User != nil ||
 			parsed.Fragment != "" {
 			return nil, ErrInvalid
 		}
 
-		if requireHTTPS &&
-			parsed.Scheme != "https" &&
-			parsed.Hostname() != "localhost" {
+		if parsed.Scheme != "https" && !(parsed.Scheme == "http" && parsed.Hostname() == "localhost") {
 			return nil, ErrInvalid
 		}
 
@@ -812,4 +825,23 @@ func randomID(prefix string) (string, error) {
 
 	return prefix +
 		base64.RawURLEncoding.EncodeToString(raw), nil
+}
+
+func privilegedRegistration(scopes, audiences []string) bool {
+	for _, v := range scopes {
+		if strings.HasPrefix(strings.TrimSpace(v), "identity.") {
+			return true
+		}
+	}
+	for _, v := range audiences {
+		if strings.TrimSpace(v) == "mw-identity-admin" {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Service) RequireHTTPS(production bool) {
+	s.production = production
+	s.applications.RequireHTTPS(production)
 }

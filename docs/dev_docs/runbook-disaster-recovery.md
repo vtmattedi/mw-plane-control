@@ -1,5 +1,7 @@
 # MW Plane Control — Disaster recovery runbook
 
+Federation v1 adds persistent deletion operations/deliveries and MFA challenges. Back up the outbox, keep deleting subjects disabled, reconcile receiver receipts newer than restored backups and resume the same event IDs. Never discard pending work or bulk replay history. See [durable deletion recovery](federation-durable-deletion.md).
+
 ## Recovery assets
 
 A database backup alone is intentionally insufficient. Maintain, separately and securely:

@@ -3,8 +3,10 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/vtmattedi/mw-plane-control/mw-identity/internal/auth"
 	"strings"
 	"time"
 
@@ -34,38 +36,13 @@ func (s *Store) CreateApplication(
 		secret = input.ClientSecretHash
 	}
 
-	_, err = tx.ExecContext(
-		ctx,
-		`INSERT INTO identity_applications (
-			id,
-			name,
-			client_id,
-			client_secret_hash,
-			application_type,
-			authentication_policy,
-			access_policy,
-			enabled,
-			archived_at_unix,
-			created_at_unix,
-			updated_at_unix,
-			delete_callback_uri,
-			allow_public_signup,
-			internal
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
-		input.ID,
-		input.Name,
-		input.ClientID,
-		secret,
-		input.ApplicationType,
-		input.AuthenticationPolicy,
-		input.AccessPolicy,
-		boolInt(input.Enabled),
-		input.CreatedAt.Unix(),
-		input.CreatedAt.Unix(),
-		nullableString(input.DeleteCallbackURI),
-		boolInt(input.AllowPublicSignup),
-		boolInt(input.Internal),
-	)
+	_, err = tx.ExecContext(ctx, `INSERT INTO identity_applications
+      (id,name,client_id,client_secret_hash,application_type,access_policy,enabled,
+       created_at_unix,updated_at_unix,delete_callback_uri,internal,account_management_uri,account_deletion_uri)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		input.ID, input.Name, input.ClientID, secret, input.ApplicationType, input.AccessPolicy, boolInt(input.Enabled),
+		input.CreatedAt.Unix(), input.CreatedAt.Unix(), nullableString(input.DeleteCallbackURI), boolInt(input.Internal), input.AccountManagementURI, input.AccountDeletionURI)
+
 	if err != nil {
 		if strings.Contains(
 			strings.ToLower(err.Error()),
@@ -139,6 +116,16 @@ func (s *Store) CreateApplication(
 		return err
 	}
 
+	if input.Internal {
+		id, err := auth.NewOpaqueToken("aud_")
+		if err != nil {
+			return err
+		}
+		metadata, _ := json.Marshal(map[string]any{"client_id": input.ClientID, "internal": true})
+		if _, err = tx.ExecContext(ctx, `INSERT INTO identity_audit_events(id,event_type,status,severity,reason_code,metadata_json,created_at_unix) VALUES (?,'identity.infrastructure.provisioned','success','warning','operator_workflow',?,?)`, id, string(metadata), input.CreatedAt.Unix()); err != nil {
+			return err
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf(
 			"commit create application: %w",
@@ -154,15 +141,14 @@ func (s *Store) ApplicationByClientID(
 	clientID string,
 ) (applications.Application, error) {
 	var (
-		app               applications.Application
-		secret            sql.NullString
-		archived          sql.NullInt64
-		enabled           int
-		created           int64
-		updated           int64
-		deleteCallback    sql.NullString
-		allowPublicSignup int
-		internal          int
+		app            applications.Application
+		secret         sql.NullString
+		archived       sql.NullInt64
+		enabled        int
+		created        int64
+		updated        int64
+		deleteCallback sql.NullString
+		internal       int
 	)
 
 	err := s.db.QueryRowContext(
@@ -173,15 +159,13 @@ func (s *Store) ApplicationByClientID(
 			client_id,
 			client_secret_hash,
 			application_type,
-			authentication_policy,
 			access_policy,
 			enabled,
 			archived_at_unix,
 			created_at_unix,
 			updated_at_unix,
 			delete_callback_uri,
-			allow_public_signup,
-			internal
+			internal, account_management_uri, account_deletion_uri
 		FROM identity_applications
 		WHERE client_id = ?`,
 		clientID,
@@ -191,15 +175,13 @@ func (s *Store) ApplicationByClientID(
 		&app.ClientID,
 		&secret,
 		&app.ApplicationType,
-		&app.AuthenticationPolicy,
 		&app.AccessPolicy,
 		&enabled,
 		&archived,
 		&created,
 		&updated,
 		&deleteCallback,
-		&allowPublicSignup,
-		&internal,
+		&internal, &app.AccountManagementURI, &app.AccountDeletionURI,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return applications.Application{},
@@ -215,7 +197,6 @@ func (s *Store) ApplicationByClientID(
 
 	app.ClientSecretHash = secret.String
 	app.DeleteCallbackURI = deleteCallback.String
-	app.AllowPublicSignup = allowPublicSignup == 1
 	app.Internal = internal == 1
 	app.NeedsDeleteCallback = !app.Internal && app.DeleteCallbackURI == ""
 	app.Enabled = enabled == 1

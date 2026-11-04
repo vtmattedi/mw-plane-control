@@ -1,5 +1,7 @@
 # Step 06 — Identity administration through Admin/BFF
 
+> Historical implementation/planning snapshot. The [2026-11-04 clean v1 migration decision](../dev_docs/federation-v1-clean-migration.md) supersedes compatibility, application-wide Strong and per-application signup behavior described below.
+
 ## Goal
 
 MW Identity now manages its own runtime application registry, assignments,

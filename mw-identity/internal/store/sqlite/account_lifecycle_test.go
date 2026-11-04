@@ -51,8 +51,7 @@ func newRemovalFixture(t *testing.T, callbackURL string) removalFixture {
 	} {
 		if err := store.CreateApplication(ctx, applications.CreateInput{
 			ID: app.id, Name: app.id, ClientID: app.clientID,
-			ApplicationType: "public", AuthenticationPolicy: "standard",
-			AccessPolicy: "default_allow", DeleteCallbackURI: app.callback, Enabled: true,
+			ApplicationType: "public", AccessPolicy: "default_allow", DeleteCallbackURI: app.callback, Enabled: true,
 			RedirectURIs: []string{"https://example.com/callback"},
 			Scopes:       []string{"openid"}, CreatedAt: now,
 		}); err != nil {

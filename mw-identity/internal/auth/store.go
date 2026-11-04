@@ -50,6 +50,7 @@ type NewUser struct {
 }
 
 type SessionRecord struct {
+	Proof      string
 	ID         string
 	UserID     string
 	TokenHash  string
@@ -62,6 +63,7 @@ type SessionRecord struct {
 }
 
 type Session struct {
+	Proof      string
 	ID         string
 	User       User
 	TokenHash  string
@@ -74,12 +76,15 @@ type Session struct {
 }
 
 type ConnectedApplication struct {
-	ID                string    `json:"id"`
-	Name              string    `json:"name"`
-	ClientID          string    `json:"client_id"`
-	Role              string    `json:"role"`
-	DeleteCallbackURI string    `json:"-"`
-	ConnectedAt       time.Time `json:"connected_at"`
+	Internal             bool      `json:"-"`
+	AccountManagementURI string    `json:"account_management_uri,omitempty"`
+	AccountDeletionURI   string    `json:"account_deletion_uri,omitempty"`
+	ID                   string    `json:"id"`
+	Name                 string    `json:"name"`
+	ClientID             string    `json:"client_id"`
+	Role                 string    `json:"role"`
+	DeleteCallbackURI    string    `json:"-"`
+	ConnectedAt          time.Time `json:"connected_at"`
 }
 
 type DeletionDelivery struct {
@@ -90,16 +95,19 @@ type DeletionDelivery struct {
 }
 
 type DeleteAccountResult struct {
-	Deleted    bool               `json:"deleted"`
-	Deliveries []DeletionDelivery `json:"deliveries"`
+	OperationID string             `json:"operation_id,omitempty"`
+	Status      string             `json:"status,omitempty"`
+	StatusToken string             `json:"-"`
+	Deleted     bool               `json:"deleted"`
+	Deliveries  []DeletionDelivery `json:"deliveries"`
 }
 
 type SignupApplication struct {
-	ID                string
-	Name              string
-	ClientID          string
-	AllowPublicSignup bool
-	Enabled           bool
+	AccessPolicy string
+	ID           string
+	Name         string
+	ClientID     string
+	Enabled      bool
 }
 
 type Store interface {
