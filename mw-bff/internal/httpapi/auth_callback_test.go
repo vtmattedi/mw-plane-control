@@ -153,3 +153,26 @@ func TestIdentityAuthorizationErrorCallback(t *testing.T) {
 		})
 	}
 }
+
+func TestIdentityAuthorizationErrorCallbackStorageFailure(t *testing.T) {
+	handler, store := newOAuthErrorCallbackHandler(t)
+	store.fail = errors.New("private database diagnostic must not reach user")
+	query := url.Values{
+		"error": {"access_denied"},
+		"state": {"valid-state"},
+	}
+	rec := httptest.NewRecorder()
+	handler.callback(rec, httptest.NewRequest(http.MethodGet, "/auth/callback?"+query.Encode(), nil))
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("HTTP %d; want 500", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), `"code":"identity_callback_failed"`) {
+		t.Fatalf("unexpected error: %q", rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "private database diagnostic") || rec.Header().Get("Set-Cookie") != "" {
+		t.Fatal("transaction failure leaked an internal diagnostic or issued session cookie")
+	}
+	if store.consumed {
+		t.Fatal("transaction was consumed despite storage error")
+	}
+}
