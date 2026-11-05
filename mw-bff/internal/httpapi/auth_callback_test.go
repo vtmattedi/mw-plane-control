@@ -139,7 +139,7 @@ func TestIdentityAuthorizationErrorCallback(t *testing.T) {
 			if rec.Header().Get("Set-Cookie") != "" {
 				t.Fatal("failed authorization issued a session cookie")
 			}
-			if store.consumed != (tc.state == "valid-state") {
+			if store.consumed != (tc.state == "valid-state" && tc.code == "") {
 				t.Fatal("failed authorization consumed an unrelated state")
 			}
 
