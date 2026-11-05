@@ -198,6 +198,29 @@ func (h *authHandlers) callback(
 	)
 }
 
+// The provider controls the raw OAuth error fields, so only known, bounded
+// categories reach the browser. In particular, access_denied is not a BFF
+// session failure: it can mean app policy denial or a user-declined consent.
+func classifyIdentityAuthorizationFailure(providerError, description string) (int, string) {
+	switch providerError {
+	case "access_denied":
+		switch description {
+		case "identity is denied by the application access policy":
+			return http.StatusForbidden, "identity_application_access_denied"
+		case "consent declined":
+			return http.StatusForbidden, "identity_consent_declined"
+		default:
+			return http.StatusForbidden, "identity_access_denied"
+		}
+	case "invalid_request", "invalid_scope", "unauthorized_client":
+		return http.StatusBadRequest, "identity_authorization_request_rejected"
+	case "server_error", "temporarily_unavailable":
+		return http.StatusBadGateway, "identity_provider_unavailable"
+	default:
+		return http.StatusBadRequest, "identity_authorization_failed"
+	}
+}
+
 func (h *authHandlers) me(
 	w http.ResponseWriter,
 	r *http.Request,
