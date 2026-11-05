@@ -106,6 +106,11 @@ func TestIdentityAuthorizationErrorCallback(t *testing.T) {
 			name: "missing state", oauthError: "access_denied",
 			state: "", wantStatus: 400, wantCode: "invalid_or_expired_state",
 		},
+		{
+			name: "mixed code and error", oauthError: "access_denied",
+			state: "valid-state", code: "unexpected-code",
+			wantStatus: 400, wantCode: "invalid_authorization_response",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
