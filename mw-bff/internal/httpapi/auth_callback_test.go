@@ -19,6 +19,7 @@ import (
 type oauthErrorCallbackStore struct {
 	allowedStateHash string
 	consumed         bool
+	fail            error
 }
 
 func (*oauthErrorCallbackStore) CreateOIDCTransaction(context.Context, identityclient.Transaction) error {
