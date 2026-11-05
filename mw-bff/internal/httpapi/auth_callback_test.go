@@ -19,7 +19,7 @@ import (
 type oauthErrorCallbackStore struct {
 	allowedStateHash string
 	consumed         bool
-	fail            error
+	fail             error
 }
 
 func (*oauthErrorCallbackStore) CreateOIDCTransaction(context.Context, identityclient.Transaction) error {
@@ -46,14 +46,14 @@ func newOAuthErrorCallbackHandler(t *testing.T) (*authHandlers, *oauthErrorCallb
 	sum := sha256.Sum256([]byte("valid-state"))
 	store := &oauthErrorCallbackStore{allowedStateHash: hex.EncodeToString(sum[:])}
 	client, err := identityclient.New(identityclient.Config{
-		Issuer:         "https://identity.example.test",
+		Issuer:          "https://identity.example.test",
 		InternalBaseURL: "http://identity.internal.test",
-		ClientID:       "admin",
-		ClientSecret:   "test-secret",
-		CallbackURL:    "https://admin.example.test/api/auth/callback",
-		Scopes:         []string{"openid", "identity.admin"},
-		TransactionTTL: time.Minute,
-		HTTPTimeout:    time.Second,
+		ClientID:        "admin",
+		ClientSecret:    "test-secret",
+		CallbackURL:     "https://admin.example.test/api/auth/callback",
+		Scopes:          []string{"openid", "identity.admin"},
+		TransactionTTL:  time.Minute,
+		HTTPTimeout:     time.Second,
 	}, store, secure.Keyring{})
 	if err != nil {
 		t.Fatal(err)
@@ -64,43 +64,43 @@ func newOAuthErrorCallbackHandler(t *testing.T) (*authHandlers, *oauthErrorCallb
 func TestIdentityAuthorizationErrorCallback(t *testing.T) {
 	tests := []struct {
 		name, oauthError, description, state, code string
-		wantStatus                                   int
-		wantCode                               string
+		wantStatus                                 int
+		wantCode                                   string
 	}{
 		{
 			name: "private app policy denial", oauthError: "access_denied",
 			description: "identity is denied by the application access policy",
-			state: "valid-state", wantStatus: 403, wantCode: "identity_application_access_denied",
+			state:       "valid-state", wantStatus: 403, wantCode: "identity_application_access_denied",
 		},
 		{
 			name: "consent declined", oauthError: "access_denied",
 			description: "consent declined",
-			state: "valid-state", wantStatus: 403, wantCode: "identity_consent_declined",
+			state:       "valid-state", wantStatus: 403, wantCode: "identity_consent_declined",
 		},
 		{
 			name: "unspecified denial", oauthError: "access_denied",
 			description: "arbitrary-unsafe-marker",
-			state: "valid-state", wantStatus: 403, wantCode: "identity_access_denied",
+			state:       "valid-state", wantStatus: 403, wantCode: "identity_access_denied",
 		},
 		{
 			name: "invalid authorization request", oauthError: "invalid_request",
 			description: "requested scope is not allowed",
-			state: "valid-state", wantStatus: 400, wantCode: "identity_authorization_request_rejected",
+			state:       "valid-state", wantStatus: 400, wantCode: "identity_authorization_request_rejected",
 		},
 		{
 			name: "provider outage", oauthError: "temporarily_unavailable",
 			description: "arbitrary-unsafe-marker",
-			state: "valid-state", wantStatus: 502, wantCode: "identity_provider_unavailable",
+			state:       "valid-state", wantStatus: 502, wantCode: "identity_provider_unavailable",
 		},
 		{
 			name: "unknown provider error", oauthError: "arbitrary-unsafe-marker",
 			description: "arbitrary-unsafe-marker",
-			state: "valid-state", wantStatus: 400, wantCode: "identity_authorization_failed",
+			state:       "valid-state", wantStatus: 400, wantCode: "identity_authorization_failed",
 		},
 		{
 			name: "forged error with wrong state", oauthError: "access_denied",
 			description: "identity is denied by the application access policy",
-			state: "wrong-state", wantStatus: 400, wantCode: "invalid_or_expired_state",
+			state:       "wrong-state", wantStatus: 400, wantCode: "invalid_or_expired_state",
 		},
 		{
 			name: "missing state", oauthError: "access_denied",
