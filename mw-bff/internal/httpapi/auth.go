@@ -100,12 +100,24 @@ func (h *authHandlers) callback(
 ) {
 	noStore(w)
 
-	if r.URL.Query().Get("error") != "" {
-		writeJSONError(
-			w,
-			http.StatusBadRequest,
-			"identity_authorization_failed",
+	if providerError := r.URL.Query().Get("error"); providerError != "" {
+		// Validate and consume the originating BFF transaction even on failure.
+		// Never trust a bare OAuth error query parameter or reflect the provider's
+		// free-form error_description into the browser or application logs.
+		if err := h.identity.RejectAuthorization(r.Context(), r.URL.Query().Get("state")); err != nil {
+			if errors.Is(err, identityclient.ErrTransactionNotFound) {
+				writeJSONError(w, http.StatusBadRequest, "invalid_or_expired_state")
+				return
+			}
+			slog.Error("Identity error callback state validation failed", "error", err)
+			writeJSONError(w, http.StatusInternalServerError, "identity_callback_failed")
+			return
+		}
+		status, code := classifyIdentityAuthorizationFailure(
+			providerError, r.URL.Query().Get("error_description"),
 		)
+		slog.Warn("Identity rejected Admin Web authorization", "reason", code)
+		writeJSONError(w, status, code)
 		return
 	}
 
