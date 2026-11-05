@@ -1,0 +1,39 @@
+name: MW BFF authentication checks
+
+on:
+  pull_request:
+    paths:
+      - "mw-bff/**"
+      - ".github/workflows/mw-bff-auth.yml"
+  push:
+    branches: [main]
+    paths:
+      - "mw-bff/**"
+      - ".github/workflows/mw-bff-auth.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    name: BFF Go tests and vet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: mw-bff/go.mod
+          cache-dependency-path: mw-bff/go.sum
+      - name: Verify formatting
+        run: |
+          files=$(gofmt -l mw-bff/internal/httpapi/auth.go mw-bff/internal/httpapi/auth_callback_test.go mw-bff/internal/identityclient/client.go)
+          if [ -n "$files" ]; then
+            echo "$files"
+            exit 1
+          fi
+      - name: Go tests
+        working-directory: mw-bff
+        run: go test ./...
+      - name: Go vet
+        working-directory: mw-bff
+        run: go vet ./...
