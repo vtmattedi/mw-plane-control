@@ -45,6 +45,12 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -o /out/assign-application \
     ./cmd/assign-application
 
+# Operator-only repair of an existing admin BFF registration; callable via Exec.
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
+    -o /out/repair-admin-bff \
+    ./cmd/repair-admin-bff
+
 RUN CGO_ENABLED=0 GOOS=linux go build \
     -trimpath \
     -o /out/backup-db \
@@ -87,6 +93,7 @@ COPY --from=build /out/create-application /app/create-application
 COPY --from=build /out/rotate-signing-key /app/rotate-signing-key
 COPY --from=build /out/recover-identity /app/recover-identity
 COPY --from=build /out/assign-application /app/assign-application
+COPY --from=build /out/repair-admin-bff /app/repair-admin-bff
 
 COPY --from=build /out/backup-db /app/backup-db
 COPY --from=build /out/verify-db /app/verify-db
