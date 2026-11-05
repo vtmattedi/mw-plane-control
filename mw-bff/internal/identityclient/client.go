@@ -230,6 +230,18 @@ func (c *Client) start(
 	return target.String(), nil
 }
 
+// RejectAuthorization consumes the one-time login transaction for a provider
+// error callback. A forged or replayed error must not be accepted without its
+// matching, unexpired state, and cannot be allowed to cancel a different login.
+func (c *Client) RejectAuthorization(ctx context.Context, state string) error {
+	state = strings.TrimSpace(state)
+	if state == "" {
+		return ErrTransactionNotFound
+	}
+	_, err := c.store.ClaimOIDCTransaction(ctx, hashOpaque(state), c.now().UTC())
+	return err
+}
+
 func (c *Client) Complete(
 	ctx context.Context,
 	code string,

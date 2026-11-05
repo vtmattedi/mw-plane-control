@@ -100,12 +100,31 @@ func (h *authHandlers) callback(
 ) {
 	noStore(w)
 
-	if r.URL.Query().Get("error") != "" {
-		writeJSONError(
-			w,
-			http.StatusBadRequest,
-			"identity_authorization_failed",
+	if providerError := r.URL.Query().Get("error"); providerError != "" {
+		// A response must carry either an authorization code or a provider
+		// error, never both. Reject the ambiguous callback without claiming
+		// a legitimate transaction, so it can still complete normally.
+		if r.URL.Query().Get("code") != "" {
+			writeJSONError(w, http.StatusBadRequest, "invalid_authorization_response")
+			return
+		}
+		// Validate and consume the originating BFF transaction even on failure.
+		// Never trust a bare OAuth error query parameter or reflect the provider's
+		// free-form error_description into the browser or application logs.
+		if err := h.identity.RejectAuthorization(r.Context(), r.URL.Query().Get("state")); err != nil {
+			if errors.Is(err, identityclient.ErrTransactionNotFound) {
+				writeJSONError(w, http.StatusBadRequest, "invalid_or_expired_state")
+				return
+			}
+			slog.Error("Identity error callback state validation failed", "error", err)
+			writeJSONError(w, http.StatusInternalServerError, "identity_callback_failed")
+			return
+		}
+		status, code := classifyIdentityAuthorizationFailure(
+			providerError, r.URL.Query().Get("error_description"),
 		)
+		slog.Warn("Identity rejected Admin Web authorization", "reason", code)
+		writeJSONError(w, status, code)
 		return
 	}
 
@@ -184,6 +203,29 @@ func (h *authHandlers) callback(
 		h.config.PublicBaseURL+returnTo,
 		http.StatusSeeOther,
 	)
+}
+
+// The provider controls the raw OAuth error fields, so only known, bounded
+// categories reach the browser. In particular, access_denied is not a BFF
+// session failure: it can mean app policy denial or a user-declined consent.
+func classifyIdentityAuthorizationFailure(providerError, description string) (int, string) {
+	switch providerError {
+	case "access_denied":
+		switch description {
+		case "identity is denied by the application access policy":
+			return http.StatusForbidden, "identity_application_access_denied"
+		case "consent declined":
+			return http.StatusForbidden, "identity_consent_declined"
+		default:
+			return http.StatusForbidden, "identity_access_denied"
+		}
+	case "invalid_request", "invalid_scope", "unauthorized_client":
+		return http.StatusBadRequest, "identity_authorization_request_rejected"
+	case "server_error", "temporarily_unavailable":
+		return http.StatusBadGateway, "identity_provider_unavailable"
+	default:
+		return http.StatusBadRequest, "identity_authorization_failed"
+	}
 }
 
 func (h *authHandlers) me(
