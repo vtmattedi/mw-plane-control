@@ -27,6 +27,9 @@ func (*oauthErrorCallbackStore) CreateOIDCTransaction(context.Context, identityc
 }
 
 func (s *oauthErrorCallbackStore) ClaimOIDCTransaction(_ context.Context, hash string, _ time.Time) (identityclient.Transaction, error) {
+	if s.fail != nil {
+		return identityclient.Transaction{}, s.fail
+	}
 	if s.consumed || hash != s.allowedStateHash {
 		return identityclient.Transaction{}, identityclient.ErrTransactionNotFound
 	}
