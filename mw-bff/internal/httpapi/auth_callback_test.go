@@ -63,8 +63,8 @@ func newOAuthErrorCallbackHandler(t *testing.T) (*authHandlers, *oauthErrorCallb
 
 func TestIdentityAuthorizationErrorCallback(t *testing.T) {
 	tests := []struct {
-		name, oauthError, description, state string
-		wantStatus                             int
+		name, oauthError, description, state, code string
+		wantStatus                                   int
 		wantCode                               string
 	}{
 		{
