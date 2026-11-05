@@ -47,7 +47,7 @@ func newOAuthErrorCallbackHandler(t *testing.T) (*authHandlers, *oauthErrorCallb
 	store := &oauthErrorCallbackStore{allowedStateHash: hex.EncodeToString(sum[:])}
 	client, err := identityclient.New(identityclient.Config{
 		Issuer:         "https://identity.example.test",
-		InternalBaseURL:"http://identity.internal.test",
+		InternalBaseURL: "http://identity.internal.test",
 		ClientID:       "admin",
 		ClientSecret:   "test-secret",
 		CallbackURL:    "https://admin.example.test/api/auth/callback",
