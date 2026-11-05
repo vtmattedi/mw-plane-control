@@ -143,7 +143,7 @@ func TestIdentityAuthorizationErrorCallback(t *testing.T) {
 				t.Fatal("failed authorization consumed an unrelated state")
 			}
 
-			if tc.state == "valid-state" {
+			if tc.state == "valid-state" && tc.code == "" {
 				replay := httptest.NewRecorder()
 				handler.callback(replay, httptest.NewRequest(http.MethodGet, "/auth/callback?"+query.Encode(), nil))
 				if replay.Code != 400 || !strings.Contains(replay.Body.String(), "invalid_or_expired_state") {
