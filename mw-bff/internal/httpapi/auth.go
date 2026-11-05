@@ -101,6 +101,13 @@ func (h *authHandlers) callback(
 	noStore(w)
 
 	if providerError := r.URL.Query().Get("error"); providerError != "" {
+		// A response must carry either an authorization code or a provider
+		// error, never both. Reject the ambiguous callback without claiming
+		// a legitimate transaction, so it can still complete normally.
+		if r.URL.Query().Get("code") != "" {
+			writeJSONError(w, http.StatusBadRequest, "invalid_authorization_response")
+			return
+		}
 		// Validate and consume the originating BFF transaction even on failure.
 		// Never trust a bare OAuth error query parameter or reflect the provider's
 		// free-form error_description into the browser or application logs.
