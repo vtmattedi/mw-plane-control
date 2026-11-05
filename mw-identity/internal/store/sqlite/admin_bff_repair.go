@@ -44,7 +44,7 @@ func (s *Store) RepairAdminBFFInternal(
 		return AdminBFFRepairResult{}, fmt.Errorf("%w: client ID and an exact HTTPS Admin BFF callback are required", ErrAdminBFFRepairIneligible)
 	}
 
-	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return AdminBFFRepairResult{}, fmt.Errorf("start admin BFF repair: %w", err)
 	}
