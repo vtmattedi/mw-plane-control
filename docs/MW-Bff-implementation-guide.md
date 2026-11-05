@@ -375,7 +375,10 @@ Scopes:
 ```text
 oauth.projects.read
 oauth.projects.write
+oauth.credentials.read
 oauth.credentials.rotate
+oauth.provider_credentials.read
+oauth.provider_credentials.manage
 oauth.policy.read
 oauth.policy.write
 oauth.audit.read
@@ -390,8 +393,19 @@ GET    /oauth/projects
 POST   /oauth/projects
 PATCH  /oauth/projects/{id}
 
-POST   /oauth/projects/{id}/rotate-key
 POST   /oauth/projects/{id}/rotate-callback-secret
+
+GET    /oauth/projects/summary
+GET    /oauth/projects/{id}/client
+POST   /oauth/projects/{id}/client/credentials
+DELETE /oauth/projects/{id}/client/credentials/{secretID}
+POST   /oauth/projects/{id}/client/tokens/revoke
+
+GET    /oauth/projects/{id}/oauth/google/client
+PUT    /oauth/projects/{id}/oauth/google/client
+GET    /oauth/projects/{id}/oauth/google/client/{ref}/impact
+POST   /oauth/projects/{id}/oauth/google/client/{ref}/retire
+POST   /oauth/projects/{id}/oauth/google/client/{ref}/disable
 
 GET    /oauth/projects/{id}/oauth/google
 PUT    /oauth/projects/{id}/oauth/google

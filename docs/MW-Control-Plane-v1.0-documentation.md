@@ -612,7 +612,13 @@ BFF exposes explicit routes such as:
 ```text
 /api/oauth/projects
 /api/oauth/projects/{id}
-/api/oauth/projects/{id}/rotate-key
+/api/oauth/projects/summary
+/api/oauth/projects/{id}/client
+/api/oauth/projects/{id}/client/credentials
+/api/oauth/projects/{id}/client/credentials/{secretID}
+/api/oauth/projects/{id}/client/tokens/revoke
+/api/oauth/projects/{id}/oauth/google/client
+/api/oauth/projects/{id}/oauth/google/client/{credentialRef}/{impact|retire|disable}
 /api/oauth/projects/{id}/rotate-callback-secret
 /api/oauth/projects/{id}/oauth/google
 /api/oauth/audit
@@ -628,7 +634,10 @@ Scopes:
 ```text
 oauth.projects.read
 oauth.projects.write
+oauth.credentials.read
 oauth.credentials.rotate
+oauth.provider_credentials.read
+oauth.provider_credentials.manage
 oauth.policy.read
 oauth.policy.write
 oauth.audit.read

@@ -39,14 +39,27 @@ func requireBFFWebAuthn(w http.ResponseWriter, record session.Record, maxAge tim
 	return false
 }
 
+// sensitiveOAuthRoute lists the MW OAuth admin operations that need fresh WebAuthn:
+// deleting a project, every change to a secret (callback signing secret, MW client
+// secrets and tokens, Google client credentials) and the authorization policy.
+// Reads, including the Google client metadata and the retire/disable impact, are not
+// step-up. Paths are the already-resolved downstream paths.
 func sensitiveOAuthRoute(method, path string) bool {
-	if method == http.MethodDelete && strings.HasPrefix(path, "/admin/api/projects/") {
-		return true
+	switch method {
+	case http.MethodDelete:
+		// Projects and individual MW client secrets.
+		return strings.HasPrefix(path, "/admin/api/projects/")
+	case http.MethodPost:
+		return strings.HasSuffix(path, "/rotate-callback-secret") ||
+			strings.HasSuffix(path, "/client/credentials") ||
+			strings.HasSuffix(path, "/client/tokens/revoke") ||
+			strings.HasSuffix(path, "/retire") && strings.Contains(path, "/oauth/google/client/") ||
+			strings.HasSuffix(path, "/disable") && strings.Contains(path, "/oauth/google/client/")
+	case http.MethodPut:
+		return strings.HasSuffix(path, "/oauth/google") ||
+			strings.HasSuffix(path, "/oauth/google/client")
 	}
-	if method == http.MethodPost && (strings.HasSuffix(path, "/rotate-key") || strings.HasSuffix(path, "/rotate-callback-secret")) {
-		return true
-	}
-	return method == http.MethodPut && strings.HasSuffix(path, "/oauth/google")
+	return false
 }
 
 // sensitiveMQTTRoute lists the broker operations that need fresh WebAuthn: issuing a user

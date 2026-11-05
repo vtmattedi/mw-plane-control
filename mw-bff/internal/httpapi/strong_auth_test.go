@@ -27,9 +27,6 @@ func TestRecentBFFWebAuthn(t *testing.T) {
 }
 
 func TestSensitiveFederatedRoutes(t *testing.T) {
-	if !sensitiveOAuthRoute(http.MethodPost, "/admin/api/projects/4/rotate-key") {
-		t.Fatal("OAuth API-key rotation was not marked sensitive")
-	}
 	if !sensitiveOAuthRoute(http.MethodPost, "/admin/api/projects/4/rotate-callback-secret") {
 		t.Fatal("OAuth callback-secret rotation was not marked sensitive")
 	}
@@ -50,6 +47,35 @@ func TestSensitiveFederatedRoutes(t *testing.T) {
 	}
 	if sensitiveMailRoute(http.MethodGet, "/admin/api/projects") {
 		t.Fatal("Mail read was incorrectly marked sensitive")
+	}
+}
+
+func TestSensitiveOAuthCredentialRoutes(t *testing.T) {
+	sensitive := []struct{ method, path string }{
+		{http.MethodPost, "/admin/api/projects/4/client/credentials"},
+		{http.MethodDelete, "/admin/api/projects/4/client/credentials/7"},
+		{http.MethodPost, "/admin/api/projects/4/client/tokens/revoke"},
+		{http.MethodPut, "/admin/api/projects/4/oauth/google/client"},
+		{http.MethodPost, "/admin/api/projects/4/oauth/google/client/gcred_x/retire"},
+		{http.MethodPost, "/admin/api/projects/4/oauth/google/client/gcred_x/disable"},
+	}
+	for _, r := range sensitive {
+		if !sensitiveOAuthRoute(r.method, r.path) {
+			t.Fatalf("%s %s was not marked sensitive", r.method, r.path)
+		}
+	}
+
+	notSensitive := []struct{ method, path string }{
+		{http.MethodGet, "/admin/api/projects/summary"},
+		{http.MethodGet, "/admin/api/projects/4/client"},
+		{http.MethodGet, "/admin/api/projects/4/oauth/google/client"},
+		{http.MethodGet, "/admin/api/projects/4/oauth/google/client/gcred_x/impact"},
+		{http.MethodGet, "/admin/api/projects/4/oauth/google"},
+	}
+	for _, r := range notSensitive {
+		if sensitiveOAuthRoute(r.method, r.path) {
+			t.Fatalf("%s %s was incorrectly marked sensitive", r.method, r.path)
+		}
 	}
 }
 
@@ -84,6 +110,20 @@ func TestSensitiveMQTTRoutes(t *testing.T) {
 	for _, r := range notSensitive {
 		if sensitiveMQTTRoute(r.method, r.path) {
 			t.Fatalf("%s %s was incorrectly marked sensitive", r.method, r.path)
+		}
+	}
+}
+
+func TestPassthroughServerError(t *testing.T) {
+	if !passthroughServerError([]byte(`{"error":"x","code":"google_client_unavailable"}`)) {
+		t.Fatal("google_client_unavailable must reach the browser")
+	}
+	for _, body := range []string{
+		``, `not json`, `{"code":"internal_error"}`, `{"code":"google_client_unavailable_x"}`,
+		`{"error":"database is locked"}`,
+	} {
+		if passthroughServerError([]byte(body)) {
+			t.Fatalf("body %q must stay hidden", body)
 		}
 	}
 }

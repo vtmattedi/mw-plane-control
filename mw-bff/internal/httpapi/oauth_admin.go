@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -134,7 +135,7 @@ func (p *oauthAdminProxy) serve(
 		writeJSONError(w, http.StatusBadGateway, "oauth_federation_rejected")
 		return
 	}
-	if response.StatusCode >= 500 {
+	if response.StatusCode >= 500 && !passthroughServerError(response.Body) {
 		writeJSONError(w, http.StatusBadGateway, "oauth_upstream_failed")
 		return
 	}
@@ -146,6 +147,21 @@ func (p *oauthAdminProxy) serve(
 	if len(response.Body) > 0 {
 		_, _ = w.Write(response.Body)
 	}
+}
+
+// passthroughServerError reports whether a downstream 5xx body carries a code the
+// browser needs to see as is. Only an exact allowlisted code is passed on; any other
+// 5xx body stays hidden behind oauth_upstream_failed.
+func passthroughServerError(body []byte) bool {
+	var parsed struct {
+		Code string `json:"code"`
+	}
+	if json.Unmarshal(body, &parsed) != nil {
+		return false
+	}
+	// The Google client store is not configured on the MW OAuth server: an
+	// operator condition the UI can explain, not an outage.
+	return parsed.Code == "google_client_unavailable"
 }
 
 var errOAuthRequestTooLarge = errors.New("OAuth admin request too large")

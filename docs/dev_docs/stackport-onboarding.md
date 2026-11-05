@@ -77,7 +77,9 @@ complete downstream permission set. Keep this list aligned with
 ```bash
 delegated_scopes=(
   oauth.projects.read oauth.projects.write oauth.projects.delete
-  oauth.credentials.rotate oauth.policy.read oauth.policy.write
+  oauth.credentials.read oauth.credentials.rotate
+  oauth.provider_credentials.read oauth.provider_credentials.manage
+  oauth.policy.read oauth.policy.write
   oauth.audit.read oauth.metrics.read oauth.server.read
   mail.projects.read mail.projects.write mail.projects.delete
   mail.credentials.rotate mail.emails.read mail.usage.read mail.server.read
@@ -96,6 +98,17 @@ docker exec -it "$IDENTITY_CONTAINER" /app/create-application \
   "${scope_flags[@]}" \
   --audience mw-identity-admin --audience mw-oauth --audience mw-mail
 ```
+
+**MW OAuth v1.1 scopes.** The BFF client is trusted infrastructure, and under the
+frozen Federation Contract v1.0 (section 2.1) its scopes are fixed when it is
+provisioned: Identity's admin API and UI cannot edit an infrastructure application.
+Register it with the complete list above, which already includes
+`oauth.credentials.read`, `oauth.provider_credentials.read` and
+`oauth.provider_credentials.manage`, and keep `BFF_DELEGATION_SCOPES` identical.
+Likewise register `mw-oauth` with the scopes from
+`scripts/register-step-10-oauth-resource.ps1`. Rollout order: MW OAuth v1.1, then
+Plane Control, then Web Admin. `oauth.policy.write` never grants access to Google
+client secrets.
 
 Save the one-time issued secret in Plane Control's Stackport `.env` as
 `BFF_OIDC_CLIENT_SECRET`; `BFF_OIDC_CLIENT_ID` must match the client above. The

@@ -25,7 +25,11 @@ The Identity internal URL is private transport configuration, not the public iss
 | --- | --- |
 | `GET /admin/api/projects` | `oauth.projects.read` |
 | `POST /admin/api/projects`, `PATCH /admin/api/projects/{id}` | `oauth.projects.write` |
-| project API-key and callback-secret rotation | `oauth.credentials.rotate` |
+| callback-secret rotation; MW client create, secret add/revoke, token revoke | `oauth.credentials.rotate` |
+| `GET` MW client metadata | `oauth.credentials.read` |
+| `GET` Google client credentials and retire/disable impact | `oauth.provider_credentials.read` |
+| `PUT` Google client credentials, `POST` retire / disable | `oauth.provider_credentials.manage` |
+| `GET /admin/api/projects/summary` | `oauth.projects.read` |
 | `GET` / `PUT` project Google OAuth policy | `oauth.policy.read` / `oauth.policy.write` |
 | audit list/detail | `oauth.audit.read` |
 | metrics | `oauth.metrics.read` |

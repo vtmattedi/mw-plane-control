@@ -14,12 +14,17 @@ const (
 	ScopeProjectsRead      = "oauth.projects.read"
 	ScopeProjectsWrite     = "oauth.projects.write"
 	ScopeProjectsDelete    = "oauth.projects.delete"
+	ScopeCredentialsRead   = "oauth.credentials.read"
 	ScopeCredentialsRotate = "oauth.credentials.rotate"
-	ScopePolicyRead        = "oauth.policy.read"
-	ScopePolicyWrite       = "oauth.policy.write"
-	ScopeAuditRead         = "oauth.audit.read"
-	ScopeMetricsRead       = "oauth.metrics.read"
-	ScopeServerRead        = "oauth.server.read"
+	// Google client credentials have their own scopes: oauth.policy.write
+	// alone must never allow changing a Google client secret.
+	ScopeProviderCredentialsRead   = "oauth.provider_credentials.read"
+	ScopeProviderCredentialsManage = "oauth.provider_credentials.manage"
+	ScopePolicyRead                = "oauth.policy.read"
+	ScopePolicyWrite               = "oauth.policy.write"
+	ScopeAuditRead                 = "oauth.audit.read"
+	ScopeMetricsRead               = "oauth.metrics.read"
+	ScopeServerRead                = "oauth.server.read"
 )
 
 var ErrRouteNotFound = errors.New("MW OAuth admin route not found")
@@ -40,6 +45,8 @@ func Resolve(method string, facadePath string) (Route, error) {
 
 	switch {
 	case method == http.MethodGet && path == "/projects":
+		return route(path, ScopeProjectsRead), nil
+	case method == http.MethodGet && path == "/projects/summary":
 		return route(path, ScopeProjectsRead), nil
 	case method == http.MethodPost && path == "/projects":
 		return route(path, ScopeProjectsWrite), nil
@@ -74,17 +81,51 @@ func Resolve(method string, facadePath string) (Route, error) {
 		return route(path, ScopeProjectsWrite), nil
 	case len(parts) == 2 && method == http.MethodDelete:
 		return route(path, ScopeProjectsDelete), nil
-	case len(parts) == 3 && method == http.MethodPost && parts[2] == "rotate-key":
-		return route(path, ScopeCredentialsRotate), nil
 	case len(parts) == 3 && method == http.MethodPost && parts[2] == "rotate-callback-secret":
 		return route(path, ScopeCredentialsRotate), nil
 	case len(parts) == 4 && parts[2] == "oauth" && parts[3] == "google" && method == http.MethodGet:
 		return route(path, ScopePolicyRead), nil
 	case len(parts) == 4 && parts[2] == "oauth" && parts[3] == "google" && method == http.MethodPut:
 		return route(path, ScopePolicyWrite), nil
-	default:
-		return Route{}, ErrRouteNotFound
 	}
+
+	return resolveCredentialRoute(method, path, parts)
+}
+
+// resolveCredentialRoute maps the MW application client and Google client
+// credential routes. parts is the split path, starting with "projects".
+func resolveCredentialRoute(method string, path string, parts []string) (Route, error) {
+	switch {
+	// MW application client.
+	case len(parts) == 3 && parts[2] == "client" && method == http.MethodGet:
+		return route(path, ScopeCredentialsRead), nil
+	case len(parts) == 4 && parts[2] == "client" && parts[3] == "credentials" && method == http.MethodPost:
+		return route(path, ScopeCredentialsRotate), nil
+	case len(parts) == 5 && parts[2] == "client" && parts[3] == "credentials" &&
+		method == http.MethodDelete && positiveDecimal(parts[4]):
+		return route(path, ScopeCredentialsRotate), nil
+	case len(parts) == 5 && parts[2] == "client" && parts[3] == "tokens" &&
+		parts[4] == "revoke" && method == http.MethodPost:
+		return route(path, ScopeCredentialsRotate), nil
+
+	// Google OAuth client credentials.
+	case len(parts) == 5 && parts[2] == "oauth" && parts[3] == "google" && parts[4] == "client":
+		switch method {
+		case http.MethodGet:
+			return route(path, ScopeProviderCredentialsRead), nil
+		case http.MethodPut:
+			return route(path, ScopeProviderCredentialsManage), nil
+		}
+	case len(parts) == 7 && parts[2] == "oauth" && parts[3] == "google" &&
+		parts[4] == "client" && validCredentialRef(parts[5]):
+		switch {
+		case method == http.MethodGet && parts[6] == "impact":
+			return route(path, ScopeProviderCredentialsRead), nil
+		case method == http.MethodPost && (parts[6] == "retire" || parts[6] == "disable"):
+			return route(path, ScopeProviderCredentialsManage), nil
+		}
+	}
+	return Route{}, ErrRouteNotFound
 }
 
 func route(path string, scope string) Route {
@@ -114,6 +155,11 @@ func cleanFacadePath(value string) string {
 func positiveDecimal(value string) bool {
 	parsed, err := strconv.ParseInt(value, 10, 64)
 	return err == nil && parsed > 0
+}
+
+// validCredentialRef accepts the opaque gcred_ references.
+func validCredentialRef(value string) bool {
+	return strings.HasPrefix(value, "gcred_") && validSegment(value)
 }
 
 func validSegment(value string) bool {

@@ -124,7 +124,9 @@ $RecoveryCookieJar = Join-Path $env:TEMP "mw-step12-recovery-$Stamp.cookies"
 $Headers = Join-Path $env:TEMP "mw-step12-$Stamp.headers"
 
 $OAuthScopes = @(
-    "oauth.projects.read", "oauth.projects.write", "oauth.projects.delete", "oauth.credentials.rotate",
+    "oauth.projects.read", "oauth.projects.write", "oauth.projects.delete",
+    "oauth.credentials.read", "oauth.credentials.rotate",
+    "oauth.provider_credentials.read", "oauth.provider_credentials.manage",
     "oauth.policy.read", "oauth.policy.write", "oauth.audit.read",
     "oauth.metrics.read", "oauth.server.read"
 )

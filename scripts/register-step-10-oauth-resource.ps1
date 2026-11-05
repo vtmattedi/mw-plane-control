@@ -36,7 +36,10 @@ try {
         --scope oauth.projects.read `
         --scope oauth.projects.write `
         --scope oauth.projects.delete `
+        --scope oauth.credentials.read `
         --scope oauth.credentials.rotate `
+        --scope oauth.provider_credentials.read `
+        --scope oauth.provider_credentials.manage `
         --scope oauth.policy.read `
         --scope oauth.policy.write `
         --scope oauth.audit.read `
