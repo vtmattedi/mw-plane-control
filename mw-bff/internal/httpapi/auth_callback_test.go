@@ -119,6 +119,9 @@ func TestIdentityAuthorizationErrorCallback(t *testing.T) {
 			if tc.state != "" {
 				query.Set("state", tc.state)
 			}
+			if tc.code != "" {
+				query.Set("code", tc.code)
+			}
 			rec := httptest.NewRecorder()
 			handler.callback(rec, httptest.NewRequest(http.MethodGet, "/auth/callback?"+query.Encode(), nil))
 			if rec.Code != tc.wantStatus {
