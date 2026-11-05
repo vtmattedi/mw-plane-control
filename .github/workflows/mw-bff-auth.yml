@@ -26,6 +26,7 @@ jobs:
           cache-dependency-path: mw-bff/go.sum
       - name: Verify formatting
         run: |
+          gofmt -d mw-bff/internal/httpapi/auth.go mw-bff/internal/httpapi/auth_callback_test.go mw-bff/internal/identityclient/client.go
           files=$(gofmt -l mw-bff/internal/httpapi/auth.go mw-bff/internal/httpapi/auth_callback_test.go mw-bff/internal/identityclient/client.go)
           if [ -n "$files" ]; then
             echo "$files"
