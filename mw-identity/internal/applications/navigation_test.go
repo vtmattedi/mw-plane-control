@@ -26,3 +26,50 @@ func TestProductionClosesLocalhostHTTPException(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestProductionOIDCRedirectsAllowLocalhostHTTPOnly(t *testing.T) {
+	allowed := []string{
+		"http://localhost:3001/auth/callback",
+		"http://localhost:5173/",
+		"http://LOCALHOST:3001/auth/callback",
+		"https://calc.example.com/auth/callback",
+		"",
+	}
+	if err := ValidateProductionRedirectURIs(allowed...); err != nil {
+		t.Fatalf("expected browser redirect URL list to be accepted: %v", err)
+	}
+
+	for _, rejected := range []string{
+		"http://example.com/auth/callback",
+		"http://localhost.evil.example/auth/callback",
+		"http://localhost.localdomain/auth/callback",
+		"http://127.0.0.1:3001/auth/callback",
+		"http://[::1]:3001/auth/callback",
+		"http://user:secret@localhost:3001/auth/callback",
+		"http://localhost:3001/auth/callback#fragment",
+		"javascript:alert(1)",
+		"//localhost:3001/auth/callback",
+	} {
+		t.Run(rejected, func(t *testing.T) {
+			if err := ValidateProductionRedirectURIs(rejected); err == nil {
+				t.Fatalf("accepted unexpected production redirect: %q", rejected)
+			}
+		})
+	}
+
+	if err := ValidateProductionRedirectURIs(
+		"https://calc.example.com/auth/callback",
+		"http://not-localhost.example/callback",
+	); err == nil {
+		t.Fatal("accepted one invalid redirect among valid entries")
+	}
+}
+
+func TestProductionLifecycleCallbackStillRequiresHTTPS(t *testing.T) {
+	if err := ValidateProductionURIs("http://localhost:3001/auth/account-deleted"); err == nil {
+		t.Fatal("production identity-deletion callback cannot target HTTP localhost")
+	}
+	if err := ValidateProductionURIs("https://calc.example.com/identity/account-deleted"); err != nil {
+		t.Fatalf("public HTTPS lifecycle callback rejected: %v", err)
+	}
+}
