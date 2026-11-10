@@ -111,9 +111,11 @@ func (s *Service) Create(
 		return CreateResult{}, ErrInvalidApplication
 	}
 	if s.production {
-		uris := append(append([]string{}, redirectURIs...), postLogout...)
-		uris = append(uris, deleteCallback, management, deletion)
-		if err = ValidateProductionURIs(uris...); err != nil {
+		redirects := append(append([]string{}, redirectURIs...), postLogout...)
+		if err = ValidateProductionRedirectURIs(redirects...); err != nil {
+			return CreateResult{}, ErrInvalidApplication
+		}
+		if err = ValidateProductionURIs(deleteCallback, management, deletion); err != nil {
 			return CreateResult{}, ErrInvalidApplication
 		}
 	}
