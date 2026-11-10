@@ -224,3 +224,77 @@ func TestCreateEnforcesTheDeletionContract(t *testing.T) {
 		})
 	}
 }
+
+func TestProductionCreateAllowsLocalhostOIDCRedirects(t *testing.T) {
+	cases := []struct {
+		name           string
+		redirect       string
+		postLogout     string
+		deleteCallback string
+		wantError      bool
+	}{
+		{
+			name:           "localhost HTTP browser callbacks are valid with HTTPS lifecycle endpoint",
+			redirect:       "http://localhost:3001/auth/callback",
+			postLogout:     "http://localhost:5173/",
+			deleteCallback: "https://calc.example.com/identity/account-deleted",
+		},
+		{
+			name:           "external HTTP browser redirects remain invalid",
+			redirect:       "http://example.com/auth/callback",
+			deleteCallback: "https://calc.example.com/identity/account-deleted",
+			wantError:      true,
+		},
+		{
+			name:           "production localhost deletion callback remains invalid",
+			redirect:       "http://localhost:3001/auth/callback",
+			deleteCallback: "http://localhost:3001/auth/account-deleted",
+			wantError:      true,
+		},
+		{
+			name:           "production external HTTP deletion callback remains invalid",
+			redirect:       "http://localhost:3001/auth/callback",
+			deleteCallback: "http://calc.example.com/identity/account-deleted",
+			wantError:      true,
+		},
+		{
+			name:           "post-logout HTTP must be localhost",
+			redirect:       "http://localhost:3001/auth/callback",
+			postLogout:     "http://example.com/",
+			deleteCallback: "https://calc.example.com/identity/account-deleted",
+			wantError:      true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			service, err := NewService(&memoryApplicationStore{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			service.RequireHTTPS(true)
+			result, err := service.Create(context.Background(), CreateRequest{
+				Name:                   "MW Calc",
+				ClientID:               "mw-calc-local",
+				ApplicationType:        "confidential",
+				AccessPolicy:           "default_deny",
+				RedirectURIs:           []string{tc.redirect},
+				PostLogoutRedirectURIs: []string{tc.postLogout},
+				DeleteCallbackURI:      tc.deleteCallback,
+				Scopes:                 []string{"openid", "profile", "email"},
+			})
+			if tc.wantError {
+				if err != ErrInvalidApplication {
+					t.Fatalf("error = %v, want ErrInvalidApplication", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if len(result.Application.RedirectURIs) != 1 ||
+				result.Application.RedirectURIs[0] != tc.redirect {
+				t.Fatalf("unexpected redirect URIs: %v", result.Application.RedirectURIs)
+			}
+		})
+	}
+}
