@@ -30,7 +30,8 @@ func ValidateNavigationURI(value string) (string, error) {
 	return value, nil
 }
 
-// ValidateProductionURIs closes the development localhost exception at runtime.
+// ValidateProductionURIs requires HTTPS for production server-side callbacks
+// and application navigation links. Loopback redirects are validated separately.
 func ValidateProductionURIs(values ...string) error {
 	for _, value := range values {
 		if value == "" {
@@ -40,6 +41,29 @@ func ValidateProductionURIs(values ...string) error {
 		if err != nil || len(value) > 2048 || u.Scheme != "https" || u.Host == "" || u.User != nil || u.Fragment != "" {
 			return fmt.Errorf("production URI requires HTTPS")
 		}
+	}
+	return nil
+}
+
+
+// ValidateProductionRedirectURIs allows OAuth's exact-match loopback development
+// exception for browser redirects, even when the Identity provider runs in
+// production. These URLs are sent to a user's browser, not fetched by Identity.
+// Do not use this function for server-to-server lifecycle callbacks.
+func ValidateProductionRedirectURIs(values ...string) error {
+	for _, value := range values {
+		if value == "" {
+			continue
+		}
+		u, err := url.Parse(value)
+		if err != nil || len(value) > 2048 || u.Host == "" || u.User != nil || u.Fragment != "" {
+			return fmt.Errorf("invalid production OIDC redirect URI")
+		}
+		if u.Scheme == "https" ||
+			(u.Scheme == "http" && strings.EqualFold(u.Hostname(), "localhost")) {
+			continue
+		}
+		return fmt.Errorf("production OIDC redirect URI requires HTTPS outside localhost")
 	}
 	return nil
 }
