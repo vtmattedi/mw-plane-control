@@ -14,7 +14,7 @@ There is no per-client migration mode or ordinary-app superadmin bypass. `authen
 
 Infrastructure clients are provisioned through the audited host-operator `create-application --internal` workflow. Normal API/forms cannot create or promote infrastructure or privileged Identity registrations. Private ordinary apps are not infrastructure. Trusted infrastructure remains separately classified and audited. Ordinary applications must configure a deletion callback; incomplete stored registrations are reported for correction, never treated as proof of erasure.
 
-Registry URLs reject credentials/fragments and have bounded length. HTTPS is required, with an explicit HTTP localhost development exception. Account navigation embeds no subject, token or deletion authority. Production callback dialing additionally rejects nonpublic network addresses and redirects.
+Registry URLs reject credentials/fragments and have bounded length. HTTPS is required except that **OIDC redirect and post-logout redirect URIs may use `http://localhost:<port>/...`, even when Identity is deployed in production**; callback matching remains exact and requires PKCE. The exception is strictly limited to the hostname `localhost` (not arbitrary HTTP hosts or IP addresses). **Account-deletion callbacks and application-management/deletion navigation URLs still require HTTPS in production.** An Identity server cannot deliver a server-to-server deletion event to a developer's `localhost`: that host refers to the Identity server itself. Account navigation embeds no subject, token or deletion authority. Production callback dialing additionally rejects nonpublic network addresses and redirects.
 
 ## 2. Authorize with PKCE, state and nonce
 
