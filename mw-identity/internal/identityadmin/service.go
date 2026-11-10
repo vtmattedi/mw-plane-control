@@ -280,9 +280,11 @@ func (s *Service) UpdateApplication(
 	}
 
 	if s.production {
-		uris := append(append([]string{}, normalized.RedirectURIs...), normalized.PostLogoutRedirectURIs...)
-		uris = append(uris, normalized.DeleteCallbackURI, normalized.AccountManagementURI, normalized.AccountDeletionURI)
-		if err = applications.ValidateProductionURIs(uris...); err != nil {
+		redirects := append(append([]string{}, normalized.RedirectURIs...), normalized.PostLogoutRedirectURIs...)
+		if err = applications.ValidateProductionRedirectURIs(redirects...); err != nil {
+			return applications.Application{}, ErrInvalid
+		}
+		if err = applications.ValidateProductionURIs(normalized.DeleteCallbackURI, normalized.AccountManagementURI, normalized.AccountDeletionURI); err != nil {
 			return applications.Application{}, ErrInvalid
 		}
 	}
